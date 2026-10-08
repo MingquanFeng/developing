@@ -1,0 +1,104 @@
+/* ============================================================
+   STORY —— 满屏重点故事（页面中段视觉高潮）
+   ============================================================ */
+.story {
+  position: relative;
+  height: 100vh;
+  min-height: 720px;
+  width: 100%;
+  overflow: hidden;
+  background: var(--ink-2);
+}
+.media { position: absolute; inset: 0; }
+.img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(.65) contrast(1.1) brightness(.7);
+  transform: scale(1.05);
+}
+.scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 70% 60%, transparent 35%, rgba(15,17,21,.65) 85%),
+    linear-gradient(180deg, rgba(15,17,21,.45) 0%, transparent 30%, transparent 60%, rgba(15,17,21,.92) 100%);
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  padding: 110px var(--pad-x) 130px;
+  color: var(--ink);
+}
+
+.title {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(72px, 12vw, 200px);
+  line-height: 1;
+  letter-spacing: -.01em;
+  align-self: end;
+  display: flex;
+  flex-direction: column;
+  gap: .04em;
+}
+.titleMain {
+  font-weight: 500;
+  letter-spacing: .25em;
+}
+.titleSub {
+  padding-left: .2em;
+  font-style: italic;
+  color: var(--ink);
+  opacity: .7;
+  font-size: .55em;
+  letter-spacing: .12em;
+}
+
+.copy {
+  max-width: 520px;
+  margin-top: 32px;
+  font-size: 15.5px;
+  line-height: 1.6;
+}
+.copy p { color: rgba(221,226,230,.88); }
+
+.cta {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 36px;
+  flex-wrap: wrap;
+}
+.caption {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgba(221,226,230,.7);
+}
+
+.meta {
+  position: absolute;
+  inset: auto var(--pad-x) 46px var(--pad-x);
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 30px;
+  color: var(--ink);
+}
+.metaCol { display: flex; flex-direction: column; gap: 6px; }
+.metaCol .kicker { color: rgba(221,226,230,.7); margin-bottom: 0; opacity: 1; }
+.metaVal {
+  font-family: var(--display);
+  font-size: 18px;
+  letter-spacing: .08em;
+}
+
+@media (max-width: 680px) {
+  .meta { grid-template-columns: repeat(2, 1fr); gap: 18px; }
+}

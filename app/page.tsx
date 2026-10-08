@@ -1,69 +1,57 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import Nav from "@/components/Nav";
+import MetaBar from "@/components/MetaBar";
+import Hero from "@/components/Hero";
+import Interlude from "@/components/Interlude";
+import Works, { ImageFallbackProvider } from "@/components/Works";
+import Coords from "@/components/Coords";
+import Story from "@/components/Story";
+import About from "@/components/About";
+import Subscribe from "@/components/Subscribe";
+import Footer from "@/components/Footer";
+import { interlude01, interlude03 } from "@/lib/data";
 
+/**
+ * 视觉节奏（严格遵循「影像—留白—文字—影像」）：
+ *  01 HERO      满屏影像
+ *  02 手记 01   浅色留白 · 文字
+ *  03 WORKS     深底 · 单图目录（每屏仅一张主图）
+ *  04 手记 02   最深冷黑 · 坐标表
+ *  05 STORY     满屏影像（视觉高潮）
+ *  06 手记 03   浅色留白 · 大留白
+ *  07 ABOUT     浅色双栏
+ *  08 SUBSCRIBE 浅纸色
+ *  09 FOOTER    最深冷黑
+ */
 export default function Home() {
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <>
+      <ImageFallbackProvider />
+      <Nav />
+      <MetaBar />
+
+      <main>
+        <Hero />
+        <Interlude
+          id="journal"
+          kicker={interlude01.kicker}
+          lines={interlude01.quote}
+          emphasisIndex={interlude01.emphasisIndex}
+          sig={interlude01.sig}
         />
-        <div className={styles.intro}>
-          <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
-          </h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+        <Works />
+        <Coords />
+        <Story />
+        <Interlude
+          kicker={interlude03.kicker}
+          lines={interlude03.quote}
+          small
+          variant="minimal"
+        />
+        <About />
+        <Subscribe />
       </main>
-    </div>
+
+      <Footer />
+    </>
   );
 }

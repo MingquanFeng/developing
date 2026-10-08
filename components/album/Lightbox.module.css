@@ -1,0 +1,141 @@
+/* ============================================================
+   灯箱 — 全屏看片
+   最深冷黑底，压住一切；只有影像与极小的 mono 标注
+   ============================================================ */
+
+.box {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--ink-2);
+  display: grid;
+  /* minmax(0,1fr) 而非 1fr：1fr 的最小值是 auto，图片的 min-content
+     高度会把中间轨道撑爆，导致底部信息压在图上 */
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  animation: boxIn .45s var(--ease-out) both;
+}
+@keyframes boxIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 0 clamp(16px, 6vw, 90px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 关键：绝对定位 + inset:0，而不是 width/height:100%。
+   .stage 是 grid 容器且行高为 auto，居中的 grid item 上写 height:100%
+   解析不出确定高度（实测：声明 517 高，实际按原图比例算成 844 高，溢出舞台 327px）。
+   绝对定位的 inset:0 直接由 stage 的 padding box 推出确定宽高，不经过百分比。 */
+.img {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: grayscale(.1) contrast(1.02);
+  animation: imgIn .7s var(--ease-out) both;
+}
+@keyframes imgIn {
+  from { opacity: 0; transform: scale(.985); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ---------- 顶部条 ---------- */
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 26px var(--pad-x) 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink);
+  opacity: .6;
+}
+.barSep { flex: 1; height: 1px; background: var(--line); }
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 15px;
+  line-height: 1;
+  opacity: .7;
+  cursor: pointer;
+  transition: opacity .3s var(--ease), background .3s var(--ease),
+              color .3s var(--ease);
+}
+.icon:hover { opacity: 1; background: var(--ink); color: var(--ink-2); }
+.icon:disabled { opacity: .15; cursor: default; }
+.icon:disabled:hover { background: none; color: inherit; }
+
+/* ---------- 底部信息 ---------- */
+.foot {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 30px;
+  padding: 26px var(--pad-x) 30px;
+  color: var(--ink);
+}
+.title {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(24px, 2.4vw, 38px);
+  line-height: 1.1;
+  letter-spacing: .03em;
+  margin-bottom: 10px;
+}
+.caption {
+  font-size: 13.5px;
+  line-height: 1.6;
+  opacity: .55;
+  max-width: 560px;
+}
+.specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-top: 14px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .4;
+}
+
+.download {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: .7;
+  transition: opacity .3s var(--ease), background .3s var(--ease),
+              color .3s var(--ease);
+}
+.download:hover { opacity: 1; background: var(--ink); color: var(--ink-2); }
+
+@media (max-width: 720px) {
+  .foot { grid-template-columns: 1fr; gap: 20px; }
+  .download { justify-self: start; }
+  .specs { gap: 4px 14px; }
+}

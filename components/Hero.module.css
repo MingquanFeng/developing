@@ -1,0 +1,122 @@
+/* ============================================================
+   HERO —— 固定满屏首屏
+   ============================================================ */
+.hero {
+  position: relative;
+  height: 100vh;
+  min-height: 720px;
+  width: 100%;
+  overflow: hidden;
+  background: var(--ink-2);
+}
+
+.media { position: absolute; inset: 0; overflow: hidden; }
+
+.img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.06);
+  filter: grayscale(.55) contrast(1.08) brightness(.82);
+  animation: heroZoom 18s var(--ease) infinite alternate;
+}
+@keyframes heroZoom {
+  from { transform: scale(1.02); }
+  to   { transform: scale(1.12); }
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 50%, transparent 30%, rgba(15,17,21,.6) 80%),
+    linear-gradient(180deg, rgba(15,17,21,.45) 0%, transparent 30%, transparent 60%, rgba(15,17,21,.78) 100%);
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  padding: 110px var(--pad-x) 130px;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  color: var(--ink);
+}
+
+.top { display: flex; gap: 6px; }
+
+.title {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(72px, 12.5vw, 200px);
+  line-height: 1;
+  letter-spacing: -.01em;
+  align-self: end;
+  margin-bottom: 28px;
+}
+.titleMask {
+  display: block;
+  overflow: hidden;
+}
+.titleMask > span {
+  display: block;
+  transform: translateY(110%);
+  animation: heroUp 1.4s var(--ease-out) forwards;
+}
+.titleMask:nth-child(2) > span { animation-delay: .15s; }
+@keyframes heroUp { to { transform: translateY(0); } }
+
+.sub {
+  max-width: 520px;
+  font-size: 15px;
+  line-height: 1.6;
+  opacity: 0;
+  animation: fadeIn 1.2s var(--ease-out) 1s forwards;
+}
+.sub p { color: rgba(221,226,230,.88); }
+@keyframes fadeIn { to { opacity: 1; } }
+
+.cta {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 26px;
+  flex-wrap: wrap;
+  opacity: 0;
+  animation: fadeIn 1.2s var(--ease-out) 1.4s forwards;
+}
+.caption {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: rgba(221,226,230,.75);
+}
+
+.meta {
+  position: absolute;
+  inset: auto var(--pad-x) 46px var(--pad-x);
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 30px;
+  color: var(--ink);
+  opacity: 0;
+  animation: fadeIn 1.2s var(--ease-out) 1.6s forwards;
+}
+.metaCol { display: flex; flex-direction: column; gap: 6px; }
+.metaCol .kicker {
+  color: rgba(221,226,230,.7);
+  margin-bottom: 0;
+  font-size: 10px;
+  opacity: 1;
+}
+.metaVal {
+  font-family: var(--display);
+  font-size: 16px;
+  letter-spacing: .08em;
+}
+
+@media (max-width: 680px) {
+  .meta { grid-template-columns: repeat(2, 1fr); gap: 18px; }
+}

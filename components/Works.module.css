@@ -1,0 +1,143 @@
+.works {
+  background: var(--bg);
+  padding: var(--pad-y) var(--pad-x);
+  position: relative;
+  color: var(--ink);
+}
+
+.head {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 40px;
+  align-items: end;
+  margin: 0 auto 80px;
+  max-width: 1400px;
+}
+
+.title {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(54px, 7.5vw, 124px);
+  line-height: .98;
+  letter-spacing: .02em;
+  grid-column: 1;
+}
+.title em {
+  display: block;
+  font-style: normal;
+}
+.titleSuffix {
+  font-size: .4em;
+  vertical-align: middle;
+  margin-left: .25em;
+  opacity: .55;
+}
+
+.side {
+  grid-column: 2;
+  align-self: end;
+  max-width: 380px;
+}
+.side p {
+  font-size: 13.5px;
+  line-height: 1.65;
+  opacity: .55;
+  white-space: pre-line;
+}
+
+.layout {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: clamp(40px, 6vw, 120px);
+  align-items: start;
+}
+
+/* ---------- 目录（左） ---------- */
+.catalog {
+  border-top: 1px solid var(--line);
+}
+.item {
+  display: grid;
+  grid-template-columns: 60px 1fr auto;
+  gap: 24px;
+  align-items: center;
+  padding: 36px 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  position: relative;
+  transition: padding .5s var(--ease);
+  outline: none;
+}
+.item::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform .6s var(--ease);
+  z-index: 0;
+}
+.item:hover::before,
+.item:focus-visible::before,
+.itemActive::before { transform: scaleX(1); }
+
+.item > * { position: relative; z-index: 1; transition: color .4s var(--ease); }
+
+.item:hover,
+.item:focus-visible,
+.itemActive { padding-left: 18px; }
+
+.item:hover .no, .item:focus-visible .no, .itemActive .no,
+.item:hover .name, .item:focus-visible .name, .itemActive .name,
+.item:hover .meta, .item:focus-visible .meta, .itemActive .meta,
+.item:hover .note, .item:focus-visible .note, .itemActive .note,
+.item:hover .arrow, .item:focus-visible .arrow, .itemActive .arrow {
+  color: var(--text-dark);
+}
+
+.no {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .14em;
+  opacity: .55;
+}
+.name {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(26px, 2.8vw, 40px);
+  line-height: 1.1;
+  letter-spacing: .04em;
+  margin-bottom: 10px;
+}
+.meta {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .6;
+  margin-bottom: 10px;
+}
+.note {
+  font-size: 14px;
+  line-height: 1.55;
+  opacity: .75;
+  max-width: 460px;
+}
+.arrow {
+  font-size: 22px;
+  opacity: .55;
+  transition: transform .4s var(--ease), opacity .4s var(--ease);
+}
+.item:hover .arrow, .item:focus-visible .arrow, .itemActive .arrow {
+  transform: translateX(6px);
+  opacity: 1;
+}
+
+@media (max-width: 1100px) {
+  .head { grid-template-columns: 1fr; }
+  .side { grid-column: 1; }
+  .layout { grid-template-columns: 1fr; }
+}

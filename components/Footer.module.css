@@ -1,0 +1,81 @@
+.foot {
+  background: var(--ink-2);
+  color: var(--ink);
+  padding: clamp(80px, 10vh, 140px) var(--pad-x) 50px;
+}
+
+.top {
+  max-width: 1400px;
+  margin: 0 auto 80px;
+  padding-bottom: 60px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(72px, 14vw, 240px);
+  line-height: 1;
+  letter-spacing: .18em;
+}
+
+.line {
+  font-size: 14px;
+  letter-spacing: .08em;
+  opacity: .65;
+  max-width: 600px;
+  margin-top: 30px;
+  line-height: 1.7;
+}
+
+.grid {
+  max-width: 1400px;
+  margin: 0 auto 70px;
+  display: grid;
+  /* auto-fit 而非固定 4 列：columns 数量由 lib/data.ts 决定，
+     写死列数会在增删栏目后留出空格 */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 40px;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.col .kicker { color: var(--ink); opacity: .55; }
+.col p {
+  font-family: var(--display);
+  font-size: 16px;
+  line-height: 1.7;
+  letter-spacing: .04em;
+}
+.col a {
+  display: inline-block;
+  border-bottom: 1px solid var(--line);
+  transition: border-color .3s var(--ease), color .3s var(--ease);
+}
+.col a:hover { border-color: var(--hot); color: var(--hot); }
+
+.bot {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 30px;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .55;
+}
+.backTop { cursor: pointer; background: none; border: 0; }
+
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 680px) {
+  .bot { flex-direction: column; gap: 10px; text-align: center; }
+}

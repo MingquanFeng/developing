@@ -1,0 +1,101 @@
+/* ============================================================
+   INTERLUDE —— 文字间奏 / 大留白
+   变体：plain（冷纸灰） / dark（最深冷黑） / minimal（大留白）
+   ============================================================ */
+.interlude {
+  background: var(--paper);
+  color: var(--text-dark);
+  padding: var(--pad-y) var(--pad-x);
+  position: relative;
+}
+.interlude--dark {
+  background: var(--ink-2);
+  color: var(--ink);
+}
+.interlude--minimal {
+  padding: clamp(120px, 16vh, 240px) var(--pad-x);
+}
+
+.inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.inner--wide { max-width: 1240px; }
+
+.quote {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(30px, 4.5vw, 58px);
+  line-height: 1.25;
+  letter-spacing: .04em;
+  margin: 1em 0;
+}
+.quote--small {
+  font-size: clamp(22px, 2.8vw, 34px);
+  line-height: 1.45;
+  letter-spacing: .08em;
+}
+.quoteLine { display: block; overflow: hidden; }
+.quoteLine > span {
+  display: block;
+  transform: translateY(110%);
+  transition: transform 1.1s var(--ease-out);
+}
+.quoteLine.is-in > span { transform: translateY(0); }
+
+.quote em {
+  font-style: italic;
+  color: var(--hot);
+}
+
+.sig {
+  margin-top: 3em;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .6;
+}
+
+/* ---------- 坐标表 ---------- */
+.coords { margin-top: 1.6em; }
+.coordRow {
+  display: grid;
+  grid-template-columns: 80px 1.4fr 1fr 1fr 0.6fr;
+  align-items: baseline;
+  gap: 24px;
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+  font-family: var(--display);
+  font-size: clamp(18px, 2.2vw, 30px);
+  letter-spacing: .04em;
+  color: var(--ink);
+  transition: background .4s var(--ease);
+}
+.coordRow:last-child { border-bottom: 1px solid var(--line); }
+.coordRow:hover { background: rgba(221,226,230,.03); }
+.coordRow:hover .coordPlace { font-style: italic; color: var(--hot); }
+
+.coordNo,
+.coordA,
+.coordB,
+.coordTime {
+  font-family: var(--mono);
+  letter-spacing: .14em;
+}
+.coordNo { font-size: 11px; opacity: .55; }
+.coordA, .coordB, .coordTime { font-size: 12px; letter-spacing: .12em; opacity: .65; }
+.coordPlace { font-weight: 500; }
+
+@media (max-width: 1100px) {
+  .coordRow {
+    grid-template-columns: 60px 1fr 1fr;
+    grid-template-rows: auto auto;
+    row-gap: 4px;
+  }
+  .coordA, .coordB { grid-row: 2; }
+}
+@media (max-width: 680px) {
+  .coordRow { grid-template-columns: 50px 1fr; }
+  .coordA, .coordB, .coordTime { display: none; }
+}

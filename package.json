@@ -2,10 +2,24 @@
   "name": "developing",
   "version": "0.1.0",
   "private": true,
+  "description": "塞上空许 — 至静之极。先锋人像摄影师作品集与私人相册。Next.js 16 纯静态导出，含腾讯云 COS 图床的相册浏览层。",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MingquanFeng/developing.git"
+  },
+  "keywords": [
+    "nextjs",
+    "static-export",
+    "photo-album",
+    "tencent-cos",
+    "photography"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "next": "16.3.7",
