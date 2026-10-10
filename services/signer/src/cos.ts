@@ -27,7 +27,7 @@ function sortableId(): string {
 
 /**
  * 由服务端生成对象键，**绝不信前端传来的 key**。
- * 形如 photos/2026/10/m3k9x-1a2b3c4d-shanghai.jpg
+ * 形如 image/2026/10/m3k9x-1a2b3c4d-shanghai.jpg
  */
 export function makePhotoKey(originalName: string): string {
   const now = new Date();
@@ -37,7 +37,7 @@ export function makePhotoKey(originalName: string): string {
 }
 
 export const isPhotoKey = (key: string) => key.startsWith(PHOTO_PREFIX);
-/** 拒绝任何非 photos/ 前缀的对象，防止接口被拿来删元数据 */
+/** 拒绝任何非 image/ 前缀的对象，防止接口被拿来删元数据 */
 export const isTrashKey = (key: string) => key.startsWith(TRASH_PREFIX);
 
 /* ---------- 预签名 ---------- */

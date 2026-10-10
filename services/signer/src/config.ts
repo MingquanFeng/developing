@@ -37,9 +37,11 @@ export const config = {
 /** 会话有效期 30 天 */
 export const SESSION_TTL_SEC = 60 * 60 * 24 * 30;
 
-/** 元数据在 COS 上的位置 */
+/** 相册元数据在 COS 上的位置 */
 export const MANIFEST_KEY = "_data/album.json";
-export const PHOTO_PREFIX = "photos/";
+
+/** 对象键前缀。改这里要同步改桶策略里放行的前缀，否则前端会 403 */
+export const PHOTO_PREFIX = "image/";
 export const TRASH_PREFIX = "_trash/";
 
 /** 允许上传的 MIME 与单文件上限 */

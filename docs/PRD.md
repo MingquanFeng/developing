@@ -81,7 +81,7 @@ MVP 只做**单管理员**。不做注册、不做多租户。
 | F2.4 | 并发上传数 3，队列可视，每文件独立进度（用 `XMLHttpRequest` 而非 `fetch`，因为需要 `upload.onprogress`） |
 | F2.5 | 单文件失败可单独重试，不影响其他文件 |
 | F2.6 | 上传前用 `createImageBitmap` 读取尺寸，过滤非图片与损坏文件，不浪费带宽 |
-| F2.7 | 对象键自动生成 `photos/YYYY/MM/<ulid>-<slug>.<ext>`，由服务端签名接口下发，前端不可自定 key |
+| F2.7 | 对象键自动生成 `image/YYYY/MM/<ulid>-<slug>.<ext>`，由服务端签名接口下发，前端不可自定 key |
 | F2.8 | 上传成功后自动写入元数据（标题默认为文件名，可编辑） |
 
 ### 3.3 P0 · 相册浏览（访客侧）
@@ -127,14 +127,14 @@ MVP 只做**单管理员**。不做注册、不做多租户。
       "slug": "shanghai-0317",
       "name": "上海 03:17",
       "desc": "凌晨三点十七分的弄堂",
-      "coverKey": "photos/2024/09/01J8...-shanghai-0317.jpg",
+      "coverKey": "image/2024/09/01J8...-shanghai-0317.jpg",
       "order": 1
     }
   ],
   "photos": [
     {
       "id": "01J8XXXX",
-      "key": "photos/2024/09/01J8XXXX-shanghai-0317.jpg",  // 唯一真相来源
+      "key": "image/2024/09/01J8XXXX-shanghai-0317.jpg",  // 唯一真相来源
       "albumId": "alb_shanghai_0317",
       "title": "对象 01",
       "caption": "弄堂 · 凌晨",

@@ -25,7 +25,7 @@
      │                          ▼
      │                ┌─────────────────────────────────────────┐
      └────── ③ GET/PUT /api/album ──→ 腾讯云 COS               │
-                              │          photos/    公开读（原图）│
+                              │          image/    公开读（原图）│
                               │          _data/     私有读（元数据）│
                               │          _trash/    私有读（回收站）│
                               └─────────────────────────────────────┘
@@ -51,7 +51,7 @@
 | 访问权限 | **私有读写** | 稍后按前缀分别授权，不要整桶公开 |
 | 版本控制 | 关闭 | MVP 不需要 |
 
-### 1.2 让 photos/ 公开读，桶本身保持私有
+### 1.2 让 image/ 公开读，桶本身保持私有
 
 **桶的公共权限设为「私有读写」**（控制台 → 权限管理 → 存储桶访问权限）。
 
@@ -59,7 +59,7 @@
 > 里的相册元数据（含未发布照片）也会暴露。控制台**没有前缀级 ACL**，
 > 且腾讯官方明确不建议用文件级 `x-cos-acl`，应保持继承桶权限。
 
-正确做法是**存储桶策略**（Bucket Policy），只对 `photos/*` 开匿名读：
+正确做法是**存储桶策略**（Bucket Policy），只对 `image/*` 开匿名读：
 
 控制台 → 存储桶 → 权限管理 → **Policy 权限设置** → 策略语法 → 编辑，粘贴
 （把 `<地域>` `<APPID>` `<桶名>` 替换成真实值）：
@@ -72,7 +72,7 @@
       "effect": "allow",
       "principal": { "qcs": ["qcs::cam::anyone:anyone"] },
       "action": ["name/cos:GetObject"],
-      "resource": ["qcs::cos:<地域>:uid/<APPID>:<桶名>/photos/*"]
+      "resource": ["qcs::cos:<地域>:uid/<APPID>:<桶名>/image/*"]
     },
     {
       "effect": "deny",
@@ -86,7 +86,7 @@
 
 第二条是**禁止列出桶内文件**，否则任何人访问桶域名就能看到完整目录结构。
 
-验证：浏览器直接打开 `https://<桶名>.cos.<地域>.myqcloud.com/photos/xxx.jpg` 能显示，
+验证：浏览器直接打开 `https://<桶名>.cos.<地域>.myqcloud.com/image/xxx.jpg` 能显示，
 而 `_data/album.json` 返回 403。
 
 > 代价：知道 URL 的人就能拿到图。个人相册接受这个风险。
@@ -111,7 +111,7 @@
 
 ```bash
 curl -i -X OPTIONS \
-  "https://<bucket>-<appid>.cos.<region>.myqcloud.com/photos/test.jpg" \
+  "https://<bucket>-<appid>.cos.<region>.myqcloud.com/image/test.jpg" \
   -H "Origin: https://你的域名" \
   -H "Access-Control-Request-Method: PUT"
 # 期望响应头含：Access-Control-Allow-Origin: https://你的域名
@@ -122,7 +122,7 @@ curl -i -X OPTIONS \
 
 控制台 → 数据万象 CI → 开通服务 → 绑定上述存储桶 → 确认「图片基础处理」已开启
 
-验证（先传一张真图到 `photos/`，再逐个访问处理 URL）：
+验证（先传一张真图到 `image/`，再逐个访问处理 URL）：
 
 | 处理 | URL 参数 | 期望 |
 | --- | --- | --- |
@@ -158,7 +158,7 @@ curl -i -X OPTIONS \
         "name/cos:HeadObject"
       ],
       "resource": [
-        "qcs::cos:<region>:uid/<appid>:<bucket>-<appid>/photos/*",
+        "qcs::cos:<region>:uid/<appid>:<bucket>-<appid>/image/*",
         "qcs::cos:<region>:uid/<appid>:<bucket>-<appid>/_data/*",
         "qcs::cos:<region>:uid/<appid>:<bucket>-<appid>/_trash/*"
       ]
@@ -187,7 +187,7 @@ curl -i -X OPTIONS \
 ### 1.7 M0 产出
 
 - [ ] 桶已建，CORS 已配且 `curl` 验证通过
-- [ ] 存储桶策略已配：`photos/*` 匿名可读、`GetBucket` 匿名被拒
+- [ ] 存储桶策略已配：`image/*` 匿名可读、`GetBucket` 匿名被拒
 - [ ] 数据万象已开通，缩略图 URL 验证通过
 - [ ] 子账号密钥已生成，**最小权限** CAM 策略已关联并核对
 
@@ -264,10 +264,10 @@ npm i -D typescript @types/node tsx
 1. **对象键由服务端生成**，绝不信前端传来的 key。
    ```ts
    // 用 ulid 保证单调递增、文件名按年月分目录
-   const key = `photos/${new Date().getUTCFullYear()}/`
+   const key = `image/${new Date().getUTCFullYear()}/`
             + `${String(month + 1).padStart(2, "0")}/`
             + `${ulid()}-${slugify(name)}`;
-   if (!key.startsWith("photos/")) throw new Error("invalid key prefix");  // 防目录穿越
+   if (!key.startsWith("image/")) throw new Error("invalid key prefix");  // 防目录穿越
    ```
 
 2. **预签名短有效期**。`Expires: 600`，配合限流，避免签名 URL 被长期盗用刷流量。
@@ -340,7 +340,7 @@ export const originalUrl = (key: string) => `${BASE}/${key}`;
 ```
 
 > 私有读的对象必须把 imageMogr2 参数一起签进 URL。
-> 本方案把 `photos/` 设为公有读，所以直接拼参数即可。
+> 本方案把 `image/` 设为公有读，所以直接拼参数即可。
 
 ### 3.3 关键实现：上传队列（`components/admin/UploadDrop.tsx`）
 

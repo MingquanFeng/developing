@@ -260,7 +260,7 @@ app.delete("/api/photo/:id/purge", requireAuth, async (c) => {
   const target = photo.trashedAt
     ? `${TRASH_PREFIX}${photo.key.slice(PHOTO_PREFIX.length)}`
     : photo.key;
-  // 只允许删 photos/ 或 _trash/ 下的对象，别让接口被拿来删 _data/
+  // 只允许删 image/ 或 _trash/ 下的对象，别让接口被拿来删 _data/
   if (!isPhotoKey(target) && !isTrashKey(target)) {
     return c.json({ error: "refuse" }, 400);
   }
