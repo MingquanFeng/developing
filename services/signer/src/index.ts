@@ -1,0 +1,296 @@
+import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import {
+  ALLOWED_TYPES,
+  MAX_FILES_PER_BATCH,
+  MAX_FILE_BYTES,
+  PHOTO_PREFIX,
+  TRASH_PREFIX,
+  config,
+} from "./config";
+import {
+  deleteObject,
+  isPhotoKey,
+  isTrashKey,
+  makePhotoKey,
+  moveToTrash,
+  ping,
+  presignPut,
+  restoreFromTrash,
+} from "./cos";
+import {
+  adminPasswordConfigured,
+  ensureDefaultAlbum,
+  publicManifest,
+  readManifest,
+  writeManifest,
+  type Photo,
+} from "./album";
+import {
+  checkPassword,
+  clearFailures,
+  clearSessionCookie,
+  isLocked,
+  issueSession,
+  noteFailure,
+  requireAuth,
+  setSessionCookie,
+} from "./auth";
+
+const app = new Hono();
+
+/* ---------- 跨域：浏览器直传要打签名接口 ---------- */
+
+app.use(
+  "/api/*",
+  cors({
+    origin: (origin) => (config.allowedOrigins.includes(origin) ? origin : null),
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type"],
+    credentials: true,
+    maxAge: 600,
+  }),
+);
+
+/* ---------- 健康检查 ---------- */
+
+app.get("/healthz", async (c) =>
+  c.json({
+    ok: true,
+    bucket: config.bucket,
+    region: config.region,
+    passwordConfigured: adminPasswordConfigured(),
+    sessionSecretConfigured: config.sessionSecret.length > 0,
+    cosReachable: await ping(),
+  }),
+);
+
+/* ---------- 登录 ---------- */
+
+app.post("/api/login", async (c) => {
+  const ip =
+    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+    c.req.header("x-real-ip") ||
+    "local";
+
+  if (isLocked(ip)) {
+    return c.json({ error: "locked", retryAfter: 900 }, 429);
+  }
+  if (!adminPasswordConfigured()) {
+    return c.json({ error: "password_not_configured" }, 503);
+  }
+
+  const body = (await c.req.json().catch(() => ({}))) as { password?: string };
+  if (!body.password || !(await checkPassword(body.password))) {
+    noteFailure(ip);
+    return c.json({ error: "invalid_password" }, 401);
+  }
+
+  clearFailures(ip);
+  return c.json(
+    { ok: true },
+    { headers: { "Set-Cookie": setSessionCookie(issueSession()) } },
+  );
+});
+
+app.post("/api/logout", (c) =>
+  c.json({ ok: true }, { headers: { "Set-Cookie": clearSessionCookie() } }),
+);
+
+/* ---------- 相册清单 ---------- */
+
+app.get("/api/album", async (c) => {
+  const manifest = await readManifest();
+  c.header("Cache-Control", "no-cache");
+  return c.json(publicManifest(manifest));
+});
+
+app.put("/api/album", requireAuth, async (c) => {
+  const body = (await c.req.json().catch(() => null)) as {
+    revision?: number;
+    albums?: unknown;
+    photos?: unknown;
+  } | null;
+
+  if (!body || typeof body.revision !== "number") {
+    return c.json({ error: "bad_request" }, 400);
+  }
+
+  const result = await writeManifest({
+    revision: body.revision,
+    albums: (body.albums ?? []) as never,
+    photos: (body.photos ?? []) as never,
+  });
+
+  if (!result.ok) {
+    // 乐观锁冲突：回传当前版本，前端提示刷新而不是静默覆盖
+    return c.json(
+      { error: "stale_revision", currentRevision: result.current.revision },
+      409,
+    );
+  }
+  return c.json({
+    revision: result.manifest.revision,
+    updatedAt: result.manifest.updatedAt,
+  });
+});
+
+/* ---------- 发放预签名上传 URL ---------- */
+
+app.post("/api/sign", requireAuth, async (c) => {
+  const body = (await c.req.json().catch(() => null)) as {
+    files?: { name?: string; size?: number; type?: string }[];
+  } | null;
+
+  const files = body?.files;
+  if (!Array.isArray(files) || files.length === 0) {
+    return c.json({ error: "no_files" }, 400);
+  }
+  if (files.length > MAX_FILES_PER_BATCH) {
+    return c.json({ error: "too_many_files", max: MAX_FILES_PER_BATCH }, 400);
+  }
+
+  const items = [];
+  for (const f of files) {
+    if (!f.name || !f.type || !ALLOWED_TYPES.has(f.type)) {
+      return c.json(
+        { error: "unsupported_type", name: f.name, allowed: [...ALLOWED_TYPES] },
+        400,
+      );
+    }
+    if ((f.size ?? 0) > MAX_FILE_BYTES) {
+      return c.json({ error: "file_too_large", name: f.name }, 400);
+    }
+
+    // key 由服务端生成，前端无从干预
+    const key = makePhotoKey(f.name);
+    if (!key.startsWith(PHOTO_PREFIX)) {
+      return c.json({ error: "bad_key" }, 500);
+    }
+    const url = await presignPut(key);
+    items.push({ key, url, expiresAt: Date.now() + config.signExpires * 1000 });
+  }
+
+  // 首次上传前自动建一个默认相册，省得前端处理空态
+  await ensureDefaultAlbum();
+
+  return c.json({
+    uploadId: `up_${Date.now().toString(36)}`,
+    items,
+  });
+});
+
+/* ---------- 软删除 ---------- */
+
+app.delete("/api/photo/:id", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const manifest = await readManifest();
+  const photo = manifest.photos.find((p) => p.id === id);
+  if (!photo) return c.json({ error: "not_found" }, 404);
+
+  const trashedAt = new Date().toISOString();
+  let trashKey: string | null = null;
+  try {
+    trashKey = await moveToTrash(photo.key);
+  } catch (err) {
+    // COS 出错就整个失败，不要出现「元数据说删了但对象还在」的错位
+    return c.json({ error: "cos_error", detail: String(err) }, 502);
+  }
+
+  const next = manifest.photos.map((p) =>
+    p.id === id ? { ...p, trashedAt } : p,
+  );
+  const written = await writeManifest({
+    revision: manifest.revision,
+    albums: manifest.albums,
+    photos: next as Photo[],
+  });
+  if (!written.ok) {
+    return c.json({ error: "stale_revision" }, 409);
+  }
+
+  return c.json({
+    ok: true,
+    revision: written.manifest.revision,
+    trashKey: trashKey ?? null,
+  });
+});
+
+/* ---------- 恢复（回收站） ---------- */
+
+app.post("/api/photo/:id/restore", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const manifest = await readManifest();
+  const photo = manifest.photos.find((p) => p.id === id);
+  if (!photo) return c.json({ error: "not_found" }, 404);
+  if (!photo.trashedAt) return c.json({ error: "not_trashed" }, 400);
+
+  // 恢复后的对象键由 restoreFromTrash 决定，这里同步算一遍好写回元数据
+  const restoredKey = `${PHOTO_PREFIX}${photo.key.slice(PHOTO_PREFIX.length)}`;
+  try {
+    await restoreFromTrash(
+      `${TRASH_PREFIX}${photo.key.slice(PHOTO_PREFIX.length)}`,
+    );
+  } catch (err) {
+    return c.json({ error: "cos_error", detail: String(err) }, 502);
+  }
+
+  const next = manifest.photos.map((p) =>
+    p.id === id ? { ...p, key: restoredKey, trashedAt: null } : p,
+  );
+  const written = await writeManifest({
+    revision: manifest.revision,
+    albums: manifest.albums,
+    photos: next as Photo[],
+  });
+  if (!written.ok) return c.json({ error: "stale_revision" }, 409);
+
+  return c.json({ ok: true, revision: written.manifest.revision });
+});
+
+/* ---------- 彻底删除 ---------- */
+
+app.delete("/api/photo/:id/purge", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const manifest = await readManifest();
+  const photo = manifest.photos.find((p) => p.id === id);
+  if (!photo) return c.json({ error: "not_found" }, 404);
+
+  const target = photo.trashedAt
+    ? `${TRASH_PREFIX}${photo.key.slice(PHOTO_PREFIX.length)}`
+    : photo.key;
+  // 只允许删 photos/ 或 _trash/ 下的对象，别让接口被拿来删 _data/
+  if (!isPhotoKey(target) && !isTrashKey(target)) {
+    return c.json({ error: "refuse" }, 400);
+  }
+
+  await deleteObject(target);
+  const written = await writeManifest({
+    revision: manifest.revision,
+    albums: manifest.albums,
+    photos: manifest.photos.filter((p) => p.id !== id) as Photo[],
+  });
+  if (!written.ok) return c.json({ error: "stale_revision" }, 409);
+
+  return c.json({ ok: true, revision: written.manifest.revision });
+});
+
+/* ---------- 兜底 ---------- */
+
+app.onError((err, c) => {
+  console.error("[signer]", err);
+  return c.json({ error: "internal", detail: String(err) }, 500);
+});
+
+serve({ fetch: app.fetch, port: config.port }, (info) => {
+  console.log(`签名服务已启动  http://localhost:${info.port}`);
+  console.log(`  桶     ${config.bucket} @ ${config.region}`);
+  console.log(`  允许来源 ${config.allowedOrigins.join(", ")}`);
+  if (!adminPasswordConfigured()) {
+    console.warn("  ⚠️ 未配置 ALBUM_ADMIN_PASSWORD_HASH，登录接口将返回 503");
+  }
+  if (!config.sessionSecret) {
+    console.warn("  ⚠️ 未配置 SESSION_SECRET，会话密钥从口令哈希派生（可行但不便于轮换）");
+  }
+});

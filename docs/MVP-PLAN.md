@@ -51,18 +51,46 @@
 | 访问权限 | **私有读写** | 稍后按前缀分别授权，不要整桶公开 |
 | 版本控制 | 关闭 | MVP 不需要 |
 
-### 1.2 分前缀设置 ACL
+### 1.2 让 photos/ 公开读，桶本身保持私有
 
-控制台 → 存储桶 → 权限管理 → 存储桶访问权限 / 对象 ACL
+**桶的公共权限设为「私有读写」**（控制台 → 权限管理 → 存储桶访问权限）。
 
-| 前缀 | 访问权限 | 理由 |
-| --- | --- | --- |
-| `photos/` | **公有读私有写** | 访客要能直接 `<img src>` 加载，否则要逐张签名，复杂度和成本都上去 |
-| `_data/` | 私有读写 | 元数据绝不能公开 |
-| `_trash/` | 私有读写 | 回收站 |
+> ⚠️ **不要选「公有读私有写」。** 那是**整个桶**公开，`_data/album.json`
+> 里的相册元数据（含未发布照片）也会暴露。控制台**没有前缀级 ACL**，
+> 且腾讯官方明确不建议用文件级 `x-cos-acl`，应保持继承桶权限。
 
-> 权衡：公开读意味着**知道 URL 的人就能拿到图**。个人相册接受这个风险。
-> 若将来需要私密照片，走方案 D2（私密分享链接），见 PRD 的 P1。
+正确做法是**存储桶策略**（Bucket Policy），只对 `photos/*` 开匿名读：
+
+控制台 → 存储桶 → 权限管理 → **Policy 权限设置** → 策略语法 → 编辑，粘贴
+（把 `<地域>` `<APPID>` `<桶名>` 替换成真实值）：
+
+```json
+{
+  "version": "2.0",
+  "statement": [
+    {
+      "effect": "allow",
+      "principal": { "qcs": ["qcs::cam::anyone:anyone"] },
+      "action": ["name/cos:GetObject"],
+      "resource": ["qcs::cos:<地域>:uid/<APPID>:<桶名>/photos/*"]
+    },
+    {
+      "effect": "deny",
+      "principal": { "qcs": ["qcs::cam::anyone:anyone"] },
+      "action": ["name/cos:GetBucket", "name/cos:GetBucketObjectVersions"],
+      "resource": ["qcs::cos:<地域>:uid/<APPID>:<桶名>/"]
+    }
+  ]
+}
+```
+
+第二条是**禁止列出桶内文件**，否则任何人访问桶域名就能看到完整目录结构。
+
+验证：浏览器直接打开 `https://<桶名>.cos.<地域>.myqcloud.com/photos/xxx.jpg` 能显示，
+而 `_data/album.json` 返回 403。
+
+> 代价：知道 URL 的人就能拿到图。个人相册接受这个风险。
+> 嫌流量被刷的话开「防盗链」，但注意防盗链会挡住部分正常访问。
 
 ### 1.3 配置 CORS（最容易踩坑的一步）
 
@@ -100,7 +128,12 @@ curl -i -X OPTIONS \
 
 ### 1.5 创建最小权限子账号密钥
 
-访问管理 CAM → 用户 → 新建子用户（编程访问）→ 绑定以下自定义策略，**不要给全量 AdministratorAccess**：
+访问管理 CAM → 用户 → 新建子用户（编程访问）→ 绑定以下自定义策略，**不要给全量 AdministratorAccess**，
+也**不要在 COS 控制台「存储桶访问权限」页给子账号授权** —— 那里的粒度只有
+「数据读取 / 数据写入 / 权限读取 / 权限写入 / 完全控制」五档，其中「权限写入」
+等于「可以修改这个权限设置本身」，签名服务完全不需要，且无法按前缀收敛。
+
+正确做法是 CAM 自定义策略，关联到子账号：
 
 ```json
 {
@@ -124,7 +157,12 @@ curl -i -X OPTIONS \
 }
 ```
 
-拿到 `SecretId` / `SecretKey`，只写进签名服务的环境变量，**永远不要提交进仓库**。
+拿到 `SecretId` / `SecretKey`，只写进 `services/signer/.env`，**永远不要提交进仓库**。
+
+> **action 前缀的坑**：存储桶策略的官方示例一律写 `name/cos:GetObject`，
+> 但 CAM 用户策略的官方示例里 `name/cos:` 和 `cos:` 两种写法都出现过。
+> 本项目统一用 `name/cos:` 形式；若绑定后仍报权限不足，
+> 改用 CAM 控制台的**图形化编辑**生成策略，它会输出当前版本认可的格式。
 
 ### 1.6 绑定自定义域名（强烈建议，越早越好）
 
@@ -139,13 +177,15 @@ curl -i -X OPTIONS \
 ### 1.7 M0 产出
 
 - [ ] 桶已建，CORS 已配且 `curl` 验证通过
-- [ ] 三个前缀 ACL 已设
+- [ ] 存储桶策略已配：`photos/*` 匿名可读、`GetBucket` 匿名被拒
 - [ ] 数据万象已开通，缩略图 URL 验证通过
-- [ ] 子账号密钥已生成，权限策略已核对
-- [ ] 一组配置项已整理（填入 `.env.example`，见下）
+- [ ] 子账号密钥已生成，**最小权限** CAM 策略已关联并核对
 
 ```bash
-# .env.example（真实值放签名服务的部署环境变量，不入库）
+# 真实值填进这两处，不要提交进仓库：
+#   services/signer/.env          ← 密钥（已被 .gitignore 排除）
+#   .env.local                    ← 构建期公开配置（已被 .gitignore 排除）
+# 模板见 services/signer/.env.example 与 .env.local.example
 COS_SECRET_ID=
 COS_SECRET_KEY=
 COS_BUCKET=saikongxu-album-125xxxxxxx

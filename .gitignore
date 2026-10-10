@@ -1,7 +1,11 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
+# 注意：下面的前导斜杠只匹配根目录，子项目的依赖要靠下面这两条
 /node_modules
+# services/signer 是独立包，依赖不能跟着提交
+node_modules/
+services/signer/dist/
 /.pnp
 .pnp.*
 .yarn/*
