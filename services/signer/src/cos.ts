@@ -9,11 +9,14 @@ const cos = new COS({
 
 /* ---------- 对象键 ---------- */
 
+/* COS 的对象键支持 UTF-8，中文可以原样保留（URL 里会自动 URLEncode）。
+   所以这里用 Unicode 属性类而不是 [a-z0-9] —— 否则「端到端验证.jpg」
+   会被清成空串再退化成 "photo"，几十张图的对象键就全叫 photo 了。 */
 const slugify = (name: string) =>
   name
     .toLowerCase()
-    .replace(/\.[a-z0-9]+$/, "")
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 40) || "photo";
 
