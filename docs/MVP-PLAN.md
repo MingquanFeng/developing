@@ -122,9 +122,19 @@ curl -i -X OPTIONS \
 
 控制台 → 数据万象 CI → 开通服务 → 绑定上述存储桶 → 确认「图片基础处理」已开启
 
-验证：往 `photos/` 传一张图，然后浏览器打开
-`https://<bucket>-<appid>.cos.<region>.myqcloud.com/photos/<key>?imageMogr2/thumbnail/1600x/format/webp`
-能返回 webp 图片即成功。
+验证（先传一张真图到 `photos/`，再逐个访问处理 URL）：
+
+| 处理 | URL 参数 | 期望 |
+| --- | --- | --- |
+| 网格缩略 | `?imageMogr2/auto-orient/thumbnail/560x/format/webp/quality/80` | `Content-Type: image/webp` |
+| 灯箱预览 | `?imageMogr2/auto-orient/thumbnail/1600x/format/webp/quality/85` | `Content-Type: image/webp` |
+| 方形裁剪 | `?imageMogr2/auto-orient/crop/320x320/gravity/center/format/webp/quality/80` | `Content-Type: image/webp` |
+
+> ⚠️ **别用手搓的极小 PNG 测**。CI 会返回
+> `InvalidImageFormat: Invalid image format, we cannot process it`，
+> 这是**图片本身不合法**，不是服务没开通 —— 容易被误判成没开通而白折腾。
+> 判断依据：返回 `InvalidImageFormat` 说明 CI 已经在处理你的请求了，只是处理失败；
+> 真没开通会返回 404 或权限错误。
 
 ### 1.5 创建最小权限子账号密钥
 
@@ -519,14 +529,38 @@ npm run typecheck && npm run build
 
 ---
 
-## 8. 已知环境问题（2026-10-08 实测）
+## 8. 已知环境问题（2026-10 实测）
 
 | 问题 | 现象 | 处理 |
 | --- | --- | --- |
 | **Turbopack 构建失败** | `next build` 报 24 个 `Can't resolve '@vercel/turbopack-next/internal/font/google/font'`，`node_modules` 里根本没有这个包，lockfile 里也没有 | 改用 `npx next build --webpack`。字体其实拉得到（Google Fonts 可达），是 Turbopack 侧的问题。与页面代码无关。 |
-| **`typecheck` 报 `LayoutProps<"/">` 不满足 `never`** | `app/layout.tsx` 的 `LayoutProps<"/">` 报错 | **既有问题，不是本次改动引入的**。已用 `git stash` 在完全干净的原始代码上复现，报错位置是同一行。属 Next 16.3.7 与 TS 版本的环境问题。**构建本身通过**，部署不受影响。 |
-| **`.next/dev/types` 与 `.next/types` 冲突** | tsconfig 同时 include 了两者，dev 版 `routes.d.ts` 里 `LayoutRoutes = never`，会污染类型 | 跑完 `next build` 后删掉 `.next/dev`，并删掉 `tsconfig.tsbuildinfo` 再 typecheck |
+| **`typecheck` 报 `LayoutProps<"/">` 不满足 `never`** | `app/layout.tsx` 的 `LayoutProps<"/">` 报错 | **既有问题，不是本次改动引入的**。已用 `git stash` 在完全干净的原始代码上复现。属 Next 16.3.7 与 TS 版本的环境问题。**构建本身通过**，部署不受影响。 |
+| **`.next/dev/types` 与 `.next/types` 冲突** | tsconfig 的 `**/*.ts` 会把两份全局路由类型都收进去，dev 版 `routes.d.ts` 里 `LayoutRoutes = never` 会污染 `LayoutProps` | `exclude` 加 `.next/dev`；跑完 build 后删掉 `tsconfig.tsbuildinfo` 再 typecheck |
 | **npm 缓存不可写** | `npm install` 报 `EPERM: unlink .npm/_cacache/tmp` | `npm install --cache "$TMPDIR/npm-cache"` 可绕开 |
+| **`tsx` 在沙箱里起不来** | `tsx` 要在 `$TMPDIR` 建 IPC unix socket，被拦，报 `listen EINVAL` | 改用 `npm run build && node dist/index.js`。因此 tsconfig 拆两份：`noEmit` 用于 typecheck，`tsconfig.build.json` 关掉 `noEmit` 产出 `dist/` |
+| **`/node_modules` 前导斜杠** | gitignore 里 `/node_modules` 只匹配根目录，`services/signer/node_modules` 会被提交进去 | 改成 `node_modules/`（无斜杠，任意层级匹配） |
+
+---
+
+## 8.1 COS 排查判读表
+
+排查期实测得出，**别凭报错措辞猜**：
+
+| 报错 | 确切含义 |
+| --- | --- |
+| `InvalidAccessKeyId` | 密钥不存在，或不属于该桶的 APPID。**与权限无关**，改策略没用 |
+| `AccessDenied` | 密钥有效，但缺该操作权限 → 去查 CAM 策略关联 |
+| `NoSuchKey`（**而非 403**） | 鉴权 + 权限**都已通过**，只是那个键不存在。这是区分「密钥问题」和「权限问题」的关键信号 |
+| `InvalidImageFormat` | 数据万象在处理了，只是这张图不合法 → CI 是通的 |
+
+查密钥归属身份（临时装 `tencentcloud-sdk-nodejs` 调 STS，用完卸掉）：
+
+```js
+new StsClient({ credential: { secretId, secretKey } }).GetCallerIdentity()
+// → { AccountId: 主账号, UserId: 子账号, Type: "CAMUser" }
+```
+
+比对 `UserId` 与 COS 控制台授权的子账号 ID 是否一致 —— 不一致就是授权给了别人。
 
 ---
 
