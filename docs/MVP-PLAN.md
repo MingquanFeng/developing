@@ -390,12 +390,12 @@ components/album/AlbumBrowser.tsx【已建】筛选条 + 瀑布网格 + 灯箱�
 components/album/Lightbox.tsx    【已建】全屏看片
 components/album/Lightbox.module.css【已建】灯箱样式
 lib/album-types.ts              【已建】Photo/Album 类型 + 图片 URL 构造
-lib/album-mock.ts                【已建】演示数据，接 COS 后整个删掉
+lib/album-client.ts              【已建】清单数据源：构建期取数 + 运行时刷新
 ```
 
-> 当前 `AlbumBrowser` 读的是 `lib/album-mock.ts`。接入签名服务后，
-> 把 `const { albums, photos } = mockManifest;` 换成 `GET /api/album` 的结果即可，
-> 组件其余部分一行都不用改。
+> 已接入：`AlbumBrowser` 通过 `lib/album-client.ts` 拉签名服务的清单，
+> 构建期取一次烘进静态 HTML，运行时再刷新一次。
+> 演示数据 `lib/album-mock.ts` 已删除。
 
 ### 4.2 ⚠️ 动态路由的坑（已验证的解法）
 

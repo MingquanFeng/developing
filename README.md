@@ -41,7 +41,7 @@ components/
   album/Lightbox       全屏看片
   lib/data.ts          全站文案与作品数据（唯一内容源）
   lib/album-types.ts   相册类型 + 图片 URL 构造器
-  lib/album-mock.ts    演示数据，接 COS 后可整份删除
+  lib/album-client.ts   相册清单数据源（构建期取数 + 运行时刷新）
 docs/
   PRD.md               相册功能的产品需求文档
   MVP-PLAN.md          实施方案与任务拆解
@@ -56,13 +56,14 @@ docs/
 // key 是对象键   → 走 COS 数据万象 imageMogr2
 ```
 
-接上真实数据源时，只需把 `AlbumBrowser` 里的
+清单来自签名服务的 `GET /api/album`，取数走两条路：
 
-```ts
-const { albums, photos } = mockManifest;
-```
+- **构建期**取一次，烘进静态 HTML —— 首屏直接有图，SEO 也能抓到
+- **页面加载后**再刷新一次 —— 新上传的照片刷新就能看到，不必重新部署
 
-换成签名服务返回的清单，**组件其余部分一行都不用改**。缩略图与预览图都会自动按 `imageMogr2` 参数生成，原图不受影响。
+签名服务不可达时降级为空态并给出重试，不会让构建失败。
+
+缩略图与预览图由数据万象按 `imageMogr2` 参数实时处理，原图不受影响。图片 URL 构造器 `lib/album-types.ts` 的 `buildImageUrls(key)` 是双模式的：key 是完整 URL 就走对方的缩放参数，是对象键就走 COS 的 `imageMogr2`。
 
 > 完整的存储桶配置（分前缀 ACL、CORS、数据万象开通、最小权限 CAM 策略）见
 > [`docs/MVP-PLAN.md`](./docs/MVP-PLAN.md)。

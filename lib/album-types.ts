@@ -4,10 +4,10 @@
  * 与 docs/PRD.md 第 4 节的 `_data/album.json` 结构保持一致。
  *
  * 「双模式」说明：
- *   key 以 http 开头  → 当作外链（当前用 Unsplash 撑效果，零配置即可看）
+ *   key 以 http 开头  → 当作外链，用于临时预览或外部图床
  *   key 为普通路径    → 当作腾讯云 COS 对象键，走数据万象 imageMogr2 处理
- *   上传功能落地后，只需把 lib/album-mock.ts 换成从签名服务拉清单，
- *   组件层与本文件都不需要改。
+ *
+ * 真实清单由 lib/album-client.ts 从签名服务拉取。
  */
 
 /* ========== 类型 ========== */
