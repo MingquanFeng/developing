@@ -35,6 +35,8 @@ export type Photo = {
   width: number;
   height: number;
   bytes: number;
+  /** 软删除时间。非空表示已进回收站，后台可见、访客侧不可见 */
+  trashedAt?: string | null;
 };
 
 export type AlbumManifest = {

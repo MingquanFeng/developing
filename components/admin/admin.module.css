@@ -1,0 +1,261 @@
+/* ============================================================
+   相册后台 —— 工具界面
+   与前台的「至静之极」刻意区分：高信息密度、控件紧凑、
+   不用展示体，避免管理时还要欣赏排版
+   ============================================================ */
+
+.shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(36px, 6vh, 72px) var(--pad-x) var(--pad-y);
+  min-height: 100vh;
+}
+
+/* ---------- 头 ---------- */
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 20px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--line);
+}
+.title {
+  font-family: var(--sans);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.sub {
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .14em;
+  opacity: .5;
+}
+
+/* ---------- 登录 ---------- */
+.login {
+  max-width: 340px;
+  margin: 18vh auto 0;
+  text-align: center;
+}
+.loginTitle {
+  font-size: 24px;
+  font-weight: 600;
+}
+.loginSub {
+  margin: 8px 0 26px;
+  font-size: 13px;
+  opacity: .5;
+}
+
+/* ---------- 控件 ---------- */
+.input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .02);
+  color: var(--ink);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .2s var(--ease);
+}
+.input:focus { border-color: var(--hot); }
+.input:disabled { opacity: .4; }
+
+.primary,
+.ghost,
+.mini,
+.miniDanger,
+.danger,
+.tabBtn {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .1em;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background .2s var(--ease), color .2s var(--ease), border-color .2s var(--ease);
+}
+.primary {
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--bg);
+}
+.primary:disabled { opacity: .35; cursor: not-allowed; }
+.ghost {
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+}
+.ghost:hover { border-color: var(--ink); }
+
+.mini,
+.miniDanger {
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.mini:hover { border-color: var(--hot); }
+.miniDanger { color: #e08a8a; border-color: rgba(224, 138, 138, .3); }
+.miniDanger:hover { background: #e08a8a; color: var(--bg); }
+
+.danger {
+  margin-left: auto;
+  padding: 7px 14px;
+  border: 1px solid rgba(224, 138, 138, .35);
+  background: none;
+  color: #e08a8a;
+}
+.danger:hover:not(:disabled) { background: #e08a8a; color: var(--bg); }
+.danger:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ---------- 拖拽区 ---------- */
+.drop {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  padding: clamp(34px, 7vh, 56px) 20px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .2s var(--ease), background .2s var(--ease);
+}
+.drop:hover,
+.dropOver { border-color: var(--hot); background: rgba(255, 255, 255, .02); }
+.dropTitle { font-size: 15px; }
+.dropHint {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  opacity: .4;
+}
+
+/* ---------- 上传队列 ---------- */
+.queue {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.qItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 92px auto;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 14px;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--line-2);
+}
+.qItem:last-child { border-bottom: 0; }
+.qName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qBar {
+  height: 3px;
+  background: rgba(255, 255, 255, .08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.qBar i {
+  display: block;
+  height: 100%;
+  background: var(--hot);
+  transition: width .2s linear;
+}
+.qState {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  opacity: .55;
+  text-align: right;
+}
+
+/* ---------- 标签页 ---------- */
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 34px 0 14px;
+}
+.tabBtn {
+  padding: 7px 15px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--ink);
+  opacity: .5;
+}
+.tabBtn:hover { opacity: .85; }
+.tabOn { opacity: 1; border-color: var(--line); }
+
+/* ---------- 照片列表 ---------- */
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-2);
+}
+.row {
+  display: grid;
+  grid-template-columns: auto 64px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 4px;
+  border-bottom: 1px solid var(--line-2);
+}
+.thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 3px;
+  background: var(--bg-2);
+}
+.fields {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 8px;
+}
+.dim {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  opacity: .45;
+  white-space: nowrap;
+}
+.actions { display: flex; gap: 8px; }
+
+/* ---------- 提示 ---------- */
+.ok,
+.err,
+.muted {
+  font-size: 12.5px;
+  line-height: 1.7;
+  margin: 0 0 16px;
+}
+.ok { color: #8fbf8f; }
+.err { color: #e08a8a; }
+.muted { opacity: .45; }
+.muted code {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+}
+
+@media (max-width: 860px) {
+  .row { grid-template-columns: auto 48px minmax(0, 1fr); row-gap: 8px; }
+  .thumb { width: 48px; height: 48px; }
+  .fields { grid-template-columns: 1fr; }
+  .dim, .actions { grid-column: 2 / -1; justify-self: start; }
+  .qItem { grid-template-columns: minmax(0, 1fr) 64px auto; }
+  .qState { text-align: left; }
+}

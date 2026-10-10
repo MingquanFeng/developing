@@ -186,10 +186,10 @@ curl -i -X OPTIONS \
 
 ### 1.7 M0 产出
 
-- [ ] 桶已建，CORS 已配且 `curl` 验证通过
-- [ ] 存储桶策略已配：`image/*` 匿名可读、`GetBucket` 匿名被拒
-- [ ] 数据万象已开通，缩略图 URL 验证通过
-- [ ] 子账号密钥已生成，**最小权限** CAM 策略已关联并核对
+- [x] 桶已建，CORS 已配且 `curl` 验证通过
+- [x] 存储桶策略已配：`image/*` 匿名可读、`GetBucket` 匿名被拒
+- [x] 数据万象已开通，三种处理均实测通过
+- [x] 子账号密钥已生成并授权，写入/读取/删除均实测通过
 
 ```bash
 # 真实值填进这两处，不要提交进仓库：
@@ -537,6 +537,8 @@ npm run typecheck && npm run build
 | **`typecheck` 报 `LayoutProps<"/">` 不满足 `never`** | `app/layout.tsx` 的 `LayoutProps<"/">` 报错 | **既有问题，不是本次改动引入的**。已用 `git stash` 在完全干净的原始代码上复现。属 Next 16.3.7 与 TS 版本的环境问题。**构建本身通过**，部署不受影响。 |
 | **`.next/dev/types` 与 `.next/types` 冲突** | tsconfig 的 `**/*.ts` 会把两份全局路由类型都收进去，dev 版 `routes.d.ts` 里 `LayoutRoutes = never` 会污染 `LayoutProps` | `exclude` 加 `.next/dev`；跑完 build 后删掉 `tsconfig.tsbuildinfo` 再 typecheck |
 | **npm 缓存不可写** | `npm install` 报 `EPERM: unlink .npm/_cacache/tmp` | `npm install --cache "$TMPDIR/npm-cache"` 可绕开 |
+| **跨源被拒只报 `Failed to fetch`** | 浏览器控制台只显示这一句，看不出原因；实际是签名服务的 `ALLOWED_ORIGIN` 没包含当前页面端口 | 对齐端口后 `curl -i -X OPTIONS <signer> -H "Origin: http://localhost:<页面端口>" -H "Access-Control-Request-Method: POST"` 验证。**后台页面的 Origin 必须逐字出现在 `ALLOWED_ORIGIN` 里**，改端口就要同步改 |
+| **CORS 规则的字段名单复数** | `putBucketCors` 写入用 `AllowedOrigin`/`AllowedMethod`（单数），`getBucketCors` 返回是 `AllowedOrigins`/`AllowedMethods`（复数） | 读回配置一律看原始 JSON，用单数字段判断会全查空，误以为没存进去 |
 | **`tsx` 在沙箱里起不来** | `tsx` 要在 `$TMPDIR` 建 IPC unix socket，被拦，报 `listen EINVAL` | 改用 `npm run build && node dist/index.js`。因此 tsconfig 拆两份：`noEmit` 用于 typecheck，`tsconfig.build.json` 关掉 `noEmit` 产出 `dist/` |
 | **`/node_modules` 前导斜杠** | gitignore 里 `/node_modules` 只匹配根目录，`services/signer/node_modules` 会被提交进去 | 改成 `node_modules/`（无斜杠，任意层级匹配） |
 

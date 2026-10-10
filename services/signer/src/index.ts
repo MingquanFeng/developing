@@ -34,8 +34,11 @@ import {
   isLocked,
   issueSession,
   noteFailure,
+  readCookie,
   requireAuth,
+  sessionCookieName,
   setSessionCookie,
+  verifySession,
 } from "./auth";
 
 const app = new Hono();
@@ -96,6 +99,13 @@ app.post("/api/login", async (c) => {
 
 app.post("/api/logout", (c) =>
   c.json({ ok: true }, { headers: { "Set-Cookie": clearSessionCookie() } }),
+);
+
+/** 前端探会话用：200=已登录，401=没有。只回布尔值，不泄露任何配置 */
+app.get("/api/session", (c) =>
+  verifySession(readCookie(c, sessionCookieName()))
+    ? c.json({ ok: true })
+    : c.json({ ok: false }, 401),
 );
 
 /* ---------- 相册清单 ---------- */
