@@ -259,3 +259,26 @@
   .qItem { grid-template-columns: minmax(0, 1fr) 64px auto; }
   .qState { text-align: left; }
 }
+/* ---------- 新建用户 ---------- */
+.addUser {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-2);
+}
+.addTitle {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .5;
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .addUser { grid-template-columns: 1fr; }
+  .addTitle { margin-bottom: 2px; }
+}

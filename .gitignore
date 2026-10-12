@@ -40,6 +40,12 @@ yarn-error.log*
 !.env.example
 !.env.local.example
 
+# SQLite 用户库（绝对不能进仓库）
+services/signer/data/
+*.db
+*.db-wal
+*.db-shm
+
 # vercel
 .vercel
 

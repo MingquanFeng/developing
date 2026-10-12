@@ -13,6 +13,18 @@
 
 import type { Album, Photo } from "./album-types";
 
+/** 用户。与签名服务 src/users.ts 里的 PublicUser 一一对应。
+ *  这是跨网络边界的契约类型，两端各定义一份是有意的：
+ *  前端不应 import 后端目录（会把 node:sqlite 等服务端依赖拖进前端构建）。 */
+export type PublicUser = {
+  id: string;
+  username: string;
+  displayName: string;
+  disabled: boolean;
+  createdAt: string;
+  lastLoginAt?: string;
+};
+
 export type Manifest = {
   revision: number;
   updatedAt: string;

@@ -1,4 +1,4 @@
-import { config, MANIFEST_KEY } from "./config";
+import { MANIFEST_KEY } from "./config";
 import { getText, putText } from "./cos";
 
 export type Album = {
@@ -116,5 +116,3 @@ export async function ensureDefaultAlbum(): Promise<Manifest> {
   await putText(MANIFEST_KEY, JSON.stringify(next, null, 2), "application/json");
   return next;
 }
-
-export const adminPasswordConfigured = () => config.passwordHash.length > 0;

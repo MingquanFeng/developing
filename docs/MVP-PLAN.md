@@ -190,18 +190,22 @@ curl -i -X OPTIONS \
 - [x] 存储桶策略已配：`image/*` 匿名可读、`GetBucket` 匿名被拒
 - [x] 数据万象已开通，三种处理均实测通过
 - [x] 子账号密钥已生成并授权，写入/读取/删除均实测通过
+- [x] 用户系统就绪：SQLite 建首个账号 `npm run user -- add`
 
 ```bash
 # 真实值填进这两处，不要提交进仓库：
 #   services/signer/.env          ← 密钥（已被 .gitignore 排除）
 #   .env.local                    ← 构建期公开配置（已被 .gitignore 排除）
 # 模板见 services/signer/.env.example 与 .env.local.example
+#
+# 注意：这里没有登录口令。用户存在 SQLite，用 CLI 管：
+#   npm run user -- add <用户名> [显示名]
 COS_SECRET_ID=
 COS_SECRET_KEY=
-COS_BUCKET=saikongxu-album-125xxxxxxx
-COS_REGION=ap-shanghai
-ALBUM_ADMIN_PASSWORD_HASH=      # node -e "console.log(require('bcryptjs').hashSync('你的口令',10))"
-NEXT_PUBLIC_COS_BASE_URL=https://saikongxu-album-125xxxxxxx.cos.ap-shanghai.myqcloud.com
+COS_BUCKET=photo-1453349696
+COS_REGION=ap-beijing
+SESSION_SECRET=                # node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+NEXT_PUBLIC_COS_BASE_URL=https://photo-1453349696.cos.ap-beijing.myqcloud.com
 NEXT_PUBLIC_SIGNER_URL=https://sign.你的域名
 ```
 

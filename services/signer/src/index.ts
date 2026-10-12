@@ -20,7 +20,6 @@ import {
   restoreFromTrash,
 } from "./cos";
 import {
-  adminPasswordConfigured,
   ensureDefaultAlbum,
   publicManifest,
   readManifest,
@@ -28,9 +27,10 @@ import {
   type Photo,
 } from "./album";
 import {
-  checkPassword,
+  checkCredentials,
   clearFailures,
   clearSessionCookie,
+  currentUser,
   isLocked,
   issueSession,
   noteFailure,
@@ -40,6 +40,19 @@ import {
   setSessionCookie,
   verifySession,
 } from "./auth";
+import {
+  assertSessionSecret,
+  countUsers,
+  createUser,
+  deleteUser,
+  findById,
+  listUsers,
+  toPublic,
+  touchLogin,
+  updateUser,
+  validPassword,
+  validUsername,
+} from "./users";
 
 const app = new Hono();
 
@@ -63,8 +76,8 @@ app.get("/healthz", async (c) =>
     ok: true,
     bucket: config.bucket,
     region: config.region,
-    passwordConfigured: adminPasswordConfigured(),
-    sessionSecretConfigured: config.sessionSecret.length > 0,
+    userCount: countUsers(),
+    sessionSecretConfigured: config.sessionSecret.length >= 16,
     cosReachable: await ping(),
   }),
 );
@@ -77,23 +90,31 @@ app.post("/api/login", async (c) => {
     c.req.header("x-real-ip") ||
     "local";
 
-  if (isLocked(ip)) {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    username?: string;
+    password?: string;
+  };
+  const username = (body.username ?? "").trim();
+
+  if (!username) return c.json({ error: "username_required" }, 400);
+  if (isLocked(ip, username)) {
     return c.json({ error: "locked", retryAfter: 900 }, 429);
   }
-  if (!adminPasswordConfigured()) {
-    return c.json({ error: "password_not_configured" }, 503);
+  if (countUsers() === 0) {
+    return c.json({ error: "no_users", hint: "请先在服务器上执行 npm run user -- add <用户名>" }, 503);
   }
 
-  const body = (await c.req.json().catch(() => ({}))) as { password?: string };
-  if (!body.password || !(await checkPassword(body.password))) {
-    noteFailure(ip);
-    return c.json({ error: "invalid_password" }, 401);
+  const user = await checkCredentials(username, body.password ?? "");
+  if (!user) {
+    noteFailure(ip, username);
+    return c.json({ error: "invalid_credentials" }, 401);
   }
 
-  clearFailures(ip);
+  clearFailures(ip, username);
+  touchLogin(user.id);
   return c.json(
-    { ok: true },
-    { headers: { "Set-Cookie": setSessionCookie(issueSession()) } },
+    { ok: true, user: toPublic(user) },
+    { headers: { "Set-Cookie": setSessionCookie(issueSession(user.id)) } },
   );
 });
 
@@ -101,12 +122,103 @@ app.post("/api/logout", (c) =>
   c.json({ ok: true }, { headers: { "Set-Cookie": clearSessionCookie() } }),
 );
 
-/** 前端探会话用：200=已登录，401=没有。只回布尔值，不泄露任何配置 */
-app.get("/api/session", (c) =>
-  verifySession(readCookie(c, sessionCookieName()))
-    ? c.json({ ok: true })
-    : c.json({ ok: false }, 401),
+/** 前端探会话用：200=已登录（回用户名），401=没有 */
+app.get("/api/session", async (c) => {
+  const s = verifySession(readCookie(c, sessionCookieName()));
+  if (!s) return c.json({ ok: false }, 401);
+
+  const user = findById(s.userId);
+  if (!user || user.disabled) return c.json({ ok: false }, 401);
+
+  return c.json({ ok: true, user: toPublic(user) });
+});
+
+/* ---------- 用户管理 ---------- */
+
+app.get("/api/users", requireAuth, (c) =>
+  c.json({ users: listUsers() }),
 );
+
+app.post("/api/users", requireAuth, async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    username?: string;
+    password?: string;
+    displayName?: string;
+  };
+  const username = (body.username ?? "").trim();
+
+  const bad = validUsername(username) ?? validPassword(body.password ?? "");
+  if (bad) return c.json({ error: "invalid_input", detail: bad }, 400);
+
+  try {
+    const user = await createUser({
+      username,
+      password: body.password!,
+      displayName: body.displayName,
+    });
+    return c.json({ user }, 201);
+  } catch (e) {
+    const code = (e as { code?: string }).code;
+    if (code === "username_taken") {
+      return c.json({ error: "username_taken" }, 409);
+    }
+    if (code === "stale_revision") {
+      return c.json({ error: "stale_revision" }, 409);
+    }
+    throw e;
+  }
+});
+
+app.patch("/api/users/:id", requireAuth, async (c) => {
+  const id = c.req.param("id") ?? "";
+  const body = (await c.req.json().catch(() => ({}))) as {
+    displayName?: string;
+    password?: string;
+    disabled?: boolean;
+  };
+
+  const patch: { displayName?: string; password?: string; disabled?: boolean } = {};
+
+  if (body.displayName !== undefined) patch.displayName = body.displayName.trim();
+  if (body.password) {
+    const bad = validPassword(body.password);
+    if (bad) return c.json({ error: "invalid_input", detail: bad }, 400);
+    patch.password = body.password;
+  }
+  if (body.disabled !== undefined) patch.disabled = !!body.disabled;
+
+  if (Object.keys(patch).length === 0) {
+    return c.json({ error: "nothing_to_update" }, 400);
+  }
+
+  try {
+    return c.json({ user: await updateUser(id, patch) });
+  } catch (e) {
+    const code = (e as { code?: string }).code;
+    if (code === "not_found") return c.json({ error: "not_found" }, 404);
+    if (code === "stale_revision") return c.json({ error: "stale_revision" }, 409);
+    throw e;
+  }
+});
+
+app.delete("/api/users/:id", requireAuth, async (c) => {
+  const id = c.req.param("id") ?? "";
+  const me = currentUser(c);
+  if (me?.id === id) {
+    return c.json({ error: "cannot_delete_self" }, 400);
+  }
+  try {
+    deleteUser(id);
+    return c.json({ ok: true });
+  } catch (e) {
+    const code = (e as { code?: string }).code;
+    if (code === "not_found") return c.json({ error: "not_found" }, 404);
+    if (code === "last_user") {
+      return c.json({ error: "last_user", detail: "至少要保留一个用户，否则谁都进不来" }, 400);
+    }
+    throw e;
+  }
+});
 
 /* ---------- 相册清单 ---------- */
 
@@ -293,14 +405,23 @@ app.onError((err, c) => {
   return c.json({ error: "internal", detail: String(err) }, 500);
 });
 
-serve({ fetch: app.fetch, port: config.port }, (info) => {
+serve({ fetch: app.fetch, port: config.port }, async (info) => {
   console.log(`签名服务已启动  http://localhost:${info.port}`);
   console.log(`  桶     ${config.bucket} @ ${config.region}`);
   console.log(`  允许来源 ${config.allowedOrigins.join(", ")}`);
-  if (!adminPasswordConfigured()) {
-    console.warn("  ⚠️ 未配置 ALBUM_ADMIN_PASSWORD_HASH，登录接口将返回 503");
+
+  try {
+    assertSessionSecret();
+  } catch (e) {
+    console.error(`  💥 ${(e as Error).message}`);
+    process.exit(1);
   }
-  if (!config.sessionSecret) {
-    console.warn("  ⚠️ 未配置 SESSION_SECRET，会话密钥从口令哈希派生（可行但不便于轮换）");
+
+  const n = countUsers();
+  if (n === 0) {
+    console.warn("  ⚠️ 还没有任何用户，登录会返回 503");
+    console.warn("     请执行： npm run user -- add <用户名>");
+  } else {
+    console.log(`  用户   ${n} 个`);
   }
 });

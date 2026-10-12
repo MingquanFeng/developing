@@ -2,42 +2,42 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { Context, Next } from "hono";
 import { config, SESSION_TTL_SEC } from "./config";
+import { findById, verifyCredentials, type User } from "./users";
 
 const COOKIE_NAME = "album_session";
 
-/** 会话签名密钥：优先 SESSION_SECRET，否则从口令哈希派生 */
-function secret(): string {
-  return config.sessionSecret || `derived:${config.passwordHash}`;
-}
+/* ============================================================
+   令牌形如 <userId>.<过期ms>.<签名>
+   带上 userId 是为了知道「是谁」，不再只是一个「已登录」的布尔值。
+   无状态，服务重启不影响已登录会话。
+   ============================================================ */
 
 const hmac = (payload: string) =>
-  createHmac("sha256", secret()).update(payload).digest("hex");
+  createHmac("sha256", config.sessionSecret).update(payload).digest("hex");
 
-/** 令牌形如 `<过期时间戳>.<签名>`，无状态，服务重启不影响 */
-export function issueSession(): string {
+export function issueSession(userId: string): string {
   const exp = Date.now() + SESSION_TTL_SEC * 1000;
-  return `${exp}.${hmac(String(exp))}`;
+  const payload = `${userId}.${exp}`;
+  return `${payload}.${hmac(payload)}`;
 }
 
-export function verifySession(token: string | undefined): boolean {
-  if (!token) return false;
-  const dot = token.indexOf(".");
-  if (dot < 0) return false;
+export function verifySession(token: string | undefined): { userId: string } | null {
+  if (!token) return null;
 
-  const exp = token.slice(0, dot);
-  const sig = token.slice(dot + 1);
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [userId, exp, sig] = parts;
 
-  const expected = hmac(exp);
-  if (sig.length !== expected.length) return false;
-  if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+  const expected = hmac(`${userId}.${exp}`);
+  if (sig.length !== expected.length) return null;
+  if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  if (Number(exp) <= Date.now()) return null;
 
-  return Number(exp) > Date.now();
+  return { userId };
 }
 
-export async function checkPassword(plain: string): Promise<boolean> {
-  if (!config.passwordHash) return false;
-  return bcrypt.compare(plain, config.passwordHash);
-}
+/** 转发到 users.ts 的 SQLite 校验：用户名大小写不敏感 + bcrypt */
+export const checkCredentials = verifyCredentials;
 
 /* ---------- 登录失败节流 ---------- */
 
@@ -45,29 +45,33 @@ const attempts = new Map<string, { count: number; until: number }>();
 const MAX_ATTEMPTS = 5;
 const LOCK_MS = 15 * 60 * 1000;
 
-export function isLocked(ip: string): boolean {
-  const a = attempts.get(ip);
+const throttleKey = (ip: string, username: string) =>
+  `${ip}|${username.toLowerCase()}`;
+
+export function isLocked(ip: string, username: string): boolean {
+  const a = attempts.get(throttleKey(ip, username));
   if (!a) return false;
   if (Date.now() > a.until) {
-    attempts.delete(ip);
+    attempts.delete(throttleKey(ip, username));
     return false;
   }
   return a.count >= MAX_ATTEMPTS;
 }
 
-export function noteFailure(ip: string) {
-  const a = attempts.get(ip) ?? { count: 0, until: 0 };
+export function noteFailure(ip: string, username: string) {
+  const k = throttleKey(ip, username);
+  const a = attempts.get(k) ?? { count: 0, until: 0 };
   if (Date.now() > a.until) a.count = 0;
   a.count += 1;
   a.until = Date.now() + LOCK_MS;
-  attempts.set(ip, a);
+  attempts.set(k, a);
 }
 
-export function clearFailures(ip: string) {
-  attempts.delete(ip);
+export function clearFailures(ip: string, username: string) {
+  attempts.delete(throttleKey(ip, username));
 }
 
-/* ---------- 中间件 ---------- */
+/* ---------- Cookie ---------- */
 
 export function readCookie(c: Context, name: string): string | undefined {
   const raw = c.req.header("cookie");
@@ -79,28 +83,43 @@ export function readCookie(c: Context, name: string): string | undefined {
   return undefined;
 }
 
-export function setSessionCookie(token: string) {
-  return [
+export const setSessionCookie = (token: string) =>
+  [
     `${COOKIE_NAME}=${token}`,
     "Path=/",
     "HttpOnly",
     "SameSite=Strict",
     `Max-Age=${SESSION_TTL_SEC}`,
   ].join("; ");
-}
 
-export function clearSessionCookie() {
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
-}
+export const clearSessionCookie = () =>
+  `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
 
-export function sessionCookieName() {
-  return COOKIE_NAME;
+export const sessionCookieName = () => COOKIE_NAME;
+
+/* ---------- 中间件 ---------- */
+
+declare module "hono" {
+  interface ContextVariableMap {
+    /** 已通过鉴权的用户，由 requireAuth 写入 */
+    user: User;
+  }
 }
 
 /** 挂在受保护路由前面 */
 export async function requireAuth(c: Context, next: Next) {
-  if (!verifySession(readCookie(c, COOKIE_NAME))) {
+  const s = verifySession(readCookie(c, COOKIE_NAME));
+  if (!s) return c.json({ error: "unauthorized" }, 401);
+
+  // 每次都回查一遍：用户可能刚被删掉或停用，令牌不会立刻失效
+  const user = findById(s.userId);
+  if (!user || user.disabled) {
     return c.json({ error: "unauthorized" }, 401);
   }
+
+  c.set("user", user);
   await next();
 }
+
+/** 取当前用户，未鉴权时返回 null */
+export const currentUser = (c: Context): User | undefined => c.get("user");

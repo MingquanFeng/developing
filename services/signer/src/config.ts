@@ -24,9 +24,6 @@ export const config = {
   secretId: must("COS_SECRET_ID"),
   secretKey: must("COS_SECRET_KEY"),
 
-  /** bcrypt 哈希。没配的话登录接口会一直拒绝，但服务本身能起 */
-  passwordHash: process.env.ALBUM_ADMIN_PASSWORD_HASH?.trim() ?? "",
-
   /** 会话签名密钥。没配则退化为从口令哈希派生 */
   sessionSecret: process.env.SESSION_SECRET?.trim() ?? "",
 

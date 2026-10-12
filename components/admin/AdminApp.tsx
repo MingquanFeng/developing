@@ -6,8 +6,10 @@ import {
   fetchManifest,
   signerEndpoint,
   type Manifest,
+  type PublicUser,
 } from "@/lib/album-client";
 import { buildImageUrls, type Album, type Photo } from "@/lib/album-types";
+
 import {
   inspectFile,
   newItem,
@@ -22,6 +24,8 @@ import styles from "./admin.module.css";
    ============================================================ */
 export default function AdminApp() {
   const [authed, setAuthed] = useState<boolean | null>(null); // null=探测中
+  const [me, setMe] = useState<PublicUser | null>(null);
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginErr, setLoginErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,7 +34,8 @@ export default function AdminApp() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [notice, setNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [tab, setTab] = useState<"photos" | "trash">("photos");
+  const [tab, setTab] = useState<"photos" | "trash" | "users">("photos");
+  const [users, setUsers] = useState<PublicUser[]>([]);
 
   const signer = signerEndpoint("/api/album");
 
@@ -41,7 +46,15 @@ export default function AdminApp() {
       return;
     }
     fetch(`${signer}/api/session`, { credentials: "include" })
-      .then((r) => setAuthed(r.ok))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.user) {
+          setMe(d.user);
+          setAuthed(true);
+        } else {
+          setAuthed(false);
+        }
+      })
       .catch(() => setAuthed(false));
   }, [signer]);
 
@@ -57,6 +70,19 @@ export default function AdminApp() {
   useEffect(() => {
     if (authed) reload();
   }, [authed, reload]);
+
+  const reloadUsers = useCallback(async () => {
+    try {
+      const r = await fetch(`${signer}/api/users`, { credentials: "include" });
+      if (r.ok) setUsers((await r.json()).users);
+    } catch {
+      /* 忽略，靠页面上的旧数据 */
+    }
+  }, [signer]);
+
+  useEffect(() => {
+    if (authed && tab === "users") reloadUsers();
+  }, [authed, tab, reloadUsers]);
 
   /* ---------- 写清单（带乐观锁重试） ---------- */
   const save = useCallback(
@@ -103,7 +129,7 @@ export default function AdminApp() {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
       if (res.status === 429) throw new Error("尝试过多，已锁定 15 分钟");
       if (res.status === 503) throw new Error("服务端未配置登录口令");
@@ -123,6 +149,7 @@ export default function AdminApp() {
       credentials: "include",
     }).catch(() => {});
     setAuthed(false);
+    setMe(null);
     setData(EMPTY);
     setSelected(new Set());
   };
@@ -288,18 +315,25 @@ export default function AdminApp() {
       <Frame>
         <form className={styles.login} onSubmit={login}>
           <h1 className={styles.loginTitle}>相册后台</h1>
-          <p className={styles.loginSub}>输入口令以管理照片</p>
+          <p className={styles.loginSub}>输入用户名与密码</p>
+          <input
+            className={styles.input}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="用户名"
+            autoFocus
+            autoComplete="username"
+          />
           <input
             className={styles.input}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="口令"
-            autoFocus
+            placeholder="密码"
             autoComplete="current-password"
           />
           {loginErr ? <p className={styles.err}>{loginErr}</p> : null}
-          <button className={styles.primary} disabled={busy || !password}>
+          <button className={styles.primary} disabled={busy || !username || !password}>
             {busy ? "验证中…" : "进入"}
           </button>
         </form>
@@ -321,6 +355,7 @@ export default function AdminApp() {
           <p className={styles.sub}>
             共 {data.photos.length - trashedCount} 张 · 版本{" "}
             {String(data.revision).padStart(2, "0")}
+            {me ? ` · ${me.displayName || me.username}` : ""}
           </p>
         </div>
         <button className={styles.ghost} onClick={logout}>
@@ -379,6 +414,12 @@ export default function AdminApp() {
         >
           回收站 {trashedCount}
         </button>
+        <button
+          className={`${styles.tabBtn} ${tab === "users" ? styles.tabOn : ""}`}
+          onClick={() => setTab("users")}
+        >
+          用户 {users.length || me ? users.length || 1 : 0}
+        </button>
         {selected.size > 0 && tab === "photos" ? (
           <button
             className={styles.danger}
@@ -390,7 +431,14 @@ export default function AdminApp() {
         ) : null}
       </div>
 
-      {visible.length === 0 ? (
+      {tab === "users" ? (
+        <UserPanel
+          users={users}
+          me={me}
+          signer={signer}
+          onChanged={reloadUsers}
+        />
+      ) : visible.length === 0 ? (
         <p className={styles.muted}>
           {tab === "photos" ? "还没有照片，拖文件到上面。" : "回收站是空的。"}
         </p>
@@ -572,5 +620,202 @@ function PhotoRow({
         </span>
       ) : null}
     </li>
+  );
+}
+
+/* ---------- 用户管理 ---------- */
+function UserPanel({
+  users,
+  me,
+  signer,
+  onChanged,
+}: {
+  users: PublicUser[];
+  me: PublicUser | null;
+  signer: string;
+  onChanged: () => Promise<void>;
+}) {
+  const [nUser, setNUser] = useState("");
+  const [nPass, setNPass] = useState("");
+  const [nName, setNName] = useState("");
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [pwFor, setPwFor] = useState<string | null>(null);
+  const [pwVal, setPwVal] = useState("");
+
+  const call = async (path: string, init: RequestInit) => {
+    const r = await fetch(`${signer}${path}`, {
+      ...init,
+      credentials: "include",
+      headers: { "content-type": "application/json", ...(init.headers ?? {}) },
+    });
+    const b = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(b.detail ?? b.error ?? `HTTP ${r.status}`);
+    return b;
+  };
+
+  const addUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg(null);
+    try {
+      await call("/api/users", {
+        method: "POST",
+        body: JSON.stringify({
+          username: nUser,
+          password: nPass,
+          displayName: nName || undefined,
+        }),
+      });
+      setNUser(""); setNPass(""); setNName("");
+      setMsg({ kind: "ok", text: "用户已创建" });
+      await onChanged();
+    } catch (e) {
+      setMsg({ kind: "err", text: (e as Error).message });
+    }
+  };
+
+  const resetPassword = async (id: string) => {
+    setMsg(null);
+    try {
+      await call(`/api/users/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ password: pwVal }),
+      });
+      setPwFor(null); setPwVal("");
+      setMsg({ kind: "ok", text: "密码已更新" });
+      await onChanged();
+    } catch (e) {
+      setMsg({ kind: "err", text: (e as Error).message });
+    }
+  };
+
+  const toggleDisabled = async (u: PublicUser) => {
+    setMsg(null);
+    try {
+      await call(`/api/users/${u.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ disabled: !u.disabled }),
+      });
+      await onChanged();
+    } catch (e) {
+      setMsg({ kind: "err", text: (e as Error).message });
+    }
+  };
+
+  const remove = async (u: PublicUser) => {
+    if (!confirm(`确定删除用户 ${u.username}？`)) return;
+    setMsg(null);
+    try {
+      await call(`/api/users/${u.id}`, { method: "DELETE" });
+      setMsg({ kind: "ok", text: "用户已删除" });
+      await onChanged();
+    } catch (e) {
+      setMsg({ kind: "err", text: (e as Error).message });
+    }
+  };
+
+  return (
+    <div>
+      {msg ? (
+        <p className={msg.kind === "ok" ? styles.ok : styles.err}>{msg.text}</p>
+      ) : null}
+
+      <ul className={styles.list}>
+        {users.map((u) => (
+          <li key={u.id} className={styles.row}>
+            <div className={styles.fields}>
+              <input className={styles.input} value={u.username} disabled />
+              <input
+                className={styles.input}
+                value={u.displayName}
+                onChange={async (e) => {
+                  const v = e.target.value;
+                  await call(`/api/users/${u.id}`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ displayName: v }),
+                  }).catch((err) => setMsg({ kind: "err", text: err.message }));
+                  await onChanged();
+                }}
+              />
+              <span className={styles.dim}>
+                {u.lastLoginAt
+                  ? `最近登录 ${u.lastLoginAt.slice(0, 10)}`
+                  : "从未登录"}
+              </span>
+            </div>
+
+            {u.disabled ? <span className={styles.dim}>已停用</span> : null}
+
+            <span className={styles.actions}>
+              {pwFor === u.id ? (
+                <>
+                  <input
+                    className={styles.input}
+                    type="password"
+                    value={pwVal}
+                    onChange={(e) => setPwVal(e.target.value)}
+                    placeholder="新密码"
+                    style={{ width: 130 }}
+                  />
+                  <button className={styles.mini} onClick={() => resetPassword(u.id)}>
+                    保存
+                  </button>
+                  <button className={styles.mini} onClick={() => setPwFor(null)}>
+                    取消
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className={styles.mini} onClick={() => setPwFor(u.id)}>
+                    改密码
+                  </button>
+                  <button className={styles.mini} onClick={() => toggleDisabled(u)}>
+                    {u.disabled ? "启用" : "停用"}
+                  </button>
+                  <button
+                    className={styles.miniDanger}
+                    onClick={() => remove(u)}
+                    disabled={u.id === me?.id}
+                    title={u.id === me?.id ? "不能删除当前登录的账号" : undefined}
+                  >
+                    删除
+                  </button>
+                </>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <form className={styles.addUser} onSubmit={addUser}>
+        <span className={styles.addTitle}>新建用户</span>
+        <input
+          className={styles.input}
+          value={nUser}
+          onChange={(e) => setNUser(e.target.value)}
+          placeholder="用户名（字母数字，≥3 位）"
+        />
+        <input
+          className={styles.input}
+          type="password"
+          value={nPass}
+          onChange={(e) => setNPass(e.target.value)}
+          placeholder="密码（≥8 位）"
+          autoComplete="new-password"
+        />
+        <input
+          className={styles.input}
+          value={nName}
+          onChange={(e) => setNName(e.target.value)}
+          placeholder="显示名（可选）"
+        />
+        <button
+          className={styles.primary}
+          style={{ width: "auto", marginTop: 0, padding: "9px 20px" }}
+          disabled={!nUser || !nPass}
+        >
+          创建
+        </button>
+      </form>
+    </div>
   );
 }
