@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   EMPTY,
   fetchManifest,
+  signerBase,
   signerEndpoint,
   type Manifest,
   type PublicUser,
@@ -37,7 +38,8 @@ export default function AdminApp() {
   const [tab, setTab] = useState<"photos" | "trash" | "users">("photos");
   const [users, setUsers] = useState<PublicUser[]>([]);
 
-  const signer = signerEndpoint("/api/album");
+  /* 根地址，不带路径。signerEndpoint(x) 是「基址+x」，当根地址用会拼出废 URL */
+  const signer = signerBase();
 
   /* ---------- 探测会话 ---------- */
   useEffect(() => {
@@ -98,7 +100,9 @@ export default function AdminApp() {
             photos: next.photos,
           }),
         });
-        if (res.ok) {
+        const at = `（请求地址：${signer}/api/login）`;
+
+      if (res.ok) {
           const saved = (await res.json()) as { revision: number; updatedAt: string };
           const merged = { ...next, ...saved };
           setData(merged);
@@ -131,13 +135,49 @@ export default function AdminApp() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      if (res.status === 429) throw new Error("尝试过多，已锁定 15 分钟");
-      if (res.status === 503) throw new Error("服务端未配置登录口令");
-      if (!res.ok) throw new Error("口令不正确");
-      setPassword("");
-      setAuthed(true);
+
+      const at = `（请求地址：${signer}/api/login）`;
+
+      if (res.ok) {
+        const d = await res.json().catch(() => null);
+        if (d?.user) setMe(d.user);
+        setPassword("");
+        setAuthed(true);
+        return;
+      }
+
+      /* 逐个状态码说清楚，不要一律报「口令不正确」——
+         之前 401/429/503 都落到同一句，排查时完全看不出真实原因 */
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        hint?: string;
+        retryAfter?: number;
+      };
+      switch (res.status) {
+        case 401:
+          throw new Error(`用户名或密码不正确 ${at}`);
+        case 429:
+          throw new Error(
+            `尝试过多，已锁定，请 ${Math.round((body.retryAfter ?? 900) / 60)} 分钟后再试 ${at}`,
+          );
+        case 503:
+          throw new Error(
+            body.hint === "no_users"
+              ? "服务端还没有任何用户，请先在服务器执行 npm run user -- add <用户名>"
+              : `签名服务不可用 ${at}`,
+          );
+        default:
+          throw new Error(
+            `登录失败 HTTP ${res.status}${body.error ? `：${body.error}` : ""} ${at}`,
+          );
+      }
     } catch (e) {
-      setLoginErr((e as Error).message);
+      const msg = (e as Error).message;
+      setLoginErr(
+        /Failed to fetch|NetworkError|Load failed/.test(msg)
+          ? `连不上签名服务 ${signer} —— 请确认它已启动，且该地址在 ALLOWED_ORIGIN 白名单里`
+          : msg,
+      );
     } finally {
       setBusy(false);
     }

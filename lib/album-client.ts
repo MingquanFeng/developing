@@ -41,8 +41,19 @@ export const EMPTY: Manifest = {
 
 /** 拼签名服务地址。没配 NEXT_PUBLIC_SIGNER_URL 就返回 null */
 export function signerEndpoint(path: string): string | null {
-  const base = process.env.NEXT_PUBLIC_SIGNER_URL?.trim().replace(/\/+$/, "");
+  const base = signerBase();
   return base ? `${base}${path}` : null;
+}
+
+/**
+ * 签名服务的**根地址**，不带任何路径。
+ *
+ * 别用 signerEndpoint("/api/album") 来取根地址 —— 那是「基址 + 路径」，
+ * 会拼出 `.../api/album/api/login` 这种废 URL，404 起来毫无头绪。
+ */
+export function signerBase(): string | null {
+  const base = process.env.NEXT_PUBLIC_SIGNER_URL?.trim().replace(/\/+$/, "");
+  return base || null;
 }
 
 export async function fetchManifest(signal?: AbortSignal): Promise<Manifest> {
