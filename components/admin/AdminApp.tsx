@@ -447,10 +447,26 @@ export default function AdminApp() {
     );
   }
 
-  const visible = data.photos.filter((p) =>
+  /**
+   * viewer 角色只能看自己的 photo / album；admin 看全部。
+   * —— 写操作已经由 requirePhotoOwner 拦住，UI 层面也别让 viewer
+   * 误以为能管别人的 photo / album。 */
+  const scoped = (() => {
+    if (!data || !me) return data;
+    if (me.role === "admin") return data;
+    return {
+      ...data,
+      albums: data.albums.filter((a) => a.ownerId === me.id),
+      photos: data.photos.filter((p) => p.ownerId === me.id),
+    };
+  })();
+
+  const visible = (scoped?.photos ?? data.photos).filter((p) =>
     tab === "photos" ? !p.trashedAt : !!p.trashedAt,
   );
-  const trashedCount = data.photos.filter((p) => p.trashedAt).length;
+  const trashedCount = (scoped?.photos ?? data.photos).filter(
+    (p) => p.trashedAt,
+  ).length;
   const pendingCount = queue.filter((q) => q.status !== "done").length;
 
   return (
@@ -459,7 +475,7 @@ export default function AdminApp() {
         <div>
           <h1 className={styles.title}>相册后台</h1>
           <p className={styles.sub}>
-            共 {data.photos.length - trashedCount} 张 · 版本{" "}
+            共 {(scoped?.photos ?? data.photos).length - trashedCount} 张 · 版本{" "}
             {String(data.revision).padStart(2, "0")}
             {me ? ` · ${me.displayName || me.username}` : ""}
           </p>
@@ -512,7 +528,7 @@ export default function AdminApp() {
           className={`${styles.tabBtn} ${tab === "photos" ? styles.tabOn : ""}`}
           onClick={() => setTab("photos")}
         >
-          照片 {data.photos.length - trashedCount}
+          照片 {(scoped?.photos ?? data.photos).length - trashedCount}
         </button>
         <button
           className={`${styles.tabBtn} ${tab === "trash" ? styles.tabOn : ""}`}
@@ -558,7 +574,7 @@ export default function AdminApp() {
             <PhotoRow
               key={p.id}
               photo={p}
-              albums={data.albums}
+              albums={scoped?.albums ?? data.albums}
               checked={selected.has(p.id)}
               onToggle={() => toggle(p.id)}
               onEdit={(patch) => editPhoto(p.id, patch)}
