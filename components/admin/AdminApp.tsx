@@ -100,9 +100,8 @@ export default function AdminApp() {
             photos: next.photos,
           }),
         });
-        const at = `（请求地址：/api/login）`;
 
-      if (res.ok) {
+        if (res.ok) {
           const saved = (await res.json()) as { revision: number; updatedAt: string };
           const merged = { ...next, ...saved };
           setData(merged);
@@ -136,8 +135,6 @@ export default function AdminApp() {
         body: JSON.stringify({ username, password }),
       });
 
-      const at = `（请求地址：/api/login）`;
-
       if (res.ok) {
         const d = await res.json().catch(() => null);
         if (d?.user) {
@@ -159,20 +156,20 @@ export default function AdminApp() {
       };
       switch (res.status) {
         case 401:
-          throw new Error(`用户名或密码不正确 ${at}`);
+          throw new Error("用户名或密码不正确");
         case 429:
           throw new Error(
-            `尝试过多，已锁定，请 ${Math.round((body.retryAfter ?? 900) / 60)} 分钟后再试 ${at}`,
+            `尝试过多，已锁定，请 ${Math.round((body.retryAfter ?? 900) / 60)} 分钟后再试`,
           );
         case 503:
           throw new Error(
             body.hint === "no_users"
               ? "服务端还没有任何用户，请先在服务器执行 npm run user -- add <用户名>"
-              : `签名服务不可用 ${at}`,
+              : "签名服务不可用",
           );
         default:
           throw new Error(
-            `登录失败 HTTP ${res.status}${body.error ? `：${body.error}` : ""} ${at}`,
+            `登录失败 HTTP ${res.status}${body.error ? `：${body.error}` : ""}`,
           );
       }
     } catch (e) {
@@ -380,28 +377,59 @@ export default function AdminApp() {
     return (
       <Frame>
         <form className={styles.login} onSubmit={login}>
-          <h1 className={styles.loginTitle}>相册后台</h1>
-          <p className={styles.loginSub}>输入用户名与密码</p>
-          <input
-            className={styles.input}
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="用户名"
-            autoFocus
-            autoComplete="username"
-          />
-          <input
-            className={styles.input}
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="密码"
-            autoComplete="current-password"
-          />
-          {loginErr ? <p className={styles.err}>{loginErr}</p> : null}
-          <button className={styles.primary} disabled={busy || !username || !password}>
+          <span className={styles.kicker}>— 后台 / 登录</span>
+          <h1 className={styles.loginTitle}>
+            <em>相册</em>
+            <em>后台</em>
+          </h1>
+          <p className={styles.loginLede}>
+            登录以管理照片、清单与用户。改密与踢人均在「账户」页可自助完成。
+          </p>
+
+          <label className={styles.field}>
+            <span className={styles.label}>用户名</span>
+            <input
+              className={styles.input}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoFocus
+              autoComplete="username"
+              required
+              disabled={busy}
+            />
+          </label>
+
+          <label className={styles.field}>
+            <span className={styles.label}>密码</span>
+            <input
+              className={styles.input}
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+              disabled={busy}
+            />
+          </label>
+
+          {loginErr ? (
+            <p className={styles.error} role="alert">
+              {loginErr}
+            </p>
+          ) : null}
+
+          <button
+            className={styles.btn}
+            type="submit"
+            disabled={busy || !username || !password}
+          >
             {busy ? "验证中…" : "进入"}
+            {!busy && <span className={styles.arrow}>→</span>}
           </button>
+
+          <p className={styles.note}>
+            非公开页。访客请走 <a href="/">首页</a> 或 <a href="/register/">注册</a>。
+          </p>
         </form>
       </Frame>
     );
