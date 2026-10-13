@@ -814,11 +814,28 @@ function UserPanel({
   };
 
   const remove = async (u: PublicUser) => {
-    if (!confirm(`确定删除用户 ${u.username}？`)) return;
+    if (
+      !confirm(
+        `确定删除用户 ${u.username}？\n\n` +
+          `此操作会同时删除该用户的全部照片（COS 对象 + 元数据）与相册，\n` +
+          `且**不可撤销**。`,
+      )
+    ) {
+      return;
+    }
     setMsg(null);
     try {
-      await call(`/api/users/${u.id}`, { method: "DELETE" });
-      setMsg({ kind: "ok", text: "用户已删除" });
+      const r = (await call(`/api/users/${u.id}`, { method: "DELETE" })) as {
+        ok: boolean;
+        deleted?: { photos: number; albums: number; objectsDeleted: number };
+      };
+      const d = r.deleted;
+      setMsg({
+        kind: "ok",
+        text: d
+          ? `用户已删除：${d.photos} 张照片 / ${d.albums} 个相册 / ${d.objectsDeleted} 个对象`
+          : "用户已删除",
+      });
       await onChanged();
     } catch (e) {
       setMsg({ kind: "err", text: (e as Error).message });

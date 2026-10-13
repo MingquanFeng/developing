@@ -324,6 +324,47 @@ try {
     assert.field(r.body, "error", "cannot_revoke_self", "error");
   });
 
+  await step("admin 删 user → 200 + 联动清资源 (photos/albums/objects)", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const users = await c.json(`/api/users`);
+    const v = users.body.users.find((u) => u.username === viewer);
+    if (!v) throw new Error("viewer 不存在");
+    const r = await c.json(`/api/users/${v.id}`, { method: "DELETE" });
+    assert.status(r, 200, "HTTP");
+    assert.field(r.body, "ok", true, "ok");
+    assert.truthy(r.body.deleted, "deleted 字段");
+    assert.truthy(
+      typeof r.body.deleted.photos === "number",
+      "photos 计数",
+    );
+    assert.truthy(
+      typeof r.body.deleted.albums === "number",
+      "albums 计数",
+    );
+    assert.truthy(
+      typeof r.body.deleted.objectsDeleted === "number",
+      "objectsDeleted 计数",
+    );
+
+    // 确认 /api/users 拿不到了
+    const after = await c.json(`/api/users`);
+    assert.truthy(
+      !after.body.users.find((u) => u.username === viewer),
+      "viewer 已从 /api/users 列表消失",
+    );
+  });
+
+  await step("删除自己 → 400 cannot_delete_self", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const me = await c.json(`/api/session`);
+    const myId = me.body.user.id;
+    const r = await c.json(`/api/users/${myId}`, { method: "DELETE" });
+    assert.status(r, 400, "HTTP");
+    assert.field(r.body, "error", "cannot_delete_self", "error");
+  });
+
   await step("security_log 落库（password_reset 与 session_revoked）", async () => {
     const dbPath = path.join(root, "data", "users.db");
     const out = execFileSync("sqlite3", [
