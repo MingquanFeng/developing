@@ -77,5 +77,11 @@
   .grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 680px) {
-  .bot { flex-direction: column; gap: 10px; text-align: center; }
+  .foot { padding: clamp(56px, 7vh, 80px) var(--pad-x) 32px; }
+  .top { margin-bottom: 48px; padding-bottom: 36px; }
+  .brand { font-size: clamp(48px, 11vw, 96px); }
+  .line { font-size: 12.5px; margin-top: 18px; }
+  .grid { grid-template-columns: 1fr; gap: 28px; margin-bottom: 48px; }
+  .col p { font-size: 15px; }
+  .bot { flex-direction: column; gap: 10px; text-align: center; padding-top: 24px; }
 }

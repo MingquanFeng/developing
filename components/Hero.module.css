@@ -118,5 +118,11 @@
 }
 
 @media (max-width: 680px) {
-  .meta { grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .hero { min-height: 600px; }
+  .content { padding: 92px var(--pad-x) 110px; }
+  .title { font-size: clamp(52px, 16vw, 96px); margin-bottom: 20px; }
+  .sub { font-size: 13.5px; }
+  .cta { gap: 16px; margin-top: 18px; }
+  .meta { grid-template-columns: repeat(2, 1fr); gap: 16px; bottom: 32px; }
+  .metaVal { font-size: 14px; }
 }

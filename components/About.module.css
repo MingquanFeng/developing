@@ -130,3 +130,16 @@
   .media { position: relative; top: 0; max-width: 480px; }
   .cols { grid-template-columns: 1fr; gap: 40px; }
 }
+@media (max-width: 680px) {
+  .about { padding-top: var(--pad-y); padding-bottom: var(--pad-y); }
+  .title { font-size: clamp(36px, 10vw, 56px); margin-bottom: 28px; }
+  .lede { font-size: 16px; line-height: 1.75; margin-bottom: 40px; }
+  .col li {
+    grid-template-columns: 50px 1fr;
+    gap: 14px;
+    padding: 12px 0;
+    font-size: 13.5px;
+  }
+  .col li span:last-child { font-size: 14.5px; }
+  .cta { gap: 18px; }
+}

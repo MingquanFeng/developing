@@ -141,3 +141,17 @@
   .side { grid-column: 1; }
   .layout { grid-template-columns: 1fr; }
 }
+@media (max-width: 680px) {
+  .head { margin-bottom: 48px; }
+  .title { font-size: clamp(40px, 11vw, 64px); }
+  .side p { font-size: 13px; }
+  .item {
+    grid-template-columns: 36px 1fr auto;
+    gap: 14px;
+    padding: 22px 0;
+  }
+  .name { font-size: clamp(20px, 5.6vw, 28px); margin-bottom: 6px; }
+  .meta { font-size: 10.5px; margin-bottom: 6px; }
+  .note { font-size: 13px; }
+  .arrow { font-size: 18px; }
+}

@@ -90,5 +90,14 @@
   .copy { grid-column: 1; }
 }
 @media (max-width: 680px) {
-  .form { grid-template-columns: 1fr; }
+  .title { font-size: clamp(32px, 8vw, 48px); }
+  .form {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-top: 36px;
+    padding-bottom: 18px;
+  }
+  .form input { font-size: clamp(20px, 6vw, 28px); }
+  .form button { width: 100%; padding: 16px 22px; }
+  .ok { position: static; margin-top: 14px; }
 }
