@@ -22,6 +22,8 @@ function explain(code: string, detail?: string): string {
   switch (code) {
     case "username_taken":
       return "这个用户名已被占用，换一个试试。";
+    case "username_reserved":
+      return detail ?? "此用户名为系统保留，请换一个。";
     case "registration_disabled":
       return "注册暂未开放。";
     case "locked":

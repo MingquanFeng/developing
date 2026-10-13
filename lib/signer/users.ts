@@ -33,6 +33,8 @@ export type User = {
    * 默认 1（迁移时回填）。
    */
   sessionVersion: number;
+  /** 最近一次登录来源 IP。无（从未登录或后端没记录）时为 null。 */
+  lastLoginIp?: string | null;
   createdAt: string;
   lastLoginAt?: string;
 };
@@ -127,6 +129,19 @@ function migrateAddSessionVersion(): void {
 }
 migrateAddSessionVersion();
 
+/**
+ * 加 last_login_ip：登录时记录最近一次登录来源 IP（取自 clientIp）。
+ * 不会暴露密码；admin 后台可看，便于发现"在哪儿登的"。
+ */
+function migrateAddLastLoginIp(): void {
+  const cols = db.prepare("PRAGMA table_info(users)").all() as {
+    name: string;
+  }[];
+  if (cols.some((c) => c.name === "last_login_ip")) return;
+  db.exec("ALTER TABLE users ADD COLUMN last_login_ip TEXT");
+}
+migrateAddLastLoginIp();
+
 const newId = () =>
   `usr_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
@@ -141,6 +156,7 @@ const toUser = (r: Record<string, unknown>): User => ({
     typeof r.session_version === "number"
       ? (r.session_version as number)
       : Number(r.session_version ?? 1) || 1,
+  lastLoginIp: (r.last_login_ip as string) ?? null,
   createdAt: r.created_at as string,
   lastLoginAt: (r.last_login_at as string) ?? undefined,
 });
@@ -166,6 +182,42 @@ export function validPassword(p: string): string | null {
   if (!p) return "密码不能为空";
   if (p.length < 8) return "密码至少 8 位";
   if (p.length > 200) return "密码过长";
+  return null;
+}
+
+/**
+ * 用户名黑名单 —— 这些名字不能让自助注册抢注：
+ *   - 内部角色名（admin / root / system / signer）
+ *   - 通用保留名
+ *   - 历史上 dev 设过的"特殊"账号（photog、assistant）
+ *
+ * 部署环境可以用 USERNAME_RESERVED 追加（逗号分隔），覆盖下面的默认。
+ */
+const DEFAULT_RESERVED: ReadonlySet<string> = new Set(
+  [
+    "admin",
+    "administrator",
+    "root",
+    "system",
+    "signer",
+    "photographer",
+    "photog",
+    "assistant",
+  ].map((s) => s.toLowerCase()),
+);
+
+export function getReservedUsernames(): Set<string> {
+  const envExtra = (process.env.USERNAME_RESERVED ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return new Set([...DEFAULT_RESERVED, ...envExtra]);
+}
+
+export function validUsernameReserved(name: string): string | null {
+  if (getReservedUsernames().has(name.toLowerCase())) {
+    return "此用户名为系统保留，请换一个";
+  }
   return null;
 }
 
@@ -210,6 +262,10 @@ export async function createUser(input: {
   /** 不传则按 viewer —— 公开注册必须显式走这个默认，不能默认 admin */
   role?: Role;
 }): Promise<PublicUser> {
+  const reserved = validUsernameReserved(input.username);
+  if (reserved) {
+    throw Object.assign(new Error("username_reserved"), { code: "username_reserved" });
+  }
   const user: User = {
     id: newId(),
     username: input.username,
@@ -239,6 +295,11 @@ export async function createUser(input: {
     throw e
   }
   return toPublic(user);
+}
+
+/** 抛带 code 的错误：username_taken / username_reserved */
+function rejectCreate(code: string, message: string): never {
+  throw Object.assign(new Error(code), { code });
 }
 
 export async function updateUser(
@@ -318,11 +379,10 @@ export function deleteUser(id: string): void {
   db.prepare("DELETE FROM users WHERE id = ?").run(id);
 }
 
-export function touchLogin(id: string): void {
-  db.prepare("UPDATE users SET last_login_at = ? WHERE id = ?").run(
-    new Date().toISOString(),
-    id,
-  );
+export function touchLogin(id: string, ip: string): void {
+  db.prepare(
+    "UPDATE users SET last_login_at = ?, last_login_ip = ? WHERE id = ?",
+  ).run(new Date().toISOString(), ip, id);
 }
 
 /* ============================================================

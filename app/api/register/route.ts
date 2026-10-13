@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     if (!user) throw new Error("post_create_lookup_failed");
 
     // 注册即登录，省得让人再输一遍
-    touchLogin(user.id);
+    touchLogin(user.id, ip);
     noteRegisterSuccess(ip, user.username);
     return NextResponse.json(
       { ok: true, user: toPublic(user) },
@@ -77,6 +77,10 @@ export async function POST(req: NextRequest) {
     if (errCode === "username_taken") {
       noteRegisterFail(ip, username, { reason: "username_taken" });
       return NextResponse.json({ error: "username_taken" }, { status: 409 });
+    }
+    if (errCode === "username_reserved") {
+      noteRegisterFail(ip, username, { reason: "username_reserved" });
+      return NextResponse.json({ error: "username_reserved" }, { status: 409 });
     }
     throw e;
   }

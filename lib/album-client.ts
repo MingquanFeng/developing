@@ -28,6 +28,8 @@ export type PublicUser = {
   sessionVersion: number;
   createdAt: string;
   lastLoginAt?: string;
+  /** 最近一次登录来源 IP（来自请求头 / x-forwarded-for） */
+  lastLoginIp?: string | null;
 };
 
 export type Manifest = {

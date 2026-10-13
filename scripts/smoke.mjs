@@ -198,6 +198,36 @@ try {
     assert.field(r.body, "user.sessionVersion", 1, "sessionVersion");
   });
 
+  await step("登录记录 lastLoginIp（X-Forwarded-For 入库）", async () => {
+    c.cookieJar.clear();
+    await c.login(viewer, viewerPass);
+    const users = await c.json(`/api/users`);
+    const v = users.body.users.find((u) => u.username === viewer);
+    assert.truthy(v, "viewer 在 /api/users 里");
+    assert.truthy(
+      v.lastLoginIp === c.testIp,
+      `lastLoginIp (${v.lastLoginIp}) 应等于 X-Forwarded-For (${c.testIp})`,
+    );
+  });
+
+  await step("注册保留名 admin → 409 username_reserved", async () => {
+    const r = await c.json(`/api/register`, {
+      method: "POST",
+      body: JSON.stringify({ username: "admin", password: "Str0ngPw!!" }),
+    });
+    assert.status(r, 409, "HTTP");
+    assert.field(r.body, "error", "username_reserved", "error");
+  });
+
+  await step("注册保留名大小写不敏感 (Admin) → 409", async () => {
+    const r = await c.json(`/api/register`, {
+      method: "POST",
+      body: JSON.stringify({ username: "Admin", password: "Str0ngPw!!" }),
+    });
+    assert.status(r, 409, "HTTP");
+    assert.field(r.body, "error", "username_reserved", "error");
+  });
+
   await step("自助改密 旧密码错 → 400", async () => {
     const r = await c.json(`/api/account/password`, {
       method: "POST",

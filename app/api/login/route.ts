@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   }
 
   clearFailures(ip, username);
-  touchLogin(user.id);
+  touchLogin(user.id, ip);
   noteLoginSuccess(ip, user.username);
 
   return NextResponse.json(

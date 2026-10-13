@@ -961,7 +961,9 @@ function UserPanel({
               />
               <span className={styles.dim}>
                 {u.lastLoginAt
-                  ? `最近登录 ${u.lastLoginAt.slice(0, 10)}`
+                  ? `最近登录 ${u.lastLoginAt.slice(0, 16).replace("T", " ")}${
+                      u.lastLoginIp ? ` · ${u.lastLoginIp}` : ""
+                    }`
                   : "从未登录"}
               </span>
             </div>
