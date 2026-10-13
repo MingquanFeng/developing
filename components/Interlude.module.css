@@ -41,7 +41,10 @@
   transform: translateY(110%);
   transition: transform 1.1s var(--ease-out);
 }
-.quoteLine.is-in > span { transform: translateY(0); }
+/* ⚠️ 这里命名要能被 CSS module 识别为独立 class（`isIn`），不能写
+   `is-in` —— 写 `is-in` 会被 module 当成 .quoteLine 的修饰选择器，
+   useEffect 里的 `styles.isIn` 拿不到对应 hash。 */
+.quoteLine.isIn > span { transform: translateY(0); }
 
 .quote em {
   font-style: italic;

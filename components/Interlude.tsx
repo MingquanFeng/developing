@@ -18,13 +18,22 @@ function QuoteLines({
   useEffect(() => {
     const root = ref.current;
     if (!root) return;
-    const targets = root.querySelectorAll(`.${styles.quoteLine}`);
+    const targets = Array.from(
+      root.querySelectorAll<HTMLElement>(`.${styles.quoteLine}`),
+    );
+
+    /* 兜底：mount 0.5s 后无论 IO 触发与否都 reveal，避免 hydration 时元素已经在
+       视口里 IO 漏触发（threshold 0.18 不满足）导致文字永久 translateY(110%)
+       —— 之前就是这个 bug 让「手记 01 / 关于面孔」完全看不见。 */
+    const fallback = window.setTimeout(() => {
+      targets.forEach((t) => t.classList.add(styles.isIn));
+    }, 500);
 
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
           if (e.isIntersecting) {
-            e.target.classList.add("is-in");
+            e.target.classList.add(styles.isIn);
             io.unobserve(e.target);
           }
         });
@@ -33,7 +42,10 @@ function QuoteLines({
     );
 
     targets.forEach((t) => io.observe(t));
-    return () => io.disconnect();
+    return () => {
+      clearTimeout(fallback);
+      io.disconnect();
+    };
   }, [lines]);
 
   return (
