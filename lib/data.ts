@@ -86,6 +86,7 @@ export const interlude03 = {
 export const series = [
   {
     key: "shanghai",
+    albumSlug: "shanghai-0317",
     no: "01",
     name: "上海 03:17",
     meta: "弄堂 · 2024 · 35MM",
@@ -98,6 +99,7 @@ export const series = [
   },
   {
     key: "beijing",
+    albumSlug: "beijing-sketch",
     no: "02",
     name: "北京素描",
     meta: "胡同工坊 · 2024 · 中画幅",
@@ -110,6 +112,7 @@ export const series = [
   },
   {
     key: "mogan",
+    albumSlug: "mogan-fog",
     no: "03",
     name: "莫干之雾",
     meta: "莫干山雾林 · 2023 · 35MM",
@@ -122,6 +125,7 @@ export const series = [
   },
   {
     key: "lhasa",
+    albumSlug: "lhasa-wall",
     no: "04",
     name: "拉萨白墙",
     meta: "西藏高原 · 2023 · 中画幅",
@@ -134,6 +138,7 @@ export const series = [
   },
   {
     key: "dali",
+    albumSlug: "dali-indigo",
     no: "05",
     name: "大理静蓝",
     meta: "大理扎染师自宅 · 2024 · 35MM",

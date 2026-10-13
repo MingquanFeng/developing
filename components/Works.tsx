@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { series, worksIntro, FALLBACK_IMAGES } from "@/lib/data";
+import { series as defaultSeries, worksIntro, FALLBACK_IMAGES } from "@/lib/data";
 import Reveal from "./Reveal";
 import styles from "./Works.module.css";
 import frameStyles from "./Frame.module.css";
+
+/* series 一项的最小类型（涵盖默认导入 + props 传过来的两种） */
+type SeriesItem = (typeof defaultSeries)[number];
 
 /* ============================================================
    Frame —— 单图槽位
@@ -14,10 +17,12 @@ function Frame({
   activeKey,
   leavingKey,
   entering,
+  series,
 }: {
   activeKey: string;
   leavingKey: string | null;
   entering: boolean;
+  series: readonly SeriesItem[];
 }) {
   const activeIndex = Math.max(series.findIndex((s) => s.key === activeKey), 0);
 
@@ -71,7 +76,11 @@ function Frame({
    Works —— 文字主导的系列目录
    持有 activeKey，hover / focus / click 驱动右侧单图切换
    ============================================================ */
-export default function Works() {
+export default function Works({
+  series = defaultSeries,
+}: {
+  series?: readonly SeriesItem[];
+} = {}) {
   const [activeKey, setActiveKey] = useState<string>(series[0].key);
   const [leavingKey, setLeavingKey] = useState<string | null>(null);
   const [entering, setEntering] = useState(false);
@@ -158,6 +167,7 @@ export default function Works() {
         </ol>
 
         <Frame
+          series={series}
           activeKey={activeKey}
           leavingKey={leavingKey}
           entering={entering}
@@ -175,7 +185,7 @@ export function ImageFallbackProvider() {
       if (!(el instanceof HTMLImageElement)) return;
       if (el.dataset.fallbackDone) return;
       el.dataset.fallbackDone = "1";
-      const idx = series.findIndex((s) => s.imageAlt === el.alt);
+      const idx = defaultSeries.findIndex((s) => s.imageAlt === el.alt);
       const fb = FALLBACK_IMAGES[(idx + 1) % FALLBACK_IMAGES.length];
       el.src = `${fb}?w=1600&q=80&auto=format&fit=crop`;
     };

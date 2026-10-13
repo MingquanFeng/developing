@@ -190,6 +190,27 @@ try {
     assert.field(r.body, "user.username", ADMIN_USER, "username");
   });
 
+  await step("首页 server render 成功（含 5 个 series 封面图）", async () => {
+    c.cookieJar.clear();
+    const r = await c.fetch(`/`, {
+      headers: { Accept: "text/html" },
+    });
+    if (r.status !== 200) {
+      throw new Error(`HTTP ${r.status} ≠ 200`);
+    }
+    const html = await r.text();
+    // 5 个 series 名字都应在 HTML 里
+    for (const name of ["上海 03:17", "北京素描", "莫干之雾", "拉萨白墙", "大理静蓝"]) {
+      if (!html.includes(name)) {
+        throw new Error(`首页 HTML 缺 series 名字: ${name}`);
+      }
+    }
+    // 当前 admin 还没建 5 个 album，封面应仍走 Unsplash 兜底（任一即可）
+    if (!html.includes("images.unsplash.com") && !html.includes("cos.ap-beijing")) {
+      throw new Error("首页未渲染任何 series 封面图");
+    }
+  });
+
   await step("viewer 登录 + sessionVersion=1", async () => {
     c.cookieJar.clear();
     const r = await c.login(viewer, viewerPass);
