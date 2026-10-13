@@ -92,4 +92,122 @@
 @media (max-width: 1100px) {
   .nav { grid-template-columns: 1fr auto; }
   .nav__menu { display: none; }
+  .nav__index { display: none; } /* 章节计数 1/7 在 mobile 太挤，藏 */
+  .nav__right { gap: 12px; }
+}
+
+/* ============================================================
+   移动端：汉堡按钮 + 全屏抽屉
+   ------------------------------------------------------------
+   - 汉堡按钮在 < 1100px 显示，3 根横线动画 → X
+   - 抽屉 backdrop（半透黑） + 右侧滑入面板，承载全部链接
+   - 抽屉打开时锁 documentElement 滚动（在组件里做）
+   ============================================================ */
+
+.nav__burger {
+  display: none; /* desktop 默认隐藏，移动端 @media 启 */
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+  color: inherit;
+}
+.nav__burger span {
+  display: block;
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 1px;
+  transition: transform .35s var(--ease), opacity .25s var(--ease);
+}
+.nav__burger span:nth-child(1) { top: 10px; }
+.nav__burger span:nth-child(2) { top: 50%; transform: translateY(-50%); }
+.nav__burger span:nth-child(3) { bottom: 10px; }
+
+/* 打开态：3 根线变 X */
+.nav__burger--open span:nth-child(1) {
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+}
+.nav__burger--open span:nth-child(2) { opacity: 0; }
+.nav__burger--open span:nth-child(3) {
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+@media (max-width: 1100px) {
+  .nav__burger { display: block; }
+}
+
+/* ---------- 抽屉 ---------- */
+
+.nav__drawer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgba(0, 0, 0, 0);
+  pointer-events: none;
+  transition: background .3s var(--ease);
+}
+.nav__drawer--open {
+  z-index: 90; /* 高于内容，低于 nav header（z=100） */
+  background: rgba(0, 0, 0, .55);
+  pointer-events: auto;
+}
+
+.nav__drawerPanel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 86vw);
+  background: var(--bg);
+  color: var(--ink);
+  padding: 92px var(--pad-x) 32px;
+  transform: translateX(100%);
+  transition: transform .35s var(--ease);
+  overflow-y: auto;
+  border-left: 1px solid var(--line);
+}
+.nav__drawer--open .nav__drawerPanel { transform: translateX(0); }
+
+.nav__drawerList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nav__drawerList a,
+.nav__drawerList button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  padding: 14px 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity .25s var(--ease);
+}
+.nav__drawerList a:hover,
+.nav__drawerList button:hover { opacity: .55; }
+.nav__drawerSep {
+  list-style: none;
+  height: 1px;
+  background: var(--line);
+  margin: 18px 0;
 }
