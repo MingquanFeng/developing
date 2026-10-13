@@ -31,6 +31,9 @@ export const nav = [
   { label: "关于", href: "#about" },
   { label: "相册", href: "/album/" },
   { label: "联系", href: "#contact" },
+  /* 账户入口。登录跳后台口令页；注册开放自助，账号为访客 */
+  { label: "登录", href: "/admin/" },
+  { label: "注册", href: "/register/" },
 ] as const;
 
 /* ========== 首屏 ========== */

@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EMPTY, fetchManifest, type Manifest } from "@/lib/album-client";
-import { buildImageUrls, type Photo } from "@/lib/album-types";
+import { EMPTY, fetchManifest, fetchPhotoUrl, type Manifest } from "@/lib/album-client";
+import type { Photo } from "@/lib/album-types";
 import Lightbox from "./Lightbox";
 import styles from "./album.module.css";
 
@@ -25,7 +25,8 @@ function LazyImg({ photo }: { photo: Photo }) {
     const io = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
-          setSrc(buildImageUrls(photo.key).thumb);
+          // 签名 URL 必须异步取 —— 公开直链会绕过权限
+          void fetchPhotoUrl(photo.id, "thumb").then(setSrc);
           io.disconnect();
         }
       },
@@ -34,7 +35,7 @@ function LazyImg({ photo }: { photo: Photo }) {
 
     io.observe(el);
     return () => io.disconnect();
-  }, [photo.key]);
+  }, [photo.id]);
 
   return (
     /* 绝对定位铺满 cell，不依赖百分比高度解析 —— .cell 是 relative */

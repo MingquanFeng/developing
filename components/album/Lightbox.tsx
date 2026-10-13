@@ -1,12 +1,8 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
-import {
-  buildImageUrls,
-  formatBytes,
-  formatDate,
-  type Photo,
-} from "@/lib/album-types";
+import { useCallback, useEffect, useState } from "react";
+import { formatBytes, formatDate, type Photo } from "@/lib/album-types";
+import { fetchPhotoUrl } from "@/lib/album-client";
 import styles from "./Lightbox.module.css";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -55,14 +51,40 @@ export default function Lightbox({
     [index - 1, index + 1].forEach((i) => {
       const n = photos[i];
       if (!n) return;
-      const img = new Image();
-      img.src = buildImageUrls(n.key).preview;
+      // 签名 URL 要异步取，预加载同样得等它回来
+      void fetchPhotoUrl(n.id, "preview").then((url) => {
+        if (!url) return;
+        const img = new Image();
+        img.src = url;
+      });
     });
   }, [index, photos]);
 
+  /* ---- 当前图的签名 URL ---- */
+  const [preview, setPreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (!photo) return;
+    let alive = true;
+    setPreview(null);
+    void fetchPhotoUrl(photo.id, "preview").then((u) => {
+      if (alive) setPreview(u);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [photo]);
+
   if (!photo) return null;
 
-  const { preview, original } = buildImageUrls(photo.key);
+  /* 下载原图也走签名 —— 公开直链会绕过权限 */
+  const onDownload = async () => {
+    const u = await fetchPhotoUrl(photo.id, "original");
+    if (!u) return;
+    const a = document.createElement("a");
+    a.href = u;
+    a.download = `${photo.title || photo.id}.jpg`;
+    a.click();
+  };
 
   /* ---- 触摸左右滑动翻页 ---- */
   let touchX = 0;
@@ -105,7 +127,7 @@ export default function Lightbox({
         <img
           key={photo.id}
           className={styles.img}
-          src={preview}
+          src={preview ?? undefined}
           alt={photo.title}
         />
       </div>
@@ -143,15 +165,14 @@ export default function Lightbox({
           >
             →
           </button>
-          <a
+          <button
+            type="button"
             className={styles.download}
-            href={original}
-            download
-            target="_blank"
-            rel="noreferrer"
+            onClick={onDownload}
+            disabled={!preview}
           >
             下载原图 <span aria-hidden>↓</span>
-          </a>
+          </button>
         </div>
       </div>
     </div>
