@@ -94,6 +94,20 @@
   .nav__menu { display: none; }
   .nav__index { display: none; } /* 章节计数 1/7 在 mobile 太挤，藏 */
   .nav__right { gap: 12px; }
+  /* 移动端：nav header 之前是全透明靠 mix-blend-mode 跟底图反相，
+     在彩色 hero 图上对比度不够、hamburger 看不清。加半透深色 backdrop
+     + blur 保证导航按钮始终可读。shrink 状态从 padding 改，进一步加深。 */
+  .nav {
+    background: rgba(15, 17, 21, 0.62);
+    backdrop-filter: blur(14px) saturate(1.1);
+    -webkit-backdrop-filter: blur(14px) saturate(1.1);
+    border-bottom: 1px solid rgba(255, 255, 255, .06);
+    mix-blend-mode: normal;
+    color: var(--paper);
+  }
+  .nav.is-shrunk {
+    background: rgba(15, 17, 21, 0.78);
+  }
 }
 
 /* ============================================================
