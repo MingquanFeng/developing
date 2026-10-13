@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { type PublicUser } from "@/lib/album-client";
-import styles from "./register.module.css";
 
 /* ============================================================
    RegisterForm —— 公开注册
@@ -86,19 +85,19 @@ export default function RegisterForm() {
   }
 
   if (state.kind === "probe") {
-    return <p className={styles.hint}>正在检查注册状态…</p>;
+    return <p className="acct-hint">正在检查注册状态…</p>;
   }
   if (state.kind === "disabled") {
     return (
-      <div className={styles.closed}>
-        <p className={styles.closedTitle}>注册暂未开放</p>
-        <p className={styles.copy}>
+      <div className="acct-closed">
+        <p className="acct-closedTitle">注册暂未开放</p>
+        <p className="acct-copy">
           本站相册目前为单人维护，暂不提供自助注册。
           <br />
           如需访问私人影像，请直接联系工作室。
         </p>
-        <div className={styles.actions}>
-          <a href="/album/" className={styles.btnGhost}>
+        <div className="acct-actions">
+          <a href="/album/" className="acct-btnGhost">
             先去浏览相册
           </a>
         </div>
@@ -108,14 +107,14 @@ export default function RegisterForm() {
 
   if (state.kind === "done") {
     return (
-      <div className={styles.closed}>
-        <p className={styles.closedTitle}>账号已创建</p>
-        <p className={styles.copy}>
+      <div className="acct-closed">
+        <p className="acct-closedTitle">账号已创建</p>
+        <p className="acct-copy">
           欢迎，{state.user.displayName}。你已经登录，可以开始浏览私人影像档案了。
         </p>
-        <div className={styles.actions}>
-          <a href="/album/" className={styles.btn}>
-            进入相册 <span className={styles.arrow}>→</span>
+        <div className="acct-actions">
+          <a href="/album/" className="acct-btn">
+            进入相册 <span className="acct-arrow">→</span>
           </a>
         </div>
       </div>
@@ -125,30 +124,30 @@ export default function RegisterForm() {
   const busy = state.kind === "submitting";
 
   return (
-    <form className={styles.form} onSubmit={submit} noValidate>
+    <form className="acct-form" onSubmit={submit} noValidate>
       {state.kind === "error" && (
-        <p className={styles.error} role="alert">
+        <p className="acct-error" role="alert">
           {state.text}
         </p>
       )}
 
-      <label className={styles.field}>
-        <span className={styles.label}>用户名</span>
+      <label className="acct-field">
+        <span className="acct-label">用户名</span>
         <input
-          className={styles.input}
+          className="acct-input"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
           required
           disabled={busy}
         />
-        <span className={styles.help}>3–32 位，字母数字下划线连字符</span>
+        <span className="acct-help">3–32 位，字母数字下划线连字符</span>
       </label>
 
-      <label className={styles.field}>
-        <span className={styles.label}>显示名（可选）</span>
+      <label className="acct-field">
+        <span className="acct-label">显示名（可选）</span>
         <input
-          className={styles.input}
+          className="acct-input"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           autoComplete="nickname"
@@ -156,10 +155,10 @@ export default function RegisterForm() {
         />
       </label>
 
-      <label className={styles.field}>
-        <span className={styles.label}>密码</span>
+      <label className="acct-field">
+        <span className="acct-label">密码</span>
         <input
-          className={styles.input}
+          className="acct-input"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -167,13 +166,13 @@ export default function RegisterForm() {
           required
           disabled={busy}
         />
-        <span className={styles.help}>至少 8 位</span>
+        <span className="acct-help">至少 8 位</span>
       </label>
 
-      <label className={styles.field}>
-        <span className={styles.label}>确认密码</span>
+      <label className="acct-field">
+        <span className="acct-label">确认密码</span>
         <input
-          className={styles.input}
+          className="acct-input"
           type="password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
@@ -183,12 +182,12 @@ export default function RegisterForm() {
         />
       </label>
 
-      <button className={styles.btn} type="submit" disabled={busy}>
+      <button className="acct-btn" type="submit" disabled={busy}>
         {busy ? "正在创建…" : "创建账号"}
-        {!busy && <span className={styles.arrow}>→</span>}
+        {!busy && <span className="acct-arrow">→</span>}
       </button>
 
-      <p className={styles.note}>
+      <p className="acct-note">
         注册后为访客身份：可浏览相册，不能上传或修改照片。
       </p>
     </form>

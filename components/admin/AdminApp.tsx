@@ -374,64 +374,76 @@ export default function AdminApp() {
   }
 
   if (!authed) {
+    /* 登录页 —— 跟 /register 100% 同一套 .acct-* 公共样式，CSS 抽到 globals.css
+       后两边永远一致。结构与 register/page.tsx 对齐：acct-page > acct-card
+       + acct-form。注：app/admin/page.tsx 里包了 <main>，但这里再渲染
+       <main className="acct-page"> 形成"双 main"，浏览器合并、视觉一致。 */
     return (
-      <Frame>
-        <form className={styles.login} onSubmit={login}>
-          <span className={styles.kicker}>— 后台 / 登录</span>
-          <h1 className={styles.loginTitle}>
+      <main className="acct-page">
+        <div className="acct-top">
+          <a href="/">← 返回首页</a>
+          <span>塞上空许 · 私人相册</span>
+        </div>
+
+        <section className="acct-card">
+          <span className="acct-kicker">— 后台 / 登录</span>
+          <h1 className="acct-title">
             <em>相册</em>
             <em>后台</em>
           </h1>
-          <p className={styles.loginLede}>
+          <p className="acct-lede">
             登录以管理照片、清单与用户。改密与踢人均在「账户」页可自助完成。
           </p>
 
-          <label className={styles.field}>
-            <span className={styles.label}>用户名</span>
-            <input
-              className={styles.input}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoFocus
-              autoComplete="username"
-              required
-              disabled={busy}
-            />
-          </label>
+          <form className="acct-form" onSubmit={login} noValidate>
+            <label className="acct-field">
+              <span className="acct-label">用户名</span>
+              <input
+                className="acct-input"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoFocus
+                autoComplete="username"
+                required
+                disabled={busy}
+              />
+            </label>
 
-          <label className={styles.field}>
-            <span className={styles.label}>密码</span>
-            <input
-              className={styles.input}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-              disabled={busy}
-            />
-          </label>
+            <label className="acct-field">
+              <span className="acct-label">密码</span>
+              <input
+                className="acct-input"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+                disabled={busy}
+              />
+            </label>
 
-          {loginErr ? (
-            <p className={styles.error} role="alert">
-              {loginErr}
+            {loginErr ? (
+              <p className="acct-error" role="alert">
+                {loginErr}
+              </p>
+            ) : null}
+
+            <button
+              className="acct-btn"
+              type="submit"
+              disabled={busy || !username || !password}
+            >
+              {busy ? "验证中…" : "进入"}
+              {!busy && <span className="acct-arrow">→</span>}
+            </button>
+
+            <p className="acct-note">
+              非公开页。访客请走 <a href="/">首页</a> 或{" "}
+              <a href="/register/">注册</a>。
             </p>
-          ) : null}
-
-          <button
-            className={styles.btn}
-            type="submit"
-            disabled={busy || !username || !password}
-          >
-            {busy ? "验证中…" : "进入"}
-            {!busy && <span className={styles.arrow}>→</span>}
-          </button>
-
-          <p className={styles.note}>
-            非公开页。访客请走 <a href="/">首页</a> 或 <a href="/register/">注册</a>。
-          </p>
-        </form>
-      </Frame>
+          </form>
+        </section>
+      </main>
     );
   }
 
@@ -576,7 +588,7 @@ function defaultAlbum(ownerId?: string): Album {
 
 /* ---------- 外壳 ---------- */
 function Frame({ children }: { children: React.ReactNode }) {
-  return <div className={styles.shell}>{children}</div>;
+  return <main className={`${styles.shell} ${styles.shellMain}`}>{children}</main>;
 }
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {

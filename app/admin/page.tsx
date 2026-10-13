@@ -8,11 +8,8 @@ export const metadata: Metadata = {
 };
 
 export default function AdminPage() {
-  return (
-    <>
-      <main style={{ background: "var(--bg)", color: "var(--ink)" }}>
-        <AdminApp />
-      </main>
-    </>
-  );
+  /* AdminApp 自己管 layout：未登录走 <main className="acct-page">（暗色 + 顶 padding），
+     已登录走 <main className="sh">（暗色 + 顶 padding）。两边都用 main 元素，
+     嵌套合法、视觉一致。 */
+  return <AdminApp />;
 }
