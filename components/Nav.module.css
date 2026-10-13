@@ -94,20 +94,15 @@
   .nav__menu { display: none; }
   .nav__index { display: none; } /* 章节计数 1/7 在 mobile 太挤，藏 */
   .nav__right { gap: 12px; }
-  /* 移动端：nav header 之前是全透明靠 mix-blend-mode 跟底图反相，
-     在彩色 hero 图上对比度不够、hamburger 看不清。加半透深色 backdrop
-     + blur 保证导航按钮始终可读。shrink 状态从 padding 改，进一步加深。 */
-  .nav {
-    background: rgba(15, 17, 21, 0.62);
-    backdrop-filter: blur(14px) saturate(1.1);
-    -webkit-backdrop-filter: blur(14px) saturate(1.1);
-    border-bottom: 1px solid rgba(255, 255, 255, .06);
-    mix-blend-mode: normal;
-    color: var(--paper);
-  }
-  .nav.is-shrunk {
-    background: rgba(15, 17, 21, 0.78);
-  }
+  /* 之前试过给 mobile 加 frosted glass backdrop，hamburger 是清楚了但
+     nav header 凭空多了一层遮罩，跟整站「nav 完全透明」的设计不一致。
+     回退到原始 mix-blend-mode: difference 方案，靠下面两件事增加对比度：
+
+     1) .nav__menu a 默认 opacity .75 在 mobile 升到 .95；
+     2) .nav__burger span 加 drop-shadow：浅色 hero 图上 paper 颜色
+        直接显示、drop-shadow 加深色光晕强化边缘；深色 scrim 上 paper
+        已经够亮，shadow 几乎不显现（互不冲突）。 */
+  .nav__menu a { opacity: .95; }
 }
 
 /* ============================================================
@@ -137,6 +132,11 @@
   height: 1.5px;
   background: currentColor;
   border-radius: 1px;
+  /* 浅色 hero 图上 paper 颜色会被 mix-blend-mode 反相掉，drop-shadow
+     加深色光晕强化线条边缘；深色底图上 paper 已经够亮，shadow 几乎
+     透明。两种情况下 hamburger 都可读。 */
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, .55))
+          drop-shadow(0 0 4px rgba(0, 0, 0, .35));
   transition: transform .35s var(--ease), opacity .25s var(--ease);
 }
 .nav__burger span:nth-child(1) { top: 10px; }
