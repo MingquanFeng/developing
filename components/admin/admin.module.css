@@ -157,20 +157,9 @@
 }
 .note a:hover { opacity: .75; }
 
-/* ---------- 控件 ---------- */
-.input {
-  width: 100%;
-  padding: 9px 12px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, .02);
-  color: var(--ink);
-  font-size: 13px;
-  outline: none;
-  transition: border-color .2s var(--ease);
-}
-.input:focus { border-color: var(--hot); }
-.input:disabled { opacity: .4; }
+/* ---------- 控件 ----------
+   .input 已经在上面「登录」段里按 /register 风格定义；
+   这里其它控件类（.primary / .ghost / .mini / .danger / .tabBtn）继续使用。 */
 
 .primary,
 .ghost,
