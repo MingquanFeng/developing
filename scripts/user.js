@@ -2,12 +2,15 @@
  * 用户管理 CLI
  *
  *   npm run user -- list
- *   npm run user -- add <用户名> [显示名]
+ *   npm run user -- add <用户名> [显示名] [--admin|--viewer]
  *   npm run user -- passwd <用户名>
+ *   npm run user -- role <用户名> <admin|viewer>
+ *   npm run user -- revoke-sessions <用户名>   踢出该账号所有会话
  *   npm run user -- rm <用户名>
  *
- * 建第一个用户必须走这里：没有开放注册接口，
- * 谁能进服务器谁能建号 —— 攻击面最小。
+ * 角色：admin 能传图/改清单/管用户；viewer 只能登录浏览。
+ * 网页注册（REGISTRATION_OPEN）建的账号一律是 viewer。
+ * 建第一个管理员必须走这里 --admin —— 攻击面最小。
  */
 const readline = require("node:readline");
 const fs = require("node:fs");
@@ -18,7 +21,7 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env"), quiet: true
 // dist/users.js 与 src/users.ts 同构，直接复用
 const {
   createUser, listUsers, findByUsername, updateUser, deleteUser,
-  validUsername, validPassword, dbFile,
+  bumpSessionVersion, validUsername, validPassword, dbFile,
 } = require(path.join(__dirname, "..", "dist", "users.js"));
 
 const IS_TTY = process.stdin.isTTY === true;
@@ -79,6 +82,7 @@ const [cmd, arg, extra] = process.argv.slice(2);
       users.forEach((u) =>
         console.log(
           `  ${u.username.padEnd(20)} ${(u.displayName || "").padEnd(16)} ` +
+            `${u.role === "admin" ? "[管理员] " : "[访客] "}` +
             `${u.disabled ? "[已停用] " : ""}` +
             `创建于 ${u.createdAt.slice(0, 10)}` +
             (u.lastLoginAt ? `  最近登录 ${u.lastLoginAt.slice(0, 16).replace("T", " ")}` : "  从未登录"),
@@ -89,17 +93,25 @@ const [cmd, arg, extra] = process.argv.slice(2);
     }
 
     case "add": {
-      if (!arg) throw new Error("用法：npm run user -- add <用户名> [显示名]");
+      if (!arg) throw new Error("用法：npm run user -- add <用户名> [显示名] [--admin|--viewer]");
       const bad = validUsername(arg);
       if (bad) throw new Error(bad);
       if (findByUsername(arg)) throw new Error(`用户名 ${arg} 已存在`);
 
-      console.log(`\n新建用户 ${arg}`);
+      // 默认给 visitor。要能管用户必须显式 --admin ——
+      // 免得随手建出一个不受控的管理员。
+      const flags = process.argv.slice(3);
+      if (flags.includes("--admin") && flags.includes("--viewer")) {
+        throw new Error("--admin 与 --viewer 只能选一个");
+      }
+      const role = flags.includes("--admin") ? "admin" : "viewer";
+
+      console.log(`\n新建用户 ${arg}（${role === "admin" ? "管理员" : "访客"}）`);
       const pw = await askPassword("密码：");
       const u = await createUser({
-        username: arg, password: pw, displayName: extra,
+        username: arg, password: pw, displayName: extra, role,
       });
-      console.log(`\n  已创建：${u.username}（${u.displayName}）\n`);
+      console.log(`\n  已创建：${u.username}（${u.displayName} · ${u.role}）\n`);
       return;
     }
 
@@ -110,6 +122,26 @@ const [cmd, arg, extra] = process.argv.slice(2);
       const pw = await askPassword(`给 ${arg} 设新密码：`);
       await updateUser(u.id, { password: pw });
       console.log(`\n  ${arg} 的密码已更新\n`);
+      return;
+    }
+
+    case "role": {
+      if (!arg || !extra) throw new Error("用法：npm run user -- role <用户名> <admin|viewer>");
+      const u = findByUsername(arg);
+      if (!u) throw new Error(`没有这个用户：${arg}`);
+      if (extra !== "admin" && extra !== "viewer") throw new Error("角色只能是 admin 或 viewer");
+      const r = await updateUser(u.id, { role: extra });
+      console.log(`\n  ${arg} 现在是：${r.role}\n`);
+      return;
+    }
+
+    case "revoke-sessions": {
+      if (!arg) throw new Error("用法：npm run user -- revoke-sessions <用户名>");
+      const u = findByUsername(arg);
+      if (!u) throw new Error(`没有这个用户：${arg}`);
+      const next = bumpSessionVersion(u.id);
+      if (next === null) throw new Error(`用户 ${arg} 不存在`);
+      console.log(`\n  ${arg} 的所有 session 已吊销（session_version = ${next}）\n`);
       return;
     }
 
@@ -127,9 +159,12 @@ const [cmd, arg, extra] = process.argv.slice(2);
 用户管理
 
   npm run user -- list                 查看所有用户
-  npm run user -- add <用户名> [显示名] 新建用户
+  npm run user -- add <用户名> [显示名] 新建用户（默认访客）
+  npm run user -- add <用户名> [显示名] --admin   新建管理员
   npm run user -- passwd <用户名>      重设密码
-  npm run user -- rm <用户名>          删除用户（不能删最后一个）
+  npm run user -- role <用户名> <admin|viewer>   改角色
+  npm run user -- revoke-sessions <用户名>   吊销该用户所有会话
+  npm run user -- rm <用户名>          删除用户（不能删最后一个管理员）
 
 库文件：${dbFile}
 `);

@@ -98,12 +98,12 @@ function putFile(
 /** 分批签名。超出会按 MAX_PER_BATCH 切块 */
 async function signBatch(
   items: QueueItem[],
-  base: string,
+  
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   for (let i = 0; i < items.length; i += MAX_PER_BATCH) {
     const chunk = items.slice(i, i + MAX_PER_BATCH);
-    const res = await fetch(`${base}/api/sign`, {
+    const res = await fetch(`/api/sign`, {
       method: "POST",
       credentials: "include",
       headers: { "content-type": "application/json" },
@@ -143,7 +143,7 @@ export type RunHandlers = {
  */
 export async function runUpload(
   items: QueueItem[],
-  signerBase: string,
+  
   handlers: RunHandlers,
 ): Promise<void> {
   const todo = items.filter((it) => it.status !== "done");
@@ -160,7 +160,7 @@ export async function runUpload(
   todo.forEach((it) => patch(it.uid, { status: "signing", error: undefined }));
   let urls: Map<string, string>;
   try {
-    urls = await signBatch(todo, signerBase);
+    urls = await signBatch(todo);
   } catch (e) {
     const msg = (e as Error).message;
     todo.forEach((it) => patch(it.uid, { status: "error", error: msg }));

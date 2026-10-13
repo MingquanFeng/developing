@@ -4,12 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   EMPTY,
   fetchManifest,
-  signerBase,
-  signerEndpoint,
+  fetchPhotoUrl,
+  generateResetLink,
+  revokeUserSessions,
   type Manifest,
   type PublicUser,
+  type ResetLinkResponse,
 } from "@/lib/album-client";
-import { buildImageUrls, type Album, type Photo } from "@/lib/album-types";
+import type { Album, Photo } from "@/lib/album-types";
 
 import {
   inspectFile,
@@ -39,15 +41,13 @@ export default function AdminApp() {
   const [users, setUsers] = useState<PublicUser[]>([]);
 
   /* 根地址，不带路径。signerEndpoint(x) 是「基址+x」，当根地址用会拼出废 URL */
-  const signer = signerBase();
+  /* 根地址：合并后所有 /api/* 同源。`apiBase = ""` 让 `${apiBase}/api/...` 拼出相对路径，
+     保留这层壳是怕有人未来要切回独立服务时还能直接用。 */
+  const apiBase = "";
 
   /* ---------- 探测会话 ---------- */
   useEffect(() => {
-    if (!signer) {
-      setAuthed(false);
-      return;
-    }
-    fetch(`${signer}/api/session`, { credentials: "include" })
+    fetch(`/api/session`, { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.user) {
@@ -58,7 +58,7 @@ export default function AdminApp() {
         }
       })
       .catch(() => setAuthed(false));
-  }, [signer]);
+  }, []);
 
   /* ---------- 拉清单 ---------- */
   const reload = useCallback(async () => {
@@ -75,12 +75,12 @@ export default function AdminApp() {
 
   const reloadUsers = useCallback(async () => {
     try {
-      const r = await fetch(`${signer}/api/users`, { credentials: "include" });
+      const r = await fetch(`/api/users`, { credentials: "include" });
       if (r.ok) setUsers((await r.json()).users);
     } catch {
       /* 忽略，靠页面上的旧数据 */
     }
-  }, [signer]);
+  }, []);
 
   useEffect(() => {
     if (authed && tab === "users") reloadUsers();
@@ -90,7 +90,7 @@ export default function AdminApp() {
   const save = useCallback(
     async (next: Manifest) => {
       for (let attempt = 0; attempt < 3; attempt++) {
-        const res = await fetch(`${signer}/api/album`, {
+        const res = await fetch(`/api/album`, {
           method: "PUT",
           credentials: "include",
           headers: { "content-type": "application/json" },
@@ -100,7 +100,7 @@ export default function AdminApp() {
             photos: next.photos,
           }),
         });
-        const at = `（请求地址：${signer}/api/login）`;
+        const at = `（请求地址：/api/login）`;
 
       if (res.ok) {
           const saved = (await res.json()) as { revision: number; updatedAt: string };
@@ -120,7 +120,7 @@ export default function AdminApp() {
       }
       throw new Error("保存冲突，重试三次仍未成功");
     },
-    [signer],
+    [], 
   );
 
   /* ---------- 登录 ---------- */
@@ -129,18 +129,22 @@ export default function AdminApp() {
     setBusy(true);
     setLoginErr("");
     try {
-      const res = await fetch(`${signer}/api/login`, {
+      const res = await fetch(`/api/login`, {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
 
-      const at = `（请求地址：${signer}/api/login）`;
+      const at = `（请求地址：/api/login）`;
 
       if (res.ok) {
         const d = await res.json().catch(() => null);
-        if (d?.user) setMe(d.user);
+        if (d?.user) {
+          setMe(d.user);
+          // 非 admin 不要停在用户管理标签（那个标签对它不存在）
+          if (d.user.role !== "admin" && tab === "users") setTab("photos");
+        }
         setPassword("");
         setAuthed(true);
         return;
@@ -175,7 +179,7 @@ export default function AdminApp() {
       const msg = (e as Error).message;
       setLoginErr(
         /Failed to fetch|NetworkError|Load failed/.test(msg)
-          ? `连不上签名服务 ${signer} —— 请确认它已启动，且该地址在 ALLOWED_ORIGIN 白名单里`
+          ? `连不上后端 —— 请确认 Next.js 进程正常运行，且 /api/* 路由没被改坏`
           : msg,
       );
     } finally {
@@ -184,7 +188,7 @@ export default function AdminApp() {
   };
 
   const logout = async () => {
-    await fetch(`${signer}/api/logout`, {
+    await fetch(`/api/logout`, {
       method: "POST",
       credentials: "include",
     }).catch(() => {});
@@ -214,7 +218,7 @@ export default function AdminApp() {
     setNotice(null);
 
     const snapshot = [...queue, ...accepted];
-    await runUpload(snapshot, signer!, {
+    await runUpload(snapshot, {
       onChange: setQueue,
       onComplete: async (uploaded) => {
         if (!uploaded.length) {
@@ -223,11 +227,20 @@ export default function AdminApp() {
         }
         try {
           const cur = await fetchManifest();
-          const albumId = cur.albums[0]?.id ?? "alb_misc";
+          // 相册已按用户隔离：只能挑自己名下的，绝不能拿 cur.albums[0]
+          // （那可能是别人的相册，照片会被写进去但 ownerId 对不上）
+          const myAlbums = cur.albums.filter((a) => a.ownerId === me?.id);
+          const albumId = myAlbums[0]?.id ?? "";
+          const albums = myAlbums.length
+            ? cur.albums
+            : [...cur.albums, defaultAlbum(me?.id)];
           const photos: Photo[] = uploaded.map((u, i) => ({
             id: `ph_${Date.now().toString(36)}${i}`,
             key: u.key,
             albumId,
+            // 归属由会话决定；默认私有，要公开再去后台切
+            ownerId: me?.id ?? "",
+            isPublic: false,
             title: u.title,
             caption: "",
             place: "",
@@ -239,7 +252,7 @@ export default function AdminApp() {
           }));
           await save({
             ...cur,
-            albums: cur.albums.length ? cur.albums : [defaultAlbum()],
+            albums,
             photos: [...cur.photos, ...photos],
           });
           setNotice({ kind: "ok", text: `已入库 ${photos.length} 张` });
@@ -253,10 +266,36 @@ export default function AdminApp() {
       },
       onError: (m) => setNotice({ kind: "err", text: m }),
     });
-  }, [queue, signer, save]);
+  }, [queue, save]);
 
   /* ---------- 编辑 ---------- */
   const editPhoto = async (id: string, patch: Partial<Photo>) => {
+    // isPublic 走单张接口：开关是高频操作，
+    // 走整份清单每次都要拉全量再提交，别人一改就撞乐观锁。
+    if (Object.keys(patch).length === 1 && patch.isPublic !== undefined) {
+      try {
+        const r = await fetch(`/api/photo/${id}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ isPublic: patch.isPublic }),
+        });
+        if (!r.ok) {
+          const b = await r.json().catch(() => ({}));
+          throw new Error(b.detail || b.error || "切换失败");
+        }
+        const b = await r.json();
+        setData((d) => ({
+          ...d,
+          revision: b.revision,
+          photos: d.photos.map((p) => (p.id === id ? b.photo : p)),
+        }));
+      } catch (e) {
+        setNotice({ kind: "err", text: (e as Error).message });
+      }
+      return;
+    }
+
     try {
       await save({
         ...data,
@@ -271,7 +310,7 @@ export default function AdminApp() {
     setBusy(true);
     try {
       for (const id of ids) {
-        const r = await fetch(`${signer}/api/photo/${id}`, {
+        const r = await fetch(`/api/photo/${id}`, {
           method: "DELETE",
           credentials: "include",
         });
@@ -292,7 +331,7 @@ export default function AdminApp() {
 
   const restore = async (id: string) => {
     try {
-      const r = await fetch(`${signer}/api/photo/${id}/restore`, {
+      const r = await fetch(`/api/photo/${id}/restore`, {
         method: "POST",
         credentials: "include",
       });
@@ -306,7 +345,7 @@ export default function AdminApp() {
 
   const purge = async (id: string) => {
     try {
-      const r = await fetch(`${signer}/api/photo/${id}/purge`, {
+      const r = await fetch(`/api/photo/${id}/purge`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -326,19 +365,6 @@ export default function AdminApp() {
     });
 
   /* ---------- 渲染 ---------- */
-
-  if (!signer) {
-    return (
-      <Frame>
-        <Block title="未配置签名服务">
-          <p>
-            请在项目根目录的 <code>.env.local</code> 里设置{" "}
-            <code>NEXT_PUBLIC_SIGNER_URL</code>，指向签名服务地址，然后重启站点。
-          </p>
-        </Block>
-      </Frame>
-    );
-  }
 
   if (authed === null) {
     return (
@@ -454,12 +480,16 @@ export default function AdminApp() {
         >
           回收站 {trashedCount}
         </button>
-        <button
-          className={`${styles.tabBtn} ${tab === "users" ? styles.tabOn : ""}`}
-          onClick={() => setTab("users")}
-        >
-          用户 {users.length || me ? users.length || 1 : 0}
-        </button>
+        {/* 用户管理是 admin 专属。viewer 点进去只会拿到 403，
+            不如根本不显示这个标签 —— 省得让人以为功能坏了 */}
+        {me?.role === "admin" ? (
+          <button
+            className={`${styles.tabBtn} ${tab === "users" ? styles.tabOn : ""}`}
+            onClick={() => setTab("users")}
+          >
+            用户 {users.length || me ? users.length || 1 : 0}
+          </button>
+        ) : null}
         {selected.size > 0 && tab === "photos" ? (
           <button
             className={styles.danger}
@@ -475,7 +505,7 @@ export default function AdminApp() {
         <UserPanel
           users={users}
           me={me}
-          signer={signer}
+          apiBase={apiBase}
           onChanged={reloadUsers}
         />
       ) : visible.length === 0 ? (
@@ -503,14 +533,16 @@ export default function AdminApp() {
   );
 }
 
-function defaultAlbum(): Album {
+function defaultAlbum(ownerId?: string): Album {
   return {
-    id: "alb_misc",
-    slug: "misc",
+    // id 里带 owner，后端 PUT /api/album 据此判断「这是你的相册」
+    id: `alb_${ownerId ?? "anon"}_${Date.now().toString(36)}`,
+    slug: `u-${ownerId ?? "anon"}-misc`,
     name: "未成册",
     desc: "不属于任何一次的随手记录。",
     coverKey: null,
     order: 1,
+    ownerId,
   };
 }
 
@@ -601,7 +633,17 @@ function PhotoRow({
   onPurge: () => void;
   inTrash: boolean;
 }) {
-  const { thumb } = buildImageUrls(photo.key);
+  // 缩略图走签名 URL：公开直链会绕过权限
+  const [thumb, setThumb] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void fetchPhotoUrl(photo.id, "thumb").then((u) => {
+      if (alive) setThumb(u);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [photo.id]);
 
   return (
     <li className={styles.row}>
@@ -614,7 +656,12 @@ function PhotoRow({
         />
       ) : null}
 
-      <img className={styles.thumb} src={thumb} alt={photo.title} loading="lazy" />
+      <img
+        className={styles.thumb}
+        src={thumb ?? undefined}
+        alt={photo.title}
+        loading="lazy"
+      />
 
       <div className={styles.fields}>
         <input
@@ -645,6 +692,17 @@ function PhotoRow({
         </select>
       </div>
 
+      {/* 可见性：私有照片只有本人能看到，读取走签名 URL */}
+      <label className={styles.visibility} title="私有照片仅自己可见">
+        <input
+          type="checkbox"
+          checked={photo.isPublic}
+          onChange={(e) => onEdit({ isPublic: e.target.checked })}
+          disabled={inTrash}
+        />
+        <span>{photo.isPublic ? "公开" : "私有"}</span>
+      </label>
+
       <span className={styles.dim}>
         {photo.width}×{photo.height}
       </span>
@@ -667,12 +725,12 @@ function PhotoRow({
 function UserPanel({
   users,
   me,
-  signer,
+  apiBase,
   onChanged,
 }: {
   users: PublicUser[];
   me: PublicUser | null;
-  signer: string;
+  apiBase: string;
   onChanged: () => Promise<void>;
 }) {
   const [nUser, setNUser] = useState("");
@@ -682,8 +740,22 @@ function UserPanel({
   const [pwFor, setPwFor] = useState<string | null>(null);
   const [pwVal, setPwVal] = useState("");
 
+  /* 重置链接弹层：linkFor 非空即显示，linkInfo 在请求成功后填入 */
+  const [linkFor, setLinkFor] = useState<string | null>(null);
+  const [linkInfo, setLinkInfo] = useState<ResetLinkResponse | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 组件卸载时清掉 copy 的定时器，避免 setState on unmounted
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
   const call = async (path: string, init: RequestInit) => {
-    const r = await fetch(`${signer}${path}`, {
+    const r = await fetch(`${path}`, {
       ...init,
       credentials: "include",
       headers: { "content-type": "application/json", ...(init.headers ?? {}) },
@@ -753,10 +825,104 @@ function UserPanel({
     }
   };
 
+  const generateLink = async (u: PublicUser) => {
+    setMsg(null);
+    setLinkFor(u.id);
+    setLinkInfo(null);
+    setCopied(false);
+    setLinkBusy(true);
+    try {
+      const r = await generateResetLink(u.id);
+      setLinkInfo(r);
+    } catch (e) {
+      setLinkFor(null);
+      setMsg({ kind: "err", text: (e as Error).message });
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
+  const closeLink = () => {
+    setLinkFor(null);
+    setLinkInfo(null);
+    setCopied(false);
+  };
+
+  const copyLink = async () => {
+    if (!linkInfo) return;
+    try {
+      await navigator.clipboard.writeText(linkInfo.url);
+      setCopied(true);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setMsg({ kind: "err", text: "复制失败，请手动选中链接" });
+    }
+  };
+
+  const kickUser = async (u: PublicUser) => {
+    if (!confirm(`确定吊销 ${u.username} 的所有会话？`)) return;
+    setMsg(null);
+    try {
+      await revokeUserSessions(u.id);
+      setMsg({ kind: "ok", text: `已踢出 ${u.username}` });
+      await onChanged();
+    } catch (e) {
+      setMsg({ kind: "err", text: (e as Error).message });
+    }
+  };
+
   return (
     <div>
       {msg ? (
         <p className={msg.kind === "ok" ? styles.ok : styles.err}>{msg.text}</p>
+      ) : null}
+
+      {/* 重置链接弹层。点遮罩关闭，点内容不冒泡。
+          弹层跟列表是平级，layout 不会受它影响（fixed 居中）。 */}
+      {linkFor ? (
+        <div className={styles.modalBackdrop} onClick={closeLink}>
+          <div
+            className={styles.modal}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="重置链接"
+          >
+            <div className={styles.modalHead}>
+              <h3 className={styles.modalTitle}>重置链接</h3>
+              <button className={styles.modalClose} onClick={closeLink}>
+                关闭
+              </button>
+            </div>
+
+            <div className={styles.modalUrlRow}>
+              <div className={styles.modalUrl}>
+                {linkBusy ? "正在生成…" : linkInfo?.url ?? "—"}
+              </div>
+              <button
+                className={`${styles.copyBtn} ${copied ? styles.copyOk : ""}`}
+                onClick={copyLink}
+                disabled={!linkInfo}
+              >
+                {copied ? "已复制 ✓" : "复制"}
+              </button>
+            </div>
+
+            {linkInfo ? (
+              <p className={styles.modalMeta}>
+                目标用户：<b>{linkInfo.targetUsername}</b>
+                {" · "}
+                过期时间：<b>{linkInfo.expiresAt}</b>
+                {" · "}24 小时内有效
+              </p>
+            ) : null}
+
+            <p className={styles.modalHint}>
+              此链接一次性使用，过期需重新生成。
+            </p>
+          </div>
+        </div>
       ) : null}
 
       <ul className={styles.list}>
@@ -808,8 +974,19 @@ function UserPanel({
                   <button className={styles.mini} onClick={() => setPwFor(u.id)}>
                     改密码
                   </button>
+                  <button className={styles.mini} onClick={() => generateLink(u)}>
+                    生成重置链接
+                  </button>
                   <button className={styles.mini} onClick={() => toggleDisabled(u)}>
                     {u.disabled ? "启用" : "停用"}
+                  </button>
+                  <button
+                    className={styles.miniDanger}
+                    onClick={() => kickUser(u)}
+                    disabled={u.id === me?.id}
+                    title={u.id === me?.id ? "不能吊销自己的会话" : undefined}
+                  >
+                    踢出此账号
                   </button>
                   <button
                     className={styles.miniDanger}

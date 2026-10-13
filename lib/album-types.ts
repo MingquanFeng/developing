@@ -20,6 +20,8 @@ export type Album = {
   /** 封面 key，为空则取该相册第一张 */
   coverKey: string | null;
   order: number;
+  /** 归属者 userId。后端据此拒绝把照片写进别人的相册 */
+  ownerId?: string;
 };
 
 export type Photo = {
@@ -27,6 +29,10 @@ export type Photo = {
   /** 原图 key —— 唯一真相来源 */
   key: string;
   albumId: string;
+  /** 归属者 userId。权限判定依据，不看 role */
+  ownerId: string;
+  /** 是否对所有人公开。false = 只有 owner 能看，走签名 URL */
+  isPublic: boolean;
   title: string;
   caption: string;
   place: string;
@@ -48,47 +54,18 @@ export type AlbumManifest = {
 
 /* ========== 图片 URL ========== */
 
-/** COS 桶的访问根地址，接入后由环境变量注入 */
-const COS_BASE = process.env.NEXT_PUBLIC_COS_BASE_URL ?? "";
+/**
+ * ⚠️ 这里**不再**生成图片 URL。
+ *
+ * 原来的 buildImageUrls 拼的是 COS 公开直链，绕过签名服务就能打开 ——
+ * 私有照片用它等于没有隐私。已删除。
+ *
+ * 现在统一走 fetchPhotoUrl(photoId, variant) 取带时限的签名 URL，
+ * 见 lib/album-client.ts。
+ */
 
 /** 一张图的三种用途 */
 export type ImageUrls = { thumb: string; preview: string; original: string };
-
-/**
- * 数据万象处理串（接 COS 后生效）
- *   auto-orient  按 EXIF 自动旋正（手机竖拍照片必需）
- *   thumbnail    只限宽、高度等比 —— 不裁切。网格单元本身就是按原始
- *                宽高比排布的，若这里强裁成方形，object-fit 会二次裁切
- *   format/webp  传输格式
- */
-const CI_THUMB = "imageMogr2/auto-orient/thumbnail/560x/format/webp/quality/80";
-const CI_PREVIEW =
-  "imageMogr2/auto-orient/thumbnail/1600x/format/webp/quality/85";
-
-function isRemote(key: string) {
-  return /^https?:\/\//.test(key);
-}
-
-/**
- * 按 key 生成缩略图 / 预览图 / 原图地址。
- * 远端图走对方的缩放参数，COS 图走 imageMogr2。
- */
-export function buildImageUrls(key: string): ImageUrls {
-  if (isRemote(key)) {
-    return {
-      thumb: `${key}?w=560&q=80&auto=format&fit=max`,
-      preview: `${key}?w=1600&q=85&auto=format&fit=max`,
-      original: key,
-    };
-  }
-
-  const base = `${COS_BASE}/${key}`;
-  return {
-    thumb: `${base}?${CI_THUMB}`,
-    preview: `${base}?${CI_PREVIEW}`,
-    original: base,
-  };
-}
 
 /* ========== 展示辅助 ========== */
 

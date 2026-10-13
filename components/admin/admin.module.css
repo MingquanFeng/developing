@@ -231,6 +231,26 @@
   opacity: .45;
   white-space: nowrap;
 }
+
+/* 可见性开关：公开/私有 */
+.visibility {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: .7;
+  transition: opacity .3s var(--ease);
+}
+.visibility:hover { opacity: 1; }
+.visibility input {
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+.visibility input:disabled { cursor: not-allowed; }
 .actions { display: flex; gap: 8px; }
 
 /* ---------- 提示 ---------- */
@@ -281,4 +301,102 @@
 @media (max-width: 860px) {
   .addUser { grid-template-columns: 1fr; }
   .addTitle { margin-bottom: 2px; }
+}
+
+/* ---------- 弹层（重置链接） ----------
+   沿用项目里现成的色板（var(--line)/var(--ink)/var(--hot)/#8fbf8f），
+   居中 fixed 弹层：点遮罩关闭，点内容不冒泡。 */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .55);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 20px;
+}
+.modal {
+  width: min(520px, 100%);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 22px 24px 18px;
+  display: grid;
+  gap: 14px;
+}
+.modalHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.modalTitle {
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  margin: 0;
+}
+.modalClose {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .1em;
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color .2s var(--ease);
+}
+.modalClose:hover { border-color: var(--ink); }
+.modalUrlRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: stretch;
+}
+.modalUrl {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .02);
+  color: var(--ink);
+  word-break: break-all;
+  line-height: 1.5;
+  max-height: 120px;
+  overflow: auto;
+}
+.copyBtn {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .1em;
+  padding: 5px 14px;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .2s var(--ease), color .2s var(--ease);
+}
+.copyBtn:hover { border-color: var(--hot); }
+.copyBtn:disabled { opacity: .35; cursor: not-allowed; }
+.copyOk { border-color: #8fbf8f; color: #8fbf8f; }
+.modalMeta {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  opacity: .55;
+  line-height: 1.6;
+  margin: 0;
+}
+.modalMeta b { opacity: .85; font-weight: 500; }
+.modalHint {
+  font-size: 12.5px;
+  line-height: 1.6;
+  opacity: .65;
+  margin: 0;
 }
