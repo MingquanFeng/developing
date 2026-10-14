@@ -119,7 +119,7 @@ export default function Nav() {
   return (
     <header className={`${styles.nav} ${shrunk ? styles["is-shrunk"] : ""}`}>
       <div className={styles.nav__left}>
-        <a href="#hero" className={styles.nav__brand} onClick={() => setDrawerOpen(false)}>
+        <a href="/" className={styles.nav__brand} onClick={() => setDrawerOpen(false)}>
           {site.name}
         </a>
       </div>
@@ -130,6 +130,11 @@ export default function Nav() {
         <span className={styles.nav__auth}>
           {me ? (
             <>
+              {me.role === "admin" && (
+                <a href="/admin/" onClick={() => setDrawerOpen(false)}>
+                  后台
+                </a>
+              )}
               <a href="/account/" onClick={() => setDrawerOpen(false)}>
                 账户
               </a>

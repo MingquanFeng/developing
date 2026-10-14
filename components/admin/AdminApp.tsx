@@ -35,9 +35,18 @@ export default function AdminApp() {
 
   const [data, setData] = useState<Manifest>(EMPTY);
   const [queue, setQueue] = useState<QueueItem[]>([]);
+
+  /* 封面弹层：coverAlbum 非空即显示，从中挑一张 photo 设成该 album 的 coverKey。
+     状态提到 AdminApp 顶层，让"封面"顶级 tab 能直接渲染 CoverModal。 */
+  const [coverAlbum, setCoverAlbum] = useState<Album | null>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
+  /* 封面 tab 的成功 / 失败提示（独立于 UserPanel.msg，避免改 user 列表的提示） */
+  const [coverMsg, setCoverMsg] = useState<
+    { kind: "ok" | "err"; text: string } | null
+  >(null);
   const [notice, setNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [tab, setTab] = useState<"photos" | "trash" | "users">("photos");
+  const [tab, setTab] = useState<"photos" | "trash" | "users" | "covers">("photos");
   const [users, setUsers] = useState<PublicUser[]>([]);
 
   /* 根地址，不带路径。signerEndpoint(x) 是「基址+x」，当根地址用会拼出废 URL */
@@ -193,6 +202,43 @@ export default function AdminApp() {
     setMe(null);
     setData(EMPTY);
     setSelected(new Set());
+  };
+
+  /* ---------- 封面：取最新 manifest，改目标 album 的 coverKey 后整体写回 ---------- */
+  const saveCover = async (album: Album, photoKey: string | null) => {
+    setCoverMsg(null);
+    setCoverBusy(true);
+    try {
+      const cur = await fetchManifest();
+      const r = await fetch(`/api/album`, {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          revision: cur.revision,
+          albums: cur.albums.map((a) =>
+            a.id === album.id ? { ...a, coverKey: photoKey } : a,
+          ),
+          photos: cur.photos,
+        }),
+      });
+      if (!r.ok) {
+        const body = (await r.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error || `保存失败 HTTP ${r.status}`);
+      }
+      setCoverMsg({
+        kind: "ok",
+        text: photoKey
+          ? `已设置 ${album.name} 的封面`
+          : `已清空 ${album.name} 的封面`,
+      });
+      setCoverAlbum(null);
+      await reload();
+    } catch (e) {
+      setCoverMsg({ kind: "err", text: (e as Error).message });
+    } finally {
+      setCoverBusy(false);
+    }
   };
 
   /* ---------- 上传 ---------- */
@@ -480,9 +526,14 @@ export default function AdminApp() {
             {me ? ` · ${me.displayName || me.username}` : ""}
           </p>
         </div>
-        <button className={styles.ghost} onClick={logout}>
-          退出
-        </button>
+        <div className={styles.headRight}>
+          <a href="/" className={styles.ghost}>
+            返回首页
+          </a>
+          <button className={styles.ghost} onClick={logout}>
+            退出
+          </button>
+        </div>
       </header>
 
       {notice ? (
@@ -546,6 +597,15 @@ export default function AdminApp() {
             用户 {users.length || me ? users.length || 1 : 0}
           </button>
         ) : null}
+        {/* admin 专属：封面 tab —— 管理首页 5 个 series 的图源 */}
+        {me?.role === "admin" ? (
+          <button
+            className={`${styles.tabBtn} ${tab === "covers" ? styles.tabOn : ""}`}
+            onClick={() => setTab("covers")}
+          >
+            封面
+          </button>
+        ) : null}
         {selected.size > 0 && tab === "photos" ? (
           <button
             className={styles.danger}
@@ -557,7 +617,39 @@ export default function AdminApp() {
         ) : null}
       </div>
 
-      {tab === "users" ? (
+      {tab === "covers" ? (
+        <section className={styles.albumSec}>
+          <span className={styles.addTitle}>首页作品集封面</span>
+          {users.map((u) => {
+            const uAlbums = data.albums.filter((a) => a.ownerId === u.id);
+            if (uAlbums.length === 0) return null;
+            return (
+              <div key={u.id} className={styles.albumGroup}>
+                <span className={styles.albumOwner}>{u.username}</span>
+                {uAlbums.map((a) => (
+                  <div key={a.id} className={styles.albumRow}>
+                    <span className={styles.albumName}>{a.name}</span>
+                    <span className={styles.albumSlug}>/{a.slug}</span>
+                    <span className={styles.albumCover}>
+                      {a.coverKey
+                        ? data.photos.find((p) => p.key === a.coverKey)?.title ??
+                          a.coverKey
+                        : "（未设）"}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.mini}
+                      onClick={() => setCoverAlbum(a)}
+                    >
+                      {a.coverKey ? "改封面" : "设封面"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </section>
+      ) : tab === "users" ? (
         <UserPanel
           users={users}
           me={me}
@@ -565,8 +657,9 @@ export default function AdminApp() {
           albums={data.albums}
           photos={data.photos}
           onChanged={reloadUsers}
+          onSetCoverAlbum={setCoverAlbum}
         />
-      ) : visible.length === 0 ? (
+      ) : tab === "photos" ? (
         <p className={styles.muted}>
           {tab === "photos" ? "还没有照片，拖文件到上面。" : "回收站是空的。"}
         </p>
@@ -587,6 +680,12 @@ export default function AdminApp() {
           ))}
         </ul>
       )}
+
+      {coverMsg ? (
+        <p className={coverMsg.kind === "ok" ? styles.ok : styles.err}>
+          {coverMsg.text}
+        </p>
+      ) : null}
     </Frame>
   );
 }
@@ -911,6 +1010,7 @@ function UserPanel({
   albums,
   photos,
   onChanged,
+  onSetCoverAlbum,
 }: {
   users: PublicUser[];
   me: PublicUser | null;
@@ -918,6 +1018,7 @@ function UserPanel({
   albums: Album[];
   photos: Photo[];
   onChanged: () => Promise<void>;
+  onSetCoverAlbum: (album: Album) => void;
 }) {
   const [nUser, setNUser] = useState("");
   const [nPass, setNPass] = useState("");
@@ -933,9 +1034,9 @@ function UserPanel({
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* 封面弹层：coverAlbum 非空即显示，从中挑一张 photo 设成该 album 的 coverKey */
-  const [coverAlbum, setCoverAlbum] = useState<Album | null>(null);
-  const [coverBusy, setCoverBusy] = useState(false);
+  /* 封面弹层状态由 AdminApp 顶层管理（提到上层的目的是让"封面"顶级 tab
+     能直接渲染 CoverModal，不受 UserPanel 是否被卸载影响）。
+     这里只接收 props.onSetCoverAlbum 触发打开。 */
 
   // 组件卸载时清掉 copy 的定时器，避免 setState on unmounted
   useEffect(() => {
@@ -1064,44 +1165,6 @@ function UserPanel({
       copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
     } catch {
       setMsg({ kind: "err", text: "复制失败，请手动选中链接" });
-    }
-  };
-
-  /* ---------- 封面（按 user 列出 albums，每 album 可设封面） ---------- */
-  const saveCover = async (album: Album, photoKey: string | null) => {
-    setMsg(null);
-    setCoverBusy(true);
-    try {
-      // 取最新 manifest，改目标 album 的 coverKey 后整体写回
-      const cur = await fetchManifest();
-      const r = await fetch(`${apiBase}/api/album`, {
-        method: "PUT",
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          revision: cur.revision,
-          albums: cur.albums.map((a) =>
-            a.id === album.id ? { ...a, coverKey: photoKey } : a,
-          ),
-          photos: cur.photos,
-        }),
-      });
-      if (!r.ok) {
-        const body = (await r.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error || `保存失败 HTTP ${r.status}`);
-      }
-      setMsg({
-        kind: "ok",
-        text: photoKey
-          ? `已设置 ${album.name} 的封面`
-          : `已清空 ${album.name} 的封面`,
-      });
-      setCoverAlbum(null);
-      await onChanged();
-    } catch (e) {
-      setMsg({ kind: "err", text: (e as Error).message });
-    } finally {
-      setCoverBusy(false);
     }
   };
 
@@ -1249,51 +1312,6 @@ function UserPanel({
           </li>
         ))}
       </ul>
-
-      {/* 相册封面：按 user 分组，每 album 一行；点封面按钮选图 */}
-      <section className={styles.albumSec}>
-        <span className={styles.addTitle}>相册封面</span>
-        {users.map((u) => {
-          const uAlbums = albums.filter((a) => a.ownerId === u.id);
-          if (uAlbums.length === 0) return null;
-          return (
-            <div key={u.id} className={styles.albumGroup}>
-              <span className={styles.albumOwner}>{u.username}</span>
-              {uAlbums.map((a) => (
-                <div key={a.id} className={styles.albumRow}>
-                  <span className={styles.albumName}>{a.name}</span>
-                  <span className={styles.albumSlug}>/{a.slug}</span>
-                  <span className={styles.albumCover}>
-                    {a.coverKey
-                      ? photos.find((p) => p.key === a.coverKey)?.title ?? a.coverKey
-                      : "（未设）"}
-                  </span>
-                  <button
-                    type="button"
-                    className={styles.mini}
-                    onClick={() => setCoverAlbum(a)}
-                  >
-                    {a.coverKey ? "改封面" : "设封面"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          );
-        })}
-      </section>
-
-      {coverAlbum ? (
-        <CoverModal
-          album={coverAlbum}
-          photos={photos.filter(
-            (p) => p.albumId === coverAlbum.id && !p.trashedAt,
-          )}
-          onPick={(key) => saveCover(coverAlbum, key)}
-          onClear={() => saveCover(coverAlbum, null)}
-          onClose={() => setCoverAlbum(null)}
-          busy={coverBusy}
-        />
-      ) : null}
 
       <form className={styles.addUser} onSubmit={addUser}>
         <span className={styles.addTitle}>新建用户</span>
