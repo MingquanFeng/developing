@@ -253,6 +253,25 @@ export const countUsers = (): number =>
 export const countAdmins = (): number =>
   (Q.countActiveAdmins.get() as { n: number }).n;
 
+/**
+ * 拿"主管理员"id —— 当前系统只该有一个 admin（删自己不允许 last_admin 拦截）。
+ * 用于首页兜底：5 个 series 的封面图只显示该 admin 上传的照片，viewer
+ * 上传的图不影响首页。
+ *
+ * 取所有 active admin 中 created_at 最早的一个。
+ */
+export function getFirstAdminId(): string | null {
+  const row = db
+    .prepare(
+      `SELECT id FROM users
+         WHERE role = 'admin' AND disabled = 0
+         ORDER BY created_at ASC
+         LIMIT 1`,
+    )
+    .get() as { id: string } | undefined;
+  return row?.id ?? null;
+}
+
 /* ---------- 写 ---------- */
 
 export async function createUser(input: {
