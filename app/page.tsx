@@ -67,7 +67,12 @@ export default async function Home() {
 }
 
 /**
- * 把 series 元数据里 `albumSlug` 指向的 album 第一张公开照片签成 URL 替换封面。
+ * 把 series 元数据里 `albumSlug` 指向的 album 的一张公开照片签成 URL 替换封面。
+ *
+ * 优先级：
+ *   1. album.coverKey —— admin 在后台「设封面」明确指定的 photo
+ *   2. 兜底 —— 该 album 第一张 isPublic + 非回收站照片（按 id 排序）
+ *
  * 任一步失败（manifest 读不出 / 找不到 album / 找不到 photo / COS 签失败）
  * 都不抛错 —— 静默用原 image 兜底，首屏永远不白。
  */
@@ -85,12 +90,19 @@ async function enrichSeriesWithCovers<
       if (!s.albumSlug) return s;
       const album = manifest.albums.find((a) => a.slug === s.albumSlug);
       if (!album) return s;
-      const photo = manifest.photos
-        .filter(
-          (p) =>
-            p.albumId === album.id && p.isPublic && !p.trashedAt,
-        )
-        .sort((a, b) => a.id.localeCompare(b.id))[0];
+      // 1. coverKey 指定
+      const coverPhoto = album.coverKey
+        ? manifest.photos.find((p) => p.key === album.coverKey)
+        : undefined;
+      // 2. 兜底：第一张公开、非回收站
+      const fallbackPhoto = coverPhoto
+        ? undefined
+        : manifest.photos
+            .filter(
+              (p) => p.albumId === album.id && p.isPublic && !p.trashedAt,
+            )
+            .sort((a, b) => a.id.localeCompare(b.id))[0];
+      const photo = coverPhoto ?? fallbackPhoto;
       if (!photo) return s;
       try {
         const url = await presignGet(photo.key, { ci: CI_PREVIEW });

@@ -375,6 +375,43 @@ try {
     assert.field(r.body, "error", "cannot_revoke_self", "error");
   });
 
+  await step("admin 设 album coverKey → 写回 /api/album 反映", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/album`);
+    const album = cur.body.albums[0];
+    const photo = cur.body.photos[0];
+    if (!album || !photo) throw new Error("需要至少 1 个 album + 1 张 photo");
+
+    const r = await c.json(`/api/album`, {
+      method: "PUT",
+      body: JSON.stringify({
+        revision: cur.body.revision,
+        albums: cur.body.albums.map((a) =>
+          a.id === album.id ? { ...a, coverKey: photo.key } : a,
+        ),
+        photos: cur.body.photos,
+      }),
+    });
+    assert.status(r, 200, "HTTP");
+
+    const after = await c.json(`/api/album`);
+    const a2 = after.body.albums.find((a) => a.id === album.id);
+    assert.field(a2, "coverKey", photo.key, "coverKey 写成功");
+
+    // 还原 coverKey 避免污染 manifest
+    await c.json(`/api/album`, {
+      method: "PUT",
+      body: JSON.stringify({
+        revision: after.body.revision,
+        albums: after.body.albums.map((a) =>
+          a.id === album.id ? { ...a, coverKey: null } : a,
+        ),
+        photos: after.body.photos,
+      }),
+    });
+  });
+
   await step("admin 删 user → 200 + 联动清资源 (photos/albums/objects)", async () => {
     c.cookieJar.clear();
     await c.login(ADMIN_USER, ADMIN_PASS);

@@ -562,6 +562,8 @@ export default function AdminApp() {
           users={users}
           me={me}
           apiBase={apiBase}
+          albums={data.albums}
+          photos={data.photos}
           onChanged={reloadUsers}
         />
       ) : visible.length === 0 ? (
@@ -615,6 +617,130 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
+/* ============================================================
+   CoverModal —— 选 album 封面
+   ------------------------------------------------------------
+   列出该 album 下全部非回收站 photo（按 id 排序），缩略图网格
+   点选 → 调 saveCover(album, photo.key)
+   顶栏「清除」按钮 = 取消封面
+   ============================================================ */
+function CoverModal({
+  album,
+  photos,
+  onPick,
+  onClear,
+  onClose,
+  busy,
+}: {
+  album: Album;
+  photos: Photo[];
+  onPick: (photoKey: string) => void;
+  onClear: () => void;
+  onClose: () => void;
+  busy: boolean;
+}) {
+  const [urls, setUrls] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(
+      photos.map(async (p) => {
+        try {
+          const u = await fetchPhotoUrl(p.id, "thumb");
+          return [p.id, u ?? null] as const;
+        } catch {
+          return [p.id, null] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (cancelled) return;
+      const m = new Map<string, string>();
+      for (const [id, u] of entries) if (u) m.set(id, u);
+      setUrls(m);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [photos]);
+
+  return (
+    <div className={styles.modalBackdrop} onClick={onClose}>
+      <div
+        className={styles.modal}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="选择封面"
+      >
+        <header className={styles.modalHead}>
+          <h2 className={styles.modalTitle}>选择封面 — {album.name}</h2>
+          <button
+            type="button"
+            className={styles.modalClose}
+            onClick={onClose}
+            disabled={busy}
+          >
+            关闭
+          </button>
+        </header>
+
+        {album.coverKey && (
+          <div className={styles.modalMeta}>
+            当前封面：
+            <b>
+              {photos.find((p) => p.key === album.coverKey)?.title ??
+                album.coverKey}
+            </b>
+            <button
+              type="button"
+              className={styles.mini}
+              onClick={onClear}
+              disabled={busy}
+            >
+              清除
+            </button>
+          </div>
+        )}
+
+        {photos.length === 0 ? (
+          <p className={styles.modalHint}>该相册还没有非回收站照片，先去上传。</p>
+        ) : (
+          <div className={styles.coverGrid}>
+            {photos.map((p) => {
+              const url = urls.get(p.id);
+              const isCurrent = p.key === album.coverKey;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`${styles.coverItem} ${
+                    isCurrent ? styles.coverItemCurrent : ""
+                  }`}
+                  onClick={() => onPick(p.key)}
+                  disabled={busy || !url}
+                  title={p.title || p.key}
+                >
+                  {url ? (
+                    <img src={url} alt={p.title} />
+                  ) : (
+                    <span className={styles.modalMeta}>加载中…</span>
+                  )}
+                  <span className={styles.coverTitle}>
+                    {p.title || p.id}
+                  </span>
+                  {isCurrent && (
+                    <span className={styles.coverBadge}>当前</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 /* ---------- 拖拽区 ---------- */
 function DropZone({
@@ -782,11 +908,15 @@ function UserPanel({
   users,
   me,
   apiBase,
+  albums,
+  photos,
   onChanged,
 }: {
   users: PublicUser[];
   me: PublicUser | null;
   apiBase: string;
+  albums: Album[];
+  photos: Photo[];
   onChanged: () => Promise<void>;
 }) {
   const [nUser, setNUser] = useState("");
@@ -802,6 +932,10 @@ function UserPanel({
   const [linkBusy, setLinkBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* 封面弹层：coverAlbum 非空即显示，从中挑一张 photo 设成该 album 的 coverKey */
+  const [coverAlbum, setCoverAlbum] = useState<Album | null>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
 
   // 组件卸载时清掉 copy 的定时器，避免 setState on unmounted
   useEffect(() => {
@@ -930,6 +1064,44 @@ function UserPanel({
       copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
     } catch {
       setMsg({ kind: "err", text: "复制失败，请手动选中链接" });
+    }
+  };
+
+  /* ---------- 封面（按 user 列出 albums，每 album 可设封面） ---------- */
+  const saveCover = async (album: Album, photoKey: string | null) => {
+    setMsg(null);
+    setCoverBusy(true);
+    try {
+      // 取最新 manifest，改目标 album 的 coverKey 后整体写回
+      const cur = await fetchManifest();
+      const r = await fetch(`${apiBase}/api/album`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          revision: cur.revision,
+          albums: cur.albums.map((a) =>
+            a.id === album.id ? { ...a, coverKey: photoKey } : a,
+          ),
+          photos: cur.photos,
+        }),
+      });
+      if (!r.ok) {
+        const body = (await r.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error || `保存失败 HTTP ${r.status}`);
+      }
+      setMsg({
+        kind: "ok",
+        text: photoKey
+          ? `已设置 ${album.name} 的封面`
+          : `已清空 ${album.name} 的封面`,
+      });
+      setCoverAlbum(null);
+      await onChanged();
+    } catch (e) {
+      setMsg({ kind: "err", text: (e as Error).message });
+    } finally {
+      setCoverBusy(false);
     }
   };
 
@@ -1077,6 +1249,51 @@ function UserPanel({
           </li>
         ))}
       </ul>
+
+      {/* 相册封面：按 user 分组，每 album 一行；点封面按钮选图 */}
+      <section className={styles.albumSec}>
+        <span className={styles.addTitle}>相册封面</span>
+        {users.map((u) => {
+          const uAlbums = albums.filter((a) => a.ownerId === u.id);
+          if (uAlbums.length === 0) return null;
+          return (
+            <div key={u.id} className={styles.albumGroup}>
+              <span className={styles.albumOwner}>{u.username}</span>
+              {uAlbums.map((a) => (
+                <div key={a.id} className={styles.albumRow}>
+                  <span className={styles.albumName}>{a.name}</span>
+                  <span className={styles.albumSlug}>/{a.slug}</span>
+                  <span className={styles.albumCover}>
+                    {a.coverKey
+                      ? photos.find((p) => p.key === a.coverKey)?.title ?? a.coverKey
+                      : "（未设）"}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.mini}
+                    onClick={() => setCoverAlbum(a)}
+                  >
+                    {a.coverKey ? "改封面" : "设封面"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </section>
+
+      {coverAlbum ? (
+        <CoverModal
+          album={coverAlbum}
+          photos={photos.filter(
+            (p) => p.albumId === coverAlbum.id && !p.trashedAt,
+          )}
+          onPick={(key) => saveCover(coverAlbum, key)}
+          onClear={() => saveCover(coverAlbum, null)}
+          onClose={() => setCoverAlbum(null)}
+          busy={coverBusy}
+        />
+      ) : null}
 
       <form className={styles.addUser} onSubmit={addUser}>
         <span className={styles.addTitle}>新建用户</span>
