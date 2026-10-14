@@ -659,7 +659,7 @@ export default function AdminApp() {
           onChanged={reloadUsers}
           onSetCoverAlbum={setCoverAlbum}
         />
-      ) : tab === "photos" ? (
+      ) : visible.length === 0 ? (
         <p className={styles.muted}>
           {tab === "photos" ? "还没有照片，拖文件到上面。" : "回收站是空的。"}
         </p>
