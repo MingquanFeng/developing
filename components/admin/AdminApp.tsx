@@ -485,7 +485,7 @@ export default function AdminApp() {
 
             <p className="acct-note">
               非公开页。访客请走 <a href="/">首页</a> 或{" "}
-              <a href="/register/">注册</a>。
+              <a href="/register">注册</a>。
             </p>
           </form>
         </section>

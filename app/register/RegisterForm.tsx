@@ -97,7 +97,7 @@ export default function RegisterForm() {
           如需访问私人影像，请直接联系工作室。
         </p>
         <div className="acct-actions">
-          <a href="/album/" className="acct-btnGhost">
+          <a href="/album" className="acct-btnGhost">
             先去浏览相册
           </a>
         </div>
@@ -113,7 +113,7 @@ export default function RegisterForm() {
           欢迎，{state.user.displayName}。你已经登录，可以开始浏览私人影像档案了。
         </p>
         <div className="acct-actions">
-          <a href="/album/" className="acct-btn">
+          <a href="/album" className="acct-btn">
             进入相册 <span className="acct-arrow">→</span>
           </a>
         </div>

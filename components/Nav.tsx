@@ -131,11 +131,11 @@ export default function Nav() {
           {me ? (
             <>
               {me.role === "admin" && (
-                <a href="/admin/" onClick={() => setDrawerOpen(false)}>
+                <a href="/admin" onClick={() => setDrawerOpen(false)}>
                   后台
                 </a>
               )}
-              <a href="/account/" onClick={() => setDrawerOpen(false)}>
+              <a href="/account" onClick={() => setDrawerOpen(false)}>
                 账户
               </a>
               <button type="button" onClick={onLogout}>
@@ -186,7 +186,7 @@ export default function Nav() {
             {me ? (
               <>
                 <li>
-                  <a href="/account/" onClick={() => setDrawerOpen(false)}>
+                  <a href="/account" onClick={() => setDrawerOpen(false)}>
                     账户
                   </a>
                 </li>

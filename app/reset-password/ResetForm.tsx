@@ -90,7 +90,7 @@ export default function ResetForm() {
           你的密码已更新。请使用新密码重新登录。
         </p>
         <div className={styles.actions}>
-          <a href="/admin/" className={styles.btn}>
+          <a href="/admin" className={styles.btn}>
             去登录 <span className={styles.arrow}>→</span>
           </a>
         </div>

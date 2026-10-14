@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
   },
 
   /* ---- 纯中文站，关闭自动 locale 前缀 ---- */
-  trailingSlash: true,
+  trailingSlash: false,
 };
 
 export default nextConfig;

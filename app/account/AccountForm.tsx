@@ -234,7 +234,7 @@ export default function AccountForm() {
         >
           {logout.kind === "logging-out" ? "正在登出…" : "登出"}
         </button>
-        <a href="/album/" className={styles.btnGhost}>
+        <a href="/album" className={styles.btnGhost}>
           返回相册
         </a>
       </div>
