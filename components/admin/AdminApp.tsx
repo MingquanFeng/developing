@@ -5,13 +5,29 @@ import {
   EMPTY,
   fetchManifest,
   fetchPhotoUrl,
-  generateResetLink,
-  revokeUserSessions,
   type Manifest,
   type PublicUser,
-  type ResetLinkResponse,
 } from "@/lib/album-client";
-import type { Album, Photo } from "@/lib/album-types";
+import type { ResetLinkResponse } from "@/lib/contracts";
+import {
+  fetchSession,
+  loginSession,
+  logoutSession,
+  patchPhoto,
+  trashPhoto,
+  restorePhoto,
+  purgePhoto,
+  fetchUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  generateResetLink,
+  revokeUserSessions,
+  updateManifest,
+  NETWORK_DOWN_HINT,
+  isNetworkError,
+} from "@/lib/admin-api";
+import type { Album, Photo } from "@/lib/contracts";
 
 import {
   inspectFile,
@@ -49,18 +65,14 @@ export default function AdminApp() {
   const [tab, setTab] = useState<"photos" | "trash" | "users" | "covers">("photos");
   const [users, setUsers] = useState<PublicUser[]>([]);
 
-  /* 根地址，不带路径。signerEndpoint(x) 是「基址+x」，当根地址用会拼出废 URL */
-  /* 根地址：合并后所有 /api/* 同源。`apiBase = ""` 让 `${apiBase}/api/...` 拼出相对路径，
-     保留这层壳是怕有人未来要切回独立服务时还能直接用。 */
-  const apiBase = "";
+  /* 路由层现已全部走 lib/admin-api（base 在那层内部包了）。 */
 
   /* ---------- 探测会话 ---------- */
   useEffect(() => {
-    fetch(`/api/session`, { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.user) {
-          setMe(d.user);
+    fetchSession()
+      .then((user) => {
+        if (user) {
+          setMe(user);
           setAuthed(true);
         } else {
           setAuthed(false);
@@ -84,8 +96,8 @@ export default function AdminApp() {
 
   const reloadUsers = useCallback(async () => {
     try {
-      const r = await fetch(`/api/users`, { credentials: "include" });
-      if (r.ok) setUsers((await r.json()).users);
+      const list = await fetchUsers();
+      setUsers(list);
     } catch {
       /* 忽略，靠页面上的旧数据 */
     }
@@ -98,37 +110,17 @@ export default function AdminApp() {
   /* ---------- 写清单（带乐观锁重试） ---------- */
   const save = useCallback(
     async (next: Manifest) => {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const res = await fetch(`/api/album`, {
-          method: "PUT",
-          credentials: "include",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            revision: next.revision,
-            albums: next.albums,
-            photos: next.photos,
-          }),
-        });
-
-        if (res.ok) {
-          const saved = (await res.json()) as { revision: number; updatedAt: string };
-          const merged = { ...next, ...saved };
-          setData(merged);
-          return merged;
-        }
-        if (res.status === 409) {
-          // 版本冲突：拉最新的再合一次，避免覆盖别人的改动
-          const cur = await fetchManifest();
-          next = { ...next, revision: cur.revision };
-          setData(cur);
-          continue;
-        }
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `保存失败 HTTP ${res.status}`);
-      }
-      throw new Error("保存冲突，重试三次仍未成功");
+      // SDK 内部已含乐观锁重试（最多 3 次，409 自动拉最新 + bump revision 再覆盖）
+      const saved = await updateManifest({
+        revision: next.revision,
+        albums: next.albums,
+        photos: next.photos,
+      });
+      const merged = { ...next, ...saved };
+      setData(merged);
+      return merged;
     },
-    [], 
+    [],
   );
 
   /* ---------- 登录 ---------- */
@@ -137,72 +129,33 @@ export default function AdminApp() {
     setBusy(true);
     setLoginErr("");
     try {
-      const res = await fetch(`/api/login`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (res.ok) {
-        const d = await res.json().catch(() => null);
-        if (d?.user) {
-          setMe(d.user);
-          // 非 admin 不要停在用户管理标签（那个标签对它不存在）
-          if (d.user.role !== "admin" && tab === "users") setTab("photos");
-        }
-        setPassword("");
-        setAuthed(true);
-        return;
-      }
-
-      /* 逐个状态码说清楚，不要一律报「口令不正确」——
-         之前 401/429/503 都落到同一句，排查时完全看不出真实原因 */
-      const body = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        hint?: string;
-        retryAfter?: number;
-      };
-      switch (res.status) {
-        case 401:
-          throw new Error("用户名或密码不正确");
-        case 429:
-          throw new Error(
-            `尝试过多，已锁定，请 ${Math.round((body.retryAfter ?? 900) / 60)} 分钟后再试`,
-          );
-        case 503:
-          throw new Error(
-            body.hint === "no_users"
-              ? "服务端还没有任何用户，请先在服务器执行 npm run user -- add <用户名>"
-              : "签名服务不可用",
-          );
-        default:
-          throw new Error(
-            `登录失败 HTTP ${res.status}${body.error ? `：${body.error}` : ""}`,
-          );
-      }
+      // SDK 内部 401/429/503 已翻成中文 message；
+      // 网络错（Failed to fetch 等）走 isNetworkError 二次翻译成运维提示。
+      const user = await loginSession(username, password);
+      setMe(user);
+      // 非 admin 不要停在用户管理标签（那个标签对它不存在）
+      if (user.role !== "admin" && tab === "users") setTab("photos");
+      setPassword("");
+      setAuthed(true);
     } catch (e) {
       const msg = (e as Error).message;
-      setLoginErr(
-        /Failed to fetch|NetworkError|Load failed/.test(msg)
-          ? `连不上后端 —— 请确认 Next.js 进程正常运行，且 /api/* 路由没被改坏`
-          : msg,
-      );
+      setLoginErr(isNetworkError(msg) ? NETWORK_DOWN_HINT : msg);
     } finally {
       setBusy(false);
     }
   };
 
   const logout = async () => {
-    await fetch(`/api/logout`, {
-      method: "POST",
-      credentials: "include",
-    }).catch(() => {});
+    // 退出失败吞掉 —— 用户操作上等价于已退出
+    await logoutSession().catch(() => {});
     setAuthed(false);
     setMe(null);
     setData(EMPTY);
     setSelected(new Set());
   };
+
+  /* 旧内嵌 `call()` 已迁到 lib/admin-api（client + 业务模块），
+     AdminApp 内不再直接拼 fetch。 */
 
   /* ---------- 封面：取最新 manifest，改目标 album 的 coverKey 后整体写回 ---------- */
   const saveCover = async (album: Album, photoKey: string | null) => {
@@ -210,22 +163,14 @@ export default function AdminApp() {
     setCoverBusy(true);
     try {
       const cur = await fetchManifest();
-      const r = await fetch(`/api/album`, {
-        method: "PUT",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          revision: cur.revision,
-          albums: cur.albums.map((a) =>
-            a.id === album.id ? { ...a, coverKey: photoKey } : a,
-          ),
-          photos: cur.photos,
-        }),
+      // updateManifest 自带乐观锁重试；遇到 409 自动重新 fetchManifest 拉最新
+      await updateManifest({
+        revision: cur.revision,
+        albums: cur.albums.map((a) =>
+          a.id === album.id ? { ...a, coverKey: photoKey } : a,
+        ),
+        photos: cur.photos,
       });
-      if (!r.ok) {
-        const body = (await r.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error || `保存失败 HTTP ${r.status}`);
-      }
       setCoverMsg({
         kind: "ok",
         text: photoKey
@@ -317,21 +262,13 @@ export default function AdminApp() {
     // 走整份清单每次都要拉全量再提交，别人一改就撞乐观锁。
     if (Object.keys(patch).length === 1 && patch.isPublic !== undefined) {
       try {
-        const r = await fetch(`/api/photo/${id}`, {
-          method: "PATCH",
-          credentials: "include",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ isPublic: patch.isPublic }),
+        const { photo, revision } = await patchPhoto(id, {
+          isPublic: patch.isPublic,
         });
-        if (!r.ok) {
-          const b = await r.json().catch(() => ({}));
-          throw new Error(b.detail || b.error || "切换失败");
-        }
-        const b = await r.json();
         setData((d) => ({
           ...d,
-          revision: b.revision,
-          photos: d.photos.map((p) => (p.id === id ? b.photo : p)),
+          revision,
+          photos: d.photos.map((p) => (p.id === id ? photo : p)),
         }));
       } catch (e) {
         setNotice({ kind: "err", text: (e as Error).message });
@@ -349,18 +286,12 @@ export default function AdminApp() {
     }
   };
 
-  const trashPhoto = async (ids: string[]) => {
+  const trashPhotos = async (ids: string[]) => {
     setBusy(true);
     try {
       for (const id of ids) {
-        const r = await fetch(`/api/photo/${id}`, {
-          method: "DELETE",
-          credentials: "include",
-        });
-        if (!r.ok && r.status !== 409) {
-          const b = await r.json().catch(() => ({}));
-          throw new Error(b.error ?? `删除失败 HTTP ${r.status}`);
-        }
+        // SDK 内部已吞掉 409（乐观锁抖动，按需 refresh）
+        await trashPhoto(id);
       }
       await reload();
       setSelected(new Set());
@@ -374,11 +305,7 @@ export default function AdminApp() {
 
   const restore = async (id: string) => {
     try {
-      const r = await fetch(`/api/photo/${id}/restore`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!r.ok) throw new Error(`恢复失败 HTTP ${r.status}`);
+      await restorePhoto(id);
       await reload();
       setNotice({ kind: "ok", text: "已恢复" });
     } catch (e) {
@@ -388,11 +315,7 @@ export default function AdminApp() {
 
   const purge = async (id: string) => {
     try {
-      const r = await fetch(`/api/photo/${id}/purge`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!r.ok) throw new Error(`彻底删除失败 HTTP ${r.status}`);
+      await purgePhoto(id);
       await reload();
       setNotice({ kind: "ok", text: "已彻底删除" });
     } catch (e) {
@@ -610,7 +533,7 @@ export default function AdminApp() {
           <button
             className={styles.danger}
             disabled={busy}
-            onClick={() => trashPhoto([...selected])}
+            onClick={() => trashPhotos([...selected])}
           >
             移入回收站 {selected.size} 张
           </button>
@@ -653,7 +576,6 @@ export default function AdminApp() {
         <UserPanel
           users={users}
           me={me}
-          apiBase={apiBase}
           albums={data.albums}
           photos={data.photos}
           onChanged={reloadUsers}
@@ -1006,7 +928,6 @@ function PhotoRow({
 function UserPanel({
   users,
   me,
-  apiBase,
   albums,
   photos,
   onChanged,
@@ -1014,7 +935,6 @@ function UserPanel({
 }: {
   users: PublicUser[];
   me: PublicUser | null;
-  apiBase: string;
   albums: Album[];
   photos: Photo[];
   onChanged: () => Promise<void>;
@@ -1045,28 +965,15 @@ function UserPanel({
     };
   }, []);
 
-  const call = async (path: string, init: RequestInit) => {
-    const r = await fetch(`${path}`, {
-      ...init,
-      credentials: "include",
-      headers: { "content-type": "application/json", ...(init.headers ?? {}) },
-    });
-    const b = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(b.detail ?? b.error ?? `HTTP ${r.status}`);
-    return b;
-  };
-
+  /* 旧 call() 已被 lib/admin-api 替换，下面所有用户管理动作都走 SDK */
   const addUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg(null);
     try {
-      await call("/api/users", {
-        method: "POST",
-        body: JSON.stringify({
-          username: nUser,
-          password: nPass,
-          displayName: nName || undefined,
-        }),
+      await createUser({
+        username: nUser,
+        password: nPass,
+        displayName: nName || undefined,
       });
       setNUser(""); setNPass(""); setNName("");
       setMsg({ kind: "ok", text: "用户已创建" });
@@ -1079,10 +986,7 @@ function UserPanel({
   const resetPassword = async (id: string) => {
     setMsg(null);
     try {
-      await call(`/api/users/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ password: pwVal }),
-      });
+      await updateUser(id, { password: pwVal });
       setPwFor(null); setPwVal("");
       setMsg({ kind: "ok", text: "密码已更新" });
       await onChanged();
@@ -1094,10 +998,8 @@ function UserPanel({
   const toggleDisabled = async (u: PublicUser) => {
     setMsg(null);
     try {
-      await call(`/api/users/${u.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ disabled: !u.disabled }),
-      });
+      await updateUser(u.id, { disabled: !u.disabled });
+      setMsg({ kind: "ok", text: u.disabled ? "已启用" : "已停用" });
       await onChanged();
     } catch (e) {
       setMsg({ kind: "err", text: (e as Error).message });
@@ -1116,11 +1018,7 @@ function UserPanel({
     }
     setMsg(null);
     try {
-      const r = (await call(`/api/users/${u.id}`, { method: "DELETE" })) as {
-        ok: boolean;
-        deleted?: { photos: number; albums: number; objectsDeleted: number };
-      };
-      const d = r.deleted;
+      const { deleted: d } = await deleteUser(u.id);
       setMsg({
         kind: "ok",
         text: d
@@ -1243,10 +1141,9 @@ function UserPanel({
                 value={u.displayName}
                 onChange={async (e) => {
                   const v = e.target.value;
-                  await call(`/api/users/${u.id}`, {
-                    method: "PATCH",
-                    body: JSON.stringify({ displayName: v }),
-                  }).catch((err) => setMsg({ kind: "err", text: err.message }));
+                  await updateUser(u.id, { displayName: v }).catch(
+                    (err) => setMsg({ kind: "err", text: (err as Error).message }),
+                  );
                   await onChanged();
                 }}
               />
