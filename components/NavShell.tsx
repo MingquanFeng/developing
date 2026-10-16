@@ -200,9 +200,14 @@ function UserMenu({ me }: { me: PublicUser }) {
     };
   }, [open]);
 
-  /* 按钮 label：admin 看"后台"，viewer 看"个人空间"。
-     加 ▾ 表示可展开。 */
-  const buttonLabel = me.role === "admin" ? "后台" : "个人空间";
+  /* 头像：用 displayName 或 username 的第一个字符。
+     圆角色块：背景色由 user.id 哈希稳定派生 —— 同一用户每次刷新都一个色。
+     admin 角色额外有暖色环，方便快速识别"管理员在线"。 */
+  const initialChar = (me.displayName || me.username || "?").trim().charAt(0).toUpperCase() || "?";
+  const hue = hashHue(me.id);
+  const avatarBg = me.role === "admin"
+    ? `linear-gradient(135deg, hsl(${hue}, 28%, 36%), hsl(${(hue + 30) % 360}, 32%, 28%))`
+    : `linear-gradient(135deg, hsl(${hue}, 22%, 30%), hsl(${(hue + 30) % 360}, 24%, 24%))`;
 
   /* 菜单项：admin 含 "后台"；viewer 含 "个人空间"。
      "账户" 一律有 —— 改密 / 改显示名都在那里。 */
@@ -226,8 +231,29 @@ function UserMenu({ me }: { me: PublicUser }) {
         }`}
         onClick={() => setOpen((v) => !v)}
       >
-        {buttonLabel}
-        <span className={styles["nav__caret"] ?? ""} aria-hidden="true">
+        {/* 头像圆：32px mono 大写首字 */}
+        <span
+          className={styles["nav__avatar"] ?? ""}
+          style={{ background: avatarBg }}
+          aria-hidden="true"
+        >
+          {initialChar}
+        </span>
+        {/* 桌面端显示小字 username，让人确认登录的是谁；面板打开时隐藏
+            文字（仅显示头像 + caret）以让 panel 干净。 */}
+        <span
+          className={`${styles["nav__userlabel"] ?? ""} ${
+            open ? (styles["nav__userlabel--hidden"] ?? "") : ""
+          }`}
+        >
+          @{me.username}
+        </span>
+        <span
+          className={`${styles["nav__caret"] ?? ""} ${
+            open ? (styles["nav__caret--open"] ?? "") : ""
+          }`}
+          aria-hidden="true"
+        >
           ▾
         </span>
       </button>
@@ -236,6 +262,25 @@ function UserMenu({ me }: { me: PublicUser }) {
           role="menu"
           className={`${styles["nav__usermenu-panel"] ?? ""}`}
         >
+          {/* 面板顶部：头像 + 用户名 + 角色徽标 —— 让用户清楚自己登录的是谁 */}
+          <li role="none" className={styles["nav__usermenu-header"] ?? ""}>
+            <span
+              className={`${styles["nav__avatar"] ?? ""} ${styles["nav__avatar--lg"] ?? ""}`}
+              style={{ background: avatarBg }}
+              aria-hidden="true"
+            >
+              {initialChar}
+            </span>
+            <span className={styles["nav__usermenu-id"] ?? ""}>
+              <span className={styles["nav__usermenu-name"] ?? ""}>
+                {me.displayName || me.username}
+              </span>
+              <span className={styles["nav__usermenu-role"] ?? ""}>
+                {me.role === "admin" ? "管理员" : "访客"} · @{me.username}
+              </span>
+            </span>
+          </li>
+          <li role="none" className={styles["nav__usermenu-sep"] ?? ""} />
           {items.map((it) => (
             <li key={it.href} role="none">
               <a role="menuitem" href={it.href} onClick={() => setOpen(false)}>
@@ -281,4 +326,20 @@ function LogoutButton({
       退出
     </button>
   );
+}
+
+/* ============================================================
+   工具：user id → 0..360 色相值
+   ------------------------------------------------------------
+   FNV-1a 32-bit 哈希取前几位。同一 id 永远得到同一色相 —— 用户视觉上
+   锁定"自己的颜色"。与 CSS 变量无依赖，颜色直接传给 style。
+   ============================================================ */
+function hashHue(id: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  /* 取 24 位（正数）+ 映射到 0..360 */
+  return ((h >>> 0) % 360);
 }
