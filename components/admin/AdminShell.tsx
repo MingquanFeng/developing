@@ -71,13 +71,16 @@ export default function AdminShell(props: AdminShellProps) {
     onOpenCover,
   } = props;
 
-  /* viewer 只能看自己的 photo / album；admin 看全部 */
+  /* viewer 看到自己的 + 公开照片（与 /api/album 返的 visibleTo 一致）；
+     admin 看全部。这样 viewer 上传 + 管理自己照片时，
+     还能看到别的人的公开照，UI 与后端契约对齐。 */
+  const isMine = (p: { ownerId: string }) => p.ownerId === me.id;
   const scoped = me.role === "admin"
     ? data
     : {
         ...data,
         albums: data.albums.filter((a) => a.ownerId === me.id),
-        photos: data.photos.filter((p) => p.ownerId === me.id),
+        photos: data.photos.filter((p) => p.isPublic || isMine(p)),
       };
 
   const visible = (scoped.photos).filter((p) =>
