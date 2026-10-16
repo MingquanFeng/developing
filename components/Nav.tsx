@@ -37,34 +37,62 @@ export default function Nav() {
   }, []);
 
   /* 探活：同源 `/api/session`，cookies 自动带。
-   注意 catch 路径要谨慎：
-   - 服务端明确 401 = 确认未登录 → setMe(null)
-   - 网络层抛错（Failed to fetch / 5xx 等）→ 保持 me 不动，
-     否则后台管理页能登、首页却误显示"登录/注册"——正是用户最近报的 bug。 */
+   状态机：
+   - 401 = 明确未登录 → setMe(null)
+   - 5xx / TypeError Failed to fetch（HMR 编译中）= 网络/服务端临时不可用
+     → 保持 me 不变，避免误把已登录态覆盖掉。
+   - dev 模式额外重试一次（HMR 首字节返回慢是常态）。
+
+   历史：
+   - 一开始 catch 直接 setMe(null)，用户后台已登、首页却显示"登录/注册"
+   - 加了"保持原状"，但首屏 me 是 null，于是 dev 模式首屏一直显示未登录
+   - 现在加"网络错重试 + 最多 2 次"覆盖首屏冷启 */
   useEffect(() => {
     let cancelled = false;
+    const isDev = process.env.NODE_ENV !== "production";
+    const MAX_ATTEMPTS = isDev ? 2 : 1;
+    let attempt = 0;
 
-    fetch(`/api/session`, { credentials: "same-origin" })
-      .then(async (r) => {
-        if (cancelled) return null;
-        if (r.status === 401) return { user: null };
-        if (!r.ok) {
-          // 5xx 等服务端错：保持 me 不变，避免误把已登录态覆盖掉
-          throw new Error(`session probe HTTP ${r.status}`);
-        }
-        return (await r.json()) as { user?: PublicUser };
-      })
-      .then((data) => {
-        if (cancelled || !data) return;
-        setMe(data.user ?? null);
-      })
-      .catch((err) => {
+    const probe = async (): Promise<void> => {
+      attempt += 1;
+      try {
+        const r = await fetch(`/api/session`, { credentials: "same-origin" });
         if (cancelled) return;
-        // 网络层错（Failed to fetch / Next 渲染失败）：不动 me
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[Nav] /api/session probe failed:", err);
+        if (r.status === 401) {
+          setMe(null);
+          return;
         }
-      });
+        if (!r.ok) {
+          // 5xx：保留 me 等下一次探活（HMR 后会重 mount）
+          if (isDev) console.warn(`[Nav] /api/session HTTP ${r.status}`);
+          return;
+        }
+        const data = (await r.json()) as { user?: PublicUser };
+        if (cancelled) return;
+        setMe(data.user ?? null);
+      } catch (err) {
+        if (cancelled) return;
+        // 网络层抛错（TypeError: Failed to fetch 等）——dev 模式重试
+        if (isDev) {
+          if (attempt < MAX_ATTEMPTS) {
+            console.warn(
+              `[Nav] /api/session probe failed (attempt ${attempt}/${MAX_ATTEMPTS}); retrying in 600ms`,
+              err,
+            );
+            setTimeout(probe, 600);
+            return;
+          }
+          console.warn(
+            "[Nav] /api/session probe gave up after retries; me stays at initial state",
+            err,
+          );
+        }
+        // 生产模式：网络错就保留当前 me（可能本就 null ——首屏冷启会显示未登录，
+        // 但这至少比"误把已登录态清掉"安全）
+      }
+    };
+
+    void probe();
 
     return () => {
       cancelled = true;
