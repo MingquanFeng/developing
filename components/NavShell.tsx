@@ -209,12 +209,16 @@ function UserMenu({ me }: { me: PublicUser }) {
     ? `linear-gradient(135deg, hsl(${hue}, 28%, 36%), hsl(${(hue + 30) % 360}, 32%, 28%))`
     : `linear-gradient(135deg, hsl(${hue}, 22%, 30%), hsl(${(hue + 30) % 360}, 24%, 24%))`;
 
-  /* 菜单项：admin 含 "后台"；viewer 含 "个人空间"。
-     "账户" 一律有 —— 改密 / 改显示名都在那里。 */
-  const items: Array<{ label: string; href: string; danger?: boolean }> = [];
-  if (me.role === "admin") items.push({ label: "后台", href: "/admin" });
-  else items.push({ label: "个人空间", href: "/account" });
-  items.push({ label: "账户", href: "/account" });
+  /* 菜单项：admin 与 viewer 都含 "后台"（/admin）。
+     - admin   进 /admin 看全部
+     - viewer  进 /admin 看自己（AdminShell scoped 已按 ownerId 滤过）
+     "账户" /account 一律有 —— 改密 / 改显示名在那里。
+     之前 viewer 下拉只有 "个人空间 / 账户" 两个 href 都指 /account
+     的窘境也顺手清掉（React 重复 key 警告的根源之一）。 */
+  const items: Array<{ label: string; href: string; danger?: boolean }> = [
+    { label: "后台", href: "/admin" },
+    { label: "账户", href: "/account" },
+  ];
 
   return (
     <span
