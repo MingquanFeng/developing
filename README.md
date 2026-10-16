@@ -29,22 +29,65 @@ npm run dev          # 注意：见下方「已知问题」，建议加 --webpac
 npm run build        # 产出 out/ 静态目录
 ```
 
+### 工程化检查
+
+```bash
+npm run typecheck           # tsc --noEmit 0 errors
+npm run lint:api-paths      # 防裸 fetch(/api/...) 回退到业务组件
+npm run check:server-only   # 在 Nav 临时插探针跑 build 验 server-only 守门
+```
+
 ## 项目结构
 
 ```
-app/
-  layout.tsx           字体注入、站点 metadata
-  page.tsx             主页（九幕式作品集）
-  album/page.tsx       相册页
-components/
-  album/AlbumBrowser   筛选条 + 瀑布网格 + 灯箱状态
-  album/Lightbox       全屏看片
-  lib/data.ts          全站文案与作品数据（唯一内容源）
-  lib/album-types.ts   相册类型 + 图片 URL 构造器
-  lib/album-client.ts   相册清单数据源（构建期取数 + 运行时刷新）
+构建期（SSG，output: export）
+  app/
+    page.tsx              主页 server component（编排 9 个 section）
+    layout.tsx            字体注入、site metadata
+    album/page.tsx        相册页
+  components/home/        九幕 section 组件（HeroSection / JournalSection / ...
+                          WorksSection / CoordsSection / StorySection /
+                          Interlude03Section / AboutSection /
+                          SubscribeSection / FooterSection）
+  components/             原展示组件（Hero / Works / Coords / Story / ...）
+  lib/series-covers/      ★ 唯一允许 import lib/signer/* 的服务端入口
+  lib/signer/             Node-only：sqlite + cos + 用户表
+  lib/data/{site,nav,
+           home,story,
+           about,subscribe,
+           footer,index}   全站文案（按域拆，barrel 兼容老 import）
+
+运行时（Admin SPA）
+  app/admin/page.tsx      admin 路由
+  components/admin/
+    AdminApp.tsx          协调器（234 行）
+    AdminShell.tsx        已登录后外壳 + tabs
+    LoginForm.tsx         未登录表单
+    Frame / DropZone / PhotoRow
+    tabs/UsersTab         用户管理 tab
+    hooks/                5 个状态机 hook
+    modals/{CoverModal,
+            ResetLinkModal}
+  lib/admin-api/          后台客户端 SDK（auth / manifest / photos /
+                          users / upload / errors / client）
+
+共用
+  lib/contracts.ts        ★ 前后端共享类型（Album / Photo / Manifest /
+                          User / PublicUser / Role / SessionToken /
+                          WriteResult / ResetLinkResponse / ApiError）
+  lib/album-client.ts     访客侧 SDK（保留，listUsers 改用它）
+  lib/album-types.ts      re-export contracts（含 formatBytes）
+
 docs/
-  PRD.md               相册功能的产品需求文档
-  MVP-PLAN.md          实施方案与任务拆解
+  PRD.md                  相册产品需求
+  MVP-PLAN.md             实施方案
+  REFACTOR/               2026 Q4 重构日志（00-overview / 01-home / 02-admin
+                          / 03-contracts / 04-decisions）
+scripts/
+  smoke.mjs               烟雾测试
+  user.js                 CLI 管理用户
+  lint-api-paths.mjs      防裸 fetch(/api/...) 回退（PR-6）
+  check-server-only.mjs   server-only 守门自检（PR-2 实测保留）
 ```
 
 ## 接腾讯云 COS

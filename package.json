@@ -21,7 +21,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
-    "user": "node scripts/user.js"
+    "user": "node scripts/user.js",
+    "lint:api-paths": "node scripts/lint-api-paths.mjs",
+    "check:server-only": "node scripts/check-server-only.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
