@@ -12,32 +12,15 @@
  *      → 新上传的照片刷新就能看到，不必重新构建部署
  */
 
-import type { Album, Photo } from "./album-types";
+import type { Album, Photo, ResetLinkResponse as ResetLinkResponseContract } from "@/lib/contracts";
+import type { PublicUser as PublicUserContract, Manifest as ManifestContract } from "@/lib/contracts";
 
-/** 用户。与 lib/signer/users.ts 里的 PublicUser 一一对应。
- *  这是跨网络边界的契约类型，两端各定义一份是有意的：
- *  前端不应 import 服务端目录（会把 node:sqlite 等服务端依赖拖进前端构建）。 */
-export type PublicUser = {
-  id: string;
-  username: string;
-  displayName: string;
-  /** admin 能管用户；viewer 不能。照片权限不看角色，看 ownerId */
-  role: "admin" | "viewer";
-  disabled: boolean;
-  /** 会话版本号。改密 / 重置 / 踢人后必 bump；前端用不到，仅展示 */
-  sessionVersion: number;
-  createdAt: string;
-  lastLoginAt?: string;
-  /** 最近一次登录来源 IP（来自请求头 / x-forwarded-for） */
-  lastLoginIp?: string | null;
-};
-
-export type Manifest = {
-  revision: number;
-  updatedAt: string;
-  albums: Album[];
-  photos: Photo[];
-};
+/** @deprecated 本地历史别名。直接 import from "@/lib/contracts" */
+export type PublicUser = PublicUserContract;
+/** @deprecated 本地历史别名。直接 import from "@/lib/contracts" */
+export type Manifest = ManifestContract;
+/** @deprecated 直接 import from "@/lib/contracts" */
+export type ResetLinkResponse = ResetLinkResponseContract;
 
 export const EMPTY: Manifest = {
   revision: 0,
@@ -123,13 +106,6 @@ export const clearUrlCache = () => urlCache.clear();
 /* ============================================================
    账号管理接口（全部走相对路径）
    ============================================================ */
-
-export type ResetLinkResponse = {
-  url: string;
-  expiresAt: string;
-  ttlSec: number;
-  targetUsername: string;
-};
 
 /** 把服务端错误码翻成人话，跟 RegisterForm / AccountForm 风格一致 */
 function explainAccount(code: string, detail?: string): string {

@@ -9,6 +9,7 @@ import {
   verifyCredentials,
   type User,
 } from "./users";
+import type { SessionToken as SessionTokenContract } from "@/lib/contracts";
 
 const COOKIE_NAME = "album_session";
 
@@ -30,7 +31,7 @@ export function issueSession(
   return `${payload}.${hmac(payload)}`;
 }
 
-export type SessionToken = { userId: string; sessionVersion: number };
+export type SessionToken = SessionTokenContract;
 
 export function verifySession(token: string | undefined): SessionToken | null {
   if (!token) return null;

@@ -1,48 +1,21 @@
 import { MANIFEST_KEY } from "./config";
 import { getText, putText } from "./cos";
+import type {
+  Album as AlbumContract,
+  Photo as PhotoContract,
+  Manifest as ManifestContract,
+  WriteResult as WriteResultContract,
+} from "@/lib/contracts";
 
-export type Album = {
-  id: string;
-  slug: string;
-  name: string;
-  desc: string;
-  coverKey: string | null;
-  order: number;
-  /** 归属者 userId。存量相册没有此字段，按 LEGACY_OWNER_ID 处理 */
-  ownerId?: string;
-};
-
-export type Photo = {
-  id: string;
-  key: string;
-  albumId: string;
-  /** 归属者 userId。这是权限的唯一真相来源 */
-  ownerId: string;
-  /**
-   * 是否对所有人公开。
-   * true  → 任何人（含未登录）都能看
-   * false → 只有 owner 本人能看到，读取走预签名 URL
-   *
-   * ⚠️ 存量照片没有这个字段，读取时按 true 处理（迁移见 readManifest）。
-   */
-  isPublic: boolean;
-  title: string;
-  caption: string;
-  place: string;
-  shotAt: string;
-  width: number;
-  height: number;
-  bytes: number;
-  /** 软删除时间。非空表示已进回收站，访客侧不可见 */
-  trashedAt?: string | null;
-};
-
-export type Manifest = {
-  revision: number;
-  updatedAt: string;
-  albums: Album[];
-  photos: Photo[];
-};
+/**
+ * 类型的唯一权威源在 lib/contracts.ts。本文件只是 re-export，让
+ * `import type { Album, Photo, Manifest } from "@/lib/signer/album"`
+ * 这条历史路径继续工作（PR-1 起 6 个月内）。新代码请直接
+ * `import type { ... } from "@/lib/contracts"`。
+ */
+export type Album = AlbumContract;
+export type Photo = PhotoContract;
+export type Manifest = ManifestContract;
 
 const EMPTY: Manifest = {
   revision: 0,
@@ -166,9 +139,7 @@ export function publicManifest(m: Manifest) {
   };
 }
 
-export type WriteResult =
-  | { ok: true; manifest: Manifest }
-  | { ok: false; reason: "stale_revision"; current: Manifest };
+export type WriteResult = WriteResultContract;
 
 /**
  * 写清单，带乐观锁。
@@ -180,7 +151,7 @@ export async function writeManifest(
 ): Promise<WriteResult> {
   const current = await readManifest();
   if (Number(incoming.revision) !== current.revision) {
-    return { ok: false, reason: "stale_revision", current };
+    return { ok: false, current };
   }
 
   const next: Manifest = {

@@ -17,30 +17,21 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import bcrypt from "bcryptjs";
 import { config } from "./config";
+import type {
+  Role as RoleContract,
+  User as UserContract,
+  PublicUser as PublicUserContract,
+} from "@/lib/contracts";
 
-export type Role = "admin" | "viewer";
-
-export type User = {
-  id: string;
-  username: string;
-  /** bcrypt 哈希，绝不返回给前端 */
-  passwordHash: string;
-  displayName: string;
-  role: Role;
-  disabled: boolean;
-  /**
-   * 会话版本号。改密 / 重置 / 踢人时 +1，旧 token 立即失效。
-   * 默认 1（迁移时回填）。
-   */
-  sessionVersion: number;
-  /** 最近一次登录来源 IP。无（从未登录或后端没记录）时为 null。 */
-  lastLoginIp?: string | null;
-  createdAt: string;
-  lastLoginAt?: string;
-};
-
-/** 对外暴露的形态：永远不含 passwordHash */
-export type PublicUser = Omit<User, "passwordHash">;
+/**
+ * 类型的唯一权威源在 lib/contracts.ts。本文件 re-export，让
+ * `import type { User, PublicUser, Role } from "@/lib/signer/users"`
+ * 这条历史路径继续工作（PR-1 起 6 个月内）。新代码请直接
+ * `import type { ... } from "@/lib/contracts"`。
+ */
+export type Role = RoleContract;
+export type User = UserContract;
+export type PublicUser = PublicUserContract;
 
 const DB_PATH = process.env.USERS_DB_PATH
   ? path.resolve(process.env.USERS_DB_PATH)
