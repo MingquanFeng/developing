@@ -77,13 +77,20 @@ export function useUploadQueue(
           }
           try {
             const cur = await fetchManifest();
-            // 相册已按用户隔离：只能挑自己名下的，绝不能拿 cur.albums[0]
+            // 相册按用户隔离：只能挑自己名下的，绝不能拿 cur.albums[0]
             // （那可能是别人的相册，照片会被写进去但 ownerId 对不上）
             const myAlbums = cur.albums.filter((a) => a.ownerId === me?.id);
-            const albumId = myAlbums[0]?.id ?? "";
-            const albums = myAlbums.length
-              ? cur.albums
-              : [...cur.albums, defaultAlbum(me?.id)];
+            /* viewer 没自己 album 时，**先建一个 defaultAlbum** 再写照片；
+               albumId 用 defaultAlbum.id 而不是空串 —— 否则服务端
+               album_not_found 校验会把整批 PUT 拒掉（之前修过的那个 bug）。 */
+            const willAddDefault = myAlbums.length === 0;
+            const targetAlbum = willAddDefault
+              ? defaultAlbum(me?.id)
+              : myAlbums[0];
+            const albumId = targetAlbum.id;
+            const albums = willAddDefault
+              ? [...cur.albums, targetAlbum]
+              : cur.albums;
             const photos = buildNewPhotos({
               uploaded,
               ownerId: me?.id ?? "",

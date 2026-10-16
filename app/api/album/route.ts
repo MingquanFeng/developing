@@ -85,10 +85,17 @@ export async function PUT(req: NextRequest) {
   // ⚠️ 这里**不能**把对不上的 albumId 悄悄改成别的相册或清空 ——
   // 那会让照片「看起来正常」却已经挂错地方，是静默的数据损坏。
   // 目标相册不存在时保留原值，让前端能看出异常。
+  //
+  // 修：原代码用 `p.albumId && !albumIds.has(p.albumId)` —— 空字符串
+  // albumId 被短路掉（'' 视为不存在），导致存了「albumId=''」的悬挂
+  // photo，下次任何 viewer PUT 时这条历史数据都触发 album_not_found。
+  // 修成显式判断：空字符串也算 dangling。
   const albumIds = new Set(mergedAlbums.map((a) => a.id));
-  const dangling = mergedPhotos.filter(
-    (p) => p.albumId && !albumIds.has(p.albumId),
-  );
+  const dangling = mergedPhotos.filter((p) => {
+    const aid = (p.albumId ?? "").trim();
+    if (aid === "") return true;
+    return !albumIds.has(aid);
+  });
   if (dangling.length) {
     return NextResponse.json(
       {
