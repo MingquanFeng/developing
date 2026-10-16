@@ -44,7 +44,7 @@ yarn-error.log*
 !.env.local.example
 
 # SQLite 用户库（绝对不能进仓库）
-data/
+/data/
 *.db
 *.db-wal
 *.db-shm
@@ -55,3 +55,4 @@ data/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+__snapshots__/

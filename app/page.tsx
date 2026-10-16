@@ -1,14 +1,16 @@
 import Nav from "@/components/Nav";
 import MetaBar from "@/components/MetaBar";
-import Hero from "@/components/Hero";
-import Interlude from "@/components/Interlude";
-import Works, { ImageFallbackProvider } from "@/components/Works";
-import Coords from "@/components/Coords";
-import Story from "@/components/Story";
-import About from "@/components/About";
-import Subscribe from "@/components/Subscribe";
-import Footer from "@/components/Footer";
-import { interlude01, interlude03, series as seriesData } from "@/lib/data";
+import HeroSection from "@/components/home/HeroSection";
+import JournalSection from "@/components/home/JournalSection";
+import WorksSection from "@/components/home/WorksSection";
+import CoordsSection from "@/components/home/CoordsSection";
+import StorySection from "@/components/home/StorySection";
+import Interlude03Section from "@/components/home/Interlude03Section";
+import AboutSection from "@/components/home/AboutSection";
+import SubscribeSection from "@/components/home/SubscribeSection";
+import FooterSection from "@/components/home/FooterSection";
+import { ImageFallbackProvider } from "@/components/Works";
+import { series as seriesData } from "@/lib/data/home";
 import { enrichSeriesWithCovers } from "@/lib/series-covers";
 
 /**
@@ -47,28 +49,17 @@ export default async function Home() {
       <MetaBar />
 
       <main>
-        <Hero />
-        <Interlude
-          id="journal"
-          kicker={interlude01.kicker}
-          lines={interlude01.quote}
-          emphasisIndex={interlude01.emphasisIndex}
-          sig={interlude01.sig}
-        />
-        <Works series={series} />
-        <Coords />
-        <Story />
-        <Interlude
-          kicker={interlude03.kicker}
-          lines={interlude03.quote}
-          small
-          variant="minimal"
-        />
-        <About />
-        <Subscribe />
+        <HeroSection />
+        <JournalSection />
+        <WorksSection series={series} />
+        <CoordsSection />
+        <StorySection />
+        <Interlude03Section />
+        <AboutSection />
+        <SubscribeSection />
       </main>
 
-      <Footer />
+      <FooterSection />
     </>
   );
 }
