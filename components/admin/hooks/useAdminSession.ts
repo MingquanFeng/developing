@@ -69,14 +69,22 @@ export function useAdminSession(
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  /* Client-side refresh：仅在 initialMe 与服务端不一致时（如其他 tab 退出登录）
-     拉一次 /api/session。不再是"页面 mount 必须探活"。 */
+  /* Client-side refresh：仅在 initialMe 缺失时跑。
+     dev 模式额外重试 1 次（HMR 编译慢时 /api/session 偶发
+     TypeError Failed to fetch —— 用户在 /admin SSR 看到 loading 占位
+     后，client 端探活一遇 fail 就永远卡住。重试是修法）。 */
   useEffect(() => {
     /* initialMe 已有 → 跳过启动探活；仅在某种 fallback 触发（如外部清 cookie） */
     if (opts.initialMe) return;
     let cancelled = false;
-    fetchSession()
-      .then((user) => {
+    const isDev = process.env.NODE_ENV !== "production";
+    const MAX_ATTEMPTS = isDev ? 3 : 1;
+    let attempt = 0;
+
+    const probe = async (): Promise<void> => {
+      attempt += 1;
+      try {
+        const user = await fetchSession();
         if (cancelled) return;
         if (user) {
           setMe(user);
@@ -84,14 +92,30 @@ export function useAdminSession(
         } else {
           setStatus("anonymous");
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         if (cancelled) return;
-        // 网络错：保留当前 me（可能已 authed），让用户至少能看到后台
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[useAdminSession] /api/session probe failed:", err);
+        if (isDev && attempt < MAX_ATTEMPTS) {
+          console.warn(
+            `[useAdminSession] /api/session probe failed (attempt ${attempt}/${MAX_ATTEMPTS}); retrying in 800ms`,
+            err,
+          );
+          setTimeout(probe, 800);
+          return;
         }
-      });
+        if (isDev) {
+          console.warn(
+            "[useAdminSession] /api/session gave up; falling back to login form",
+            err,
+          );
+        }
+        // 网络层错误重试后仍失败：保守切 anonymous，让用户至少能进登录页
+        // —— 否则永远卡在 loading 占位（之前修法犯的错）
+        if (!cancelled) setStatus("anonymous");
+      }
+    };
+
+    void probe();
+
     return () => {
       cancelled = true;
     };
