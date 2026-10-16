@@ -499,3 +499,330 @@
   color: var(--bg);
   border-radius: 2px;
 }
+
+/* ============================================================
+   AdminPhotoGrid —— 后台 Photos tab 瀑布网格（PR 重做）
+   ------------------------------------------------------------
+   借鉴 /album 风格：缩略图按真实宽高比排版、悬浮操作层、
+   点击进 EditLightbox 编辑弹层。
+   ============================================================ */
+.adminGrid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  gap: var(--gap, 14px);
+  margin-top: 18px;
+}
+.adminCell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  transition: border-color .25s var(--ease), transform .25s var(--ease);
+}
+.adminCell:hover {
+  border-color: var(--hot);
+  transform: translateY(-2px);
+}
+.adminCell__media {
+  display: block;
+  width: 100%;
+  /* 等比：aspect-ratio 由 JS 写 --cell-aspect */
+  aspect-ratio: var(--cell-aspect, 1);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: var(--bg);
+  cursor: zoom-in;
+  overflow: hidden;
+  position: relative;
+}
+.adminCell__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform .5s var(--ease);
+}
+.adminCell:hover .adminCell__media img {
+  transform: scale(1.04);
+}
+.adminCell__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  opacity: .5;
+}
+.adminCell__caption {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.adminCell__title {
+  font-family: var(--display);
+  font-size: 15px;
+  line-height: 1.25;
+  /* 单行省略 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.adminCell__album {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  opacity: .55;
+  text-transform: uppercase;
+}
+.adminCell__public,
+.adminCell__private {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  letter-spacing: .1em;
+}
+.adminCell__public {
+  background: var(--hot);
+  color: var(--bg);
+}
+.adminCell__private {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  opacity: .6;
+}
+.adminCell__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.adminCell__check {
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.adminCell__btn {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: 5px 9px;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .2s var(--ease), color .2s var(--ease);
+}
+.adminCell__btn:hover { background: rgba(255, 255, 255, .05); }
+.adminCell__btn--danger {
+  border-color: rgba(216, 137, 106, .35);
+  color: #d8896a;
+}
+.adminCell__btn--danger:hover {
+  background: rgba(216, 137, 106, .12);
+}
+
+/* ============================================================
+   EditLightbox —— 编辑弹层
+   ============================================================ */
+.adminEdit__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 14, .82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 4vh 4vw;
+  animation: adminEditIn .18s var(--ease) both;
+}
+@keyframes adminEditIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.adminEdit {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 360px);
+  width: 100%;
+  max-width: 1100px;
+  height: 100%;
+  max-height: 86vh;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .5);
+  overflow: hidden;
+}
+@media (max-width: 760px) {
+  .adminEdit {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+    max-height: 92vh;
+  }
+}
+.adminEdit__media {
+  position: relative;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.adminEdit__media img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.adminEdit__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  left: 14px;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .08);
+  color: var(--paper);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .2s var(--ease);
+}
+.adminEdit__nav--right { left: auto; right: 14px; }
+.adminEdit__nav:hover { background: rgba(255, 255, 255, .18); }
+
+.adminEdit__side {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-2);
+  overflow: hidden;
+}
+.adminEdit__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.adminEdit__head h2 {
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
+}
+.adminEdit__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 18px 0;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .65;
+}
+.adminEdit__field input,
+.adminEdit__field textarea,
+.adminEdit__field select {
+  font: inherit;
+  font-family: var(--sans);
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 1;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 9px 10px;
+  outline: none;
+  transition: border-color .2s var(--ease);
+  width: 100%;
+}
+.adminEdit__field input:focus,
+.adminEdit__field textarea:focus,
+.adminEdit__field select:focus {
+  border-color: var(--hot);
+}
+.adminEdit__field input:disabled,
+.adminEdit__field textarea:disabled,
+.adminEdit__field select:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.adminEdit__field textarea {
+  resize: vertical;
+  min-height: 70px;
+  font-family: var(--sans);
+}
+.adminEdit__checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px 0;
+  font-size: 12.5px;
+  opacity: .85;
+  cursor: pointer;
+}
+.adminEdit__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 16px 18px 18px;
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+}
+.adminEdit__save {
+  margin-right: auto;
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: 10px 18px;
+  background: var(--ink);
+  color: var(--bg);
+  border: 0;
+  cursor: pointer;
+  transition: opacity .2s var(--ease);
+}
+.adminEdit__save:hover { opacity: .85; }
+.adminEdit__save:disabled { opacity: .35; cursor: not-allowed; }
+.adminEdit__btn {
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  padding: 9px 14px;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .2s var(--ease);
+}
+.adminEdit__btn:hover { background: rgba(255, 255, 255, .05); }
+.adminEdit__btn--danger {
+  border-color: rgba(216, 137, 106, .35);
+  color: #d8896a;
+}
+.adminEdit__btn--danger:hover { background: rgba(216, 137, 106, .12); }

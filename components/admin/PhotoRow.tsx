@@ -1,7 +1,11 @@
 "use client";
 
 /**
- * PhotoRow —— 单张照片的一行编辑
+ * PhotoRow —— (DEPRECATED) 单张照片的一行编辑
+ * ------------------------------------------------------------------
+ * 历史组件：被 AdminPhotoGrid（瀑布网格 + EditLightbox）取代。
+ * 保留文件仅为让旧 import 不立即红，下个版本移除。
+ * 替换为：import AdminPhotoGrid from "@/components/admin/AdminPhotoGrid"
  * ------------------------------------------------------------------
  * - 缩略图：异步走 fetchPhotoUrl（带 15min 缓存），不显示公开直链
  * - 行内编辑：标题 / 地点 / 所在相册 / 公开/私有

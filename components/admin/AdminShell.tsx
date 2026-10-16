@@ -18,7 +18,7 @@ import type {
 } from "@/lib/contracts";
 
 import DropZone from "./DropZone";
-import PhotoRow from "./PhotoRow";
+import AdminPhotoGrid from "./AdminPhotoGrid";
 import UsersTab from "./tabs/UsersTab";
 
 import { type QueueItem } from "./upload-queue";
@@ -208,21 +208,16 @@ export default function AdminShell(props: AdminShellProps) {
           {tab === "photos" ? "还没有照片，拖文件到上面。" : "回收站是空的。"}
         </p>
       ) : (
-        <ul className={styles.list}>
-          {visible.map((p) => (
-            <PhotoRow
-              key={p.id}
-              photo={p}
-              albums={scoped.albums}
-              checked={selectedIds.has(p.id)}
-              onToggle={() => onToggleSelected(p.id)}
-              onEdit={(patch) => void onEditPhoto(p.id, patch)}
-              onRestore={() => void onRestore(p.id)}
-              onPurge={() => void onPurge(p.id)}
-              inTrash={!!p.trashedAt}
-            />
-          ))}
-        </ul>
+        <AdminPhotoGrid
+          photos={visible}
+          albums={scoped.albums}
+          selectedIds={selectedIds}
+          onToggleSelected={onToggleSelected}
+          onEditPhoto={(id, patch) => void onEditPhoto(id, patch)}
+          onRestore={(id) => void onRestore(id)}
+          onPurge={(id) => void onPurge(id)}
+          inTrash={tab === "trash"}
+        />
       )}
     </div>
   );
