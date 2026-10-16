@@ -3,7 +3,7 @@
 /**
  * NavShell —— Nav 的纯客户端动画层
  * ------------------------------------------------------------------
- * 负责：滚动位置（shrunk / 索引计数）、drawer 开关与锁定滚动。
+ * 负责：滚动位置（shrunk / 索引计数）、drawer 开关与锁定滚动、用户下拉。
  * 不负责：登录态 —— 登录态从 server 端通过 props 传入，**这里不再探活**。
  *
  * 为什么不探活：
@@ -13,7 +13,7 @@
  *    覆盖为 null
  * 3. 切换到 server-rendered 之后，me 跟 cookie 永远一致；无需再探活
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { site, SECTION_IDS } from "@/lib/data";
 import type { PublicUser } from "@/lib/album-client";
 import styles from "./Nav.module.css";
@@ -65,19 +65,7 @@ export default function NavShell({ me }: NavShellProps) {
   }, [drawerOpen]);
 
   const pad = (n: number) => String(n).padStart(2, "0");
-
-  /* 关闭抽屉（点击链接 / 登出后） */
   const closeDrawer = () => setDrawerOpen(false);
-
-  /* 已登录态的"个人空间"链接 —— 主菜单中替代"登录/注册"。
-     /account 是已登录用户的账户中心；admin-only 用户额外显示 /admin。
-     退出按钮放在抽屉里（移动端可见）+ 桌面 nav__auth（右上角）。 */
-  const authHref = me ? (me.role === "admin" ? "/admin" : "/account") : null;
-  const authLabel = me
-    ? me.role === "admin"
-      ? "后台"
-      : "个人空间"
-    : null;
 
   return (
     <header className={`${styles.nav} ${shrunk ? styles["is-shrunk"] : ""}`}>
@@ -97,30 +85,18 @@ export default function NavShell({ me }: NavShellProps) {
         <a href="/album/">相册</a>
         <a href="#contact">联系</a>
 
-        <span className={styles.nav__auth}>
-          {me ? (
-            <>
-              {authHref && (
-                <a href={authHref} onClick={closeDrawer}>
-                  {authLabel}
-                </a>
-              )}
-              <a href="/account" onClick={closeDrawer}>
-                账户
-              </a>
-              <LogoutButton />
-            </>
-          ) : (
-            <>
-              <a href="/admin/" onClick={closeDrawer}>
-                登录
-              </a>
-              <a href="/register/" onClick={closeDrawer}>
-                注册
-              </a>
-            </>
-          )}
-        </span>
+        {me ? (
+          <UserMenu me={me} />
+        ) : (
+          <span className={styles.nav__auth}>
+            <a href="/admin/" onClick={closeDrawer}>
+              登录
+            </a>
+            <a href="/register/" onClick={closeDrawer}>
+              注册
+            </a>
+          </span>
+        )}
       </nav>
 
       <div className={styles.nav__right}>
@@ -162,9 +138,13 @@ export default function NavShell({ me }: NavShellProps) {
             <li className={styles.nav__drawerSep} />
             {me ? (
               <>
-                {authHref && (
+                {me.role === "admin" ? (
                   <li>
-                    <a href={authHref} onClick={closeDrawer}>{authLabel}</a>
+                    <a href="/admin" onClick={closeDrawer}>后台</a>
+                  </li>
+                ) : (
+                  <li>
+                    <a href="/account" onClick={closeDrawer}>个人空间</a>
                   </li>
                 )}
                 <li>
@@ -192,12 +172,100 @@ export default function NavShell({ me }: NavShellProps) {
 }
 
 /* ============================================================
+   UserMenu —— 桌面端已登录态下拉
+   ------------------------------------------------------------
+   单按钮 + 浮层菜单：
+     - admin  → 后台 / 账户 / 退出
+     - viewer → 个人空间 / 账户 / 退出
+   移动端不渲染此组件（drawer 内已分项）。
+   ============================================================ */
+function UserMenu({ me }: { me: PublicUser }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLSpanElement>(null);
+
+  /* 点外面关掉 + Esc 关掉 */
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  /* 按钮 label：admin 看"后台"，viewer 看"个人空间"。
+     加 ▾ 表示可展开。 */
+  const buttonLabel = me.role === "admin" ? "后台" : "个人空间";
+
+  /* 菜单项：admin 含 "后台"；viewer 含 "个人空间"。
+     "账户" 一律有 —— 改密 / 改显示名都在那里。 */
+  const items: Array<{ label: string; href: string; danger?: boolean }> = [];
+  if (me.role === "admin") items.push({ label: "后台", href: "/admin" });
+  else items.push({ label: "个人空间", href: "/account" });
+  items.push({ label: "账户", href: "/account" });
+
+  return (
+    <span
+      ref={wrapRef}
+      className={`${styles.nav__auth} ${styles["nav__usermenu"] ?? ""}`}
+    >
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`${me.displayName || me.username} 的菜单`}
+        className={`${styles["nav__usermenu-btn"] ?? ""} ${
+          open ? (styles["nav__usermenu-btn--open"] ?? "") : ""
+        }`}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {buttonLabel}
+        <span className={styles["nav__caret"] ?? ""} aria-hidden="true">
+          ▾
+        </span>
+      </button>
+      {open ? (
+        <ul
+          role="menu"
+          className={`${styles["nav__usermenu-panel"] ?? ""}`}
+        >
+          {items.map((it) => (
+            <li key={it.href} role="none">
+              <a role="menuitem" href={it.href} onClick={() => setOpen(false)}>
+                {it.label}
+              </a>
+            </li>
+          ))}
+          <li role="none" className={styles["nav__usermenu-sep"] ?? ""}>
+            <LogoutButton onAfter={() => setOpen(false)} danger />
+          </li>
+        </ul>
+      ) : null}
+    </span>
+  );
+}
+
+/* ============================================================
    LogoutButton —— 抽出来仅为让 onClick 处理（drawer / desktop）共用
    ============================================================ */
-function LogoutButton({ onAfter }: { onAfter?: () => void }) {
+function LogoutButton({
+  onAfter,
+  danger = false,
+}: {
+  onAfter?: () => void;
+  danger?: boolean;
+}) {
   return (
     <button
       type="button"
+      className={danger ? styles["nav__usermenu-danger"] ?? "" : ""}
       onClick={() => {
         if (onAfter) onAfter();
         fetch(`/api/logout`, {

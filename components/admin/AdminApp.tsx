@@ -31,8 +31,14 @@ import { useCoverModal } from "./hooks/useCoverModal";
 import { patchPhoto, purgePhoto, restorePhoto, trashPhoto } from "@/lib/admin-api";
 import type { Manifest, Photo, PublicUser } from "@/lib/contracts";
 
-export default function AdminApp() {
-  const session = useAdminSession();
+export type AdminAppProps = {
+  /** server component 在 SSR 阶段从 cookie 解析的 user。
+   *  没有则 client 端探活补上。 */
+  initialMe?: PublicUser | null;
+};
+
+export default function AdminApp({ initialMe = null }: AdminAppProps = {}) {
+  const session = useAdminSession({ initialMe });
   const manifest = useManifest({ enabled: session.status === "authed" });
   const cover = useCoverModal();
 
