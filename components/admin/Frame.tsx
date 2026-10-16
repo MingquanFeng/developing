@@ -11,7 +11,7 @@
 import styles from "./admin.module.css";
 
 export function Frame({ children }: { children: React.ReactNode }) {
-  return <div className="sh">{children}</div>;
+  return <div className={`${styles.shell} ${styles.shellMain}`}>{children}</div>;
 }
 
 export function Block({

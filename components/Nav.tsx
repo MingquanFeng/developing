@@ -36,22 +36,34 @@ export default function Nav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  /* 探活：同源 `/api/session`，cookies 自动带。 */
+  /* 探活：同源 `/api/session`，cookies 自动带。
+   注意 catch 路径要谨慎：
+   - 服务端明确 401 = 确认未登录 → setMe(null)
+   - 网络层抛错（Failed to fetch / 5xx 等）→ 保持 me 不动，
+     否则后台管理页能登、首页却误显示"登录/注册"——正是用户最近报的 bug。 */
   useEffect(() => {
     let cancelled = false;
 
     fetch(`/api/session`, { credentials: "same-origin" })
       .then(async (r) => {
-        if (!r.ok) return null;
+        if (cancelled) return null;
+        if (r.status === 401) return { user: null };
+        if (!r.ok) {
+          // 5xx 等服务端错：保持 me 不变，避免误把已登录态覆盖掉
+          throw new Error(`session probe HTTP ${r.status}`);
+        }
         return (await r.json()) as { user?: PublicUser };
       })
       .then((data) => {
-        if (cancelled) return;
-        setMe(data?.user ?? null);
+        if (cancelled || !data) return;
+        setMe(data.user ?? null);
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
-        setMe(null);
+        // 网络层错（Failed to fetch / Next 渲染失败）：不动 me
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[Nav] /api/session probe failed:", err);
+        }
       });
 
     return () => {

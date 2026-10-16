@@ -87,7 +87,7 @@ export default function AdminShell(props: AdminShellProps) {
   const photoCount = scoped.photos.length - trashedCount;
 
   return (
-    <div className="sh">
+    <div className={`${styles.shell} ${styles.shellMain}`}>
       <header className={styles.head}>
         <div>
           <h1 className={styles.title}>相册后台</h1>
