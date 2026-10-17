@@ -67,10 +67,16 @@ export async function PUT(req: NextRequest) {
   // 以服务端现值为底，只挑出请求者自己名下的条目
   const keptPhotos = current.photos.filter((p) => p.ownerId !== me.id);
   const myAlbums = incomingAlbums.filter(mineAlbum);
-  // 别人的相册：只要请求里没提到就原样保留
-  const keptAlbums = current.albums.filter(
-    (a) => !mineAlbum(a) && !incomingAlbums.some((b) => b.id === a.id),
-  );
+  // 别人的相册：永远原样保留。
+  // 旧逻辑加 `&& !incomingAlbums.some((b) => b.id === a.id)` 看似"想删就
+  // 删"，但 viewer GET 时 `visibleTo` 会把公开照片引用的他人 album 也
+  // 一起带回（viewer 看到的相册列表里包含 admin 的 album 是正常的）。
+  // viewer 写入时这些 album id 出现在 incomingAlbums 里，被这条规则误判
+  // 为"viewer 想覆盖/删除"——admin album 被丢，但 admin 的 photo 仍被
+  // `keptPhotos` 保留 → 下一个 dangling 检查 → 400 album_not_found。
+  // 任何 viewer 删除/修改他人 album 的能力本就不该有（被 mineAlbum 限制），
+  // 这里多删一道只会误伤，删掉。
+  const keptAlbums = current.albums.filter((a) => !mineAlbum(a));
 
   const mergedPhotos: Photo[] = [
     ...keptPhotos,
