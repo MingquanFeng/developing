@@ -501,15 +501,19 @@
 }
 
 /* ============================================================
-   AdminPhotoGrid —— 后台 Photos tab 瀑布网格（PR 重做）
+   AdminPhotoGrid —— 后台 Photos tab 瀑布网格（与访客侧 /album 一致）
    ------------------------------------------------------------
-   借鉴 /album 风格：缩略图按真实宽高比排版、悬浮操作层、
-   点击进 EditLightbox 编辑弹层。
+   grid-auto-rows 6px 步长 + JS 算 --span 行跨（spans[i]）——
+   纯 CSS 瀑布流对齐访客侧 /album（[album.module.css:148-155](components/album/album.module.css#L148-L155)）。
+   列数与间距由 JS 计算后写进 --cols / --gap，与 span 公式保持一致。
+   img 用 object-fit: contain 而非 cover——后台管理宁可留背景色
+   边距也要保证照片构图完整（与 /album 一致）。
    ============================================================ */
 .adminGrid {
   display: grid;
   grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
-  gap: var(--gap, 14px);
+  grid-auto-rows: 6px;
+  column-gap: var(--gap, 14px);
   margin-top: 18px;
 }
 .adminCell {
@@ -519,6 +523,10 @@
   background: var(--bg-2);
   border: 1px solid var(--line);
   overflow: hidden;
+  /* JS 算的 row span（基于 photo.w/h 与列宽）决定卡片高度 */
+  grid-row: span var(--span, 20);
+  /* 行间距由 cell 自己给，避免 grid-auto-rows 6px 步长把 gap 也算进 span */
+  margin-bottom: var(--gap, 14px);
   transition: border-color .25s var(--ease), transform .25s var(--ease);
 }
 .adminCell:hover {
@@ -528,12 +536,12 @@
 .adminCell__media {
   display: block;
   width: 100%;
-  /* 等比：aspect-ratio 由 JS 写 --cell-aspect */
-  aspect-ratio: var(--cell-aspect, 1);
+  /* 高度由 grid-row span 决定；图片 fill 父容器 */
+  height: 100%;
   border: 0;
   padding: 0;
   margin: 0;
-  background: var(--bg);
+  background: var(--bg-2);
   cursor: zoom-in;
   overflow: hidden;
   position: relative;
@@ -541,8 +549,11 @@
 .adminCell__media img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* contain 而非 cover：grid 高度按比例算，难免几像素误差，cover
+     会把构图裁掉，contain 只在背景色上留边。后台管理宁可留边。 */
+  object-fit: contain;
   display: block;
+  background: var(--bg-2);
   transition: transform .5s var(--ease);
 }
 .adminCell:hover .adminCell__media img {
@@ -561,11 +572,26 @@
   opacity: .5;
 }
 .adminCell__caption {
-  padding: 10px 12px 12px;
+  /* 与访客侧 /album 的 .cellMeta 一致：绝对定位底部 + 黑色渐变 + hover
+     浮入（默认全部隐藏：标题 + 公开徽章 + checkbox + 操作按钮） */
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 40px 14px 14px;
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
+  background: linear-gradient(180deg, transparent, rgba(8, 10, 14, .85));
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .25s var(--ease), transform .25s var(--ease);
+  pointer-events: none;
+}
+.adminCell:hover .adminCell__caption,
+.adminCell:focus-within .adminCell__caption {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 .adminCell__title {
   font-family: var(--display);

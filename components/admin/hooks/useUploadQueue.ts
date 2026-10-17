@@ -82,10 +82,13 @@ export function useUploadQueue(
             const myAlbums = cur.albums.filter((a) => a.ownerId === me?.id);
             /* viewer 没自己 album 时，**先建一个 defaultAlbum** 再写照片；
                albumId 用 defaultAlbum.id 而不是空串 —— 否则服务端
-               album_not_found 校验会把整批 PUT 拒掉（之前修过的那个 bug）。 */
+               album_not_found 校验会把整批 PUT 拒掉（之前修过的那个 bug）。
+
+               必须把 cur.albums 传进去让 newAlbumId 走 taken 去重：
+               若同 owner 已存在 `_default_1`，新 album 不会与之撞 id。 */
             const willAddDefault = myAlbums.length === 0;
             const targetAlbum = willAddDefault
-              ? defaultAlbum(me?.id)
+              ? defaultAlbum(me?.id ?? "anon", cur.albums)
               : myAlbums[0];
             const albumId = targetAlbum.id;
             const albums = willAddDefault

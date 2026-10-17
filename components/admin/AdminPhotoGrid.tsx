@@ -31,11 +31,16 @@ export type AdminPhotoGridProps = {
   onPurge: (id: string) => void;
   /** true 时显示"恢复 / 彻底删除"动作；false 时显示"公开/私有 toggle / 回收站" */
   inTrash: boolean;
+  /** EditLightbox "管理相册" 跳转回调（可选：不传则不渲染按钮） */
+  onJumpAlbums?: () => void;
 };
 
 /** 与 AlbumBrowser 一致的瀑布流列数/间距策略 */
 const COLS_AT_WIDTH = (w: number) => (w < 700 ? 2 : w < 1000 ? 3 : w < 1400 ? 4 : 5);
 const GAP_AT_WIDTH = (w: number) => (w < 700 ? 10 : w < 1000 ? 14 : 20);
+
+/** grid-auto-rows 步长（px），与 admin.module.css 的 .adminGrid 一致 */
+const ROW = 6;
 
 export default function AdminPhotoGrid({
   photos,
@@ -46,6 +51,7 @@ export default function AdminPhotoGrid({
   onRestore,
   onPurge,
   inTrash,
+  onJumpAlbums,
 }: AdminPhotoGridProps) {
   /* ---------- 响应式列数 ---------- */
   const gridRef = useRef<HTMLDivElement>(null);
@@ -62,6 +68,19 @@ export default function AdminPhotoGrid({
 
   const cols = COLS_AT_WIDTH(width);
   const gap = GAP_AT_WIDTH(width);
+
+  /* ---------- 与访客侧 /album 一致的 span 计算 ----------
+     width=0 时 fallback 20（与 CSS var(--span, 20) 对齐） */
+  const spans = useMemo(() => {
+    if (!width) return photos.map(() => 20);
+    const cellW = (width - gap * (cols - 1)) / cols;
+    return photos.map((p) =>
+      Math.max(
+        2,
+        Math.ceil((cellW * (p.height / Math.max(p.width || 1, 1)) + gap) / ROW),
+      ),
+    );
+  }, [width, cols, gap, photos]);
 
   /* ---------- 选中 + 当前编辑 ---------- */
   const [editingIdx, setEditingIdx] = useState<number>(-1);
@@ -89,11 +108,11 @@ export default function AdminPhotoGrid({
             key={p.id}
             photo={p}
             albums={albums}
-            cellAspect={p.width && p.height ? p.height / p.width : 1}
+            rowSpan={spans[i]}
             checked={selectedIds.has(p.id)}
             inTrash={inTrash}
             onClick={() => setEditingIdx(i)}
-            onToggleCheck={() => onToggleSelected(p.id)}
+            onToggleSelected={() => onToggleSelected(p.id)}
             onTogglePublic={() => onEditPhoto(p.id, { isPublic: !p.isPublic })}
             onTrash={() => onEditPhoto(p.id, { trashedAt: new Date().toISOString() })}
             onRestore={() => onRestore(p.id)}
@@ -115,6 +134,7 @@ export default function AdminPhotoGrid({
           }
           onRestore={() => onRestore(editing.id)}
           onPurge={() => onPurge(editing.id)}
+          onJumpAlbums={onJumpAlbums}
           inTrash={inTrash}
         />
       ) : null}
@@ -128,11 +148,11 @@ export default function AdminPhotoGrid({
 function AdminPhotoCell({
   photo,
   albums,
-  cellAspect,
+  rowSpan,
   checked,
   inTrash,
   onClick,
-  onToggleCheck,
+  onToggleSelected,
   onTogglePublic,
   onTrash,
   onRestore,
@@ -140,11 +160,11 @@ function AdminPhotoCell({
 }: {
   photo: Photo;
   albums: readonly Album[];
-  cellAspect: number;
+  rowSpan: number;
   checked: boolean;
   inTrash: boolean;
   onClick: () => void;
-  onToggleCheck: () => void;
+  onToggleSelected: () => void;
   onTogglePublic: () => void;
   onTrash: () => void;
   onRestore: () => void;
@@ -167,7 +187,7 @@ function AdminPhotoCell({
   return (
     <figure
       className={styles.adminCell}
-      style={{ "--cell-aspect": cellAspect } as React.CSSProperties}
+      style={{ "--span": rowSpan } as React.CSSProperties}
     >
       <button
         type="button"
@@ -208,7 +228,7 @@ function AdminPhotoCell({
                 <input
                   type="checkbox"
                   checked={checked}
-                  onChange={onToggleCheck}
+                  onChange={onToggleSelected}
                   aria-label={`选择 ${photo.title}`}
                 />
               </label>
@@ -280,6 +300,7 @@ function EditLightbox({
   onMoveTrash,
   onRestore,
   onPurge,
+  onJumpAlbums,
   inTrash,
 }: {
   photo: Photo;
@@ -291,6 +312,8 @@ function EditLightbox({
   onMoveTrash: () => void;
   onRestore: () => void;
   onPurge: () => void;
+  /** 跳到 AlbumsTab（可选：不传则 select 旁不渲染跳转按钮） */
+  onJumpAlbums?: () => void;
   inTrash: boolean;
 }) {
   /* 缩略图用 preview（与 /album Lightbox 一致） */
@@ -428,17 +451,37 @@ function EditLightbox({
 
           <label className={styles.adminEdit__field}>
             <span>所在相册</span>
-            <select
-              value={albumId}
-              onChange={(e) => setAlbumId(e.target.value)}
-              disabled={inTrash}
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                alignItems: "stretch",
+              }}
             >
-              {albums.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+              <select
+                value={albumId}
+                onChange={(e) => setAlbumId(e.target.value)}
+                disabled={inTrash}
+                style={{ flex: 1 }}
+              >
+                {albums.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              {onJumpAlbums ? (
+                <button
+                  type="button"
+                  className={styles.mini}
+                  onClick={onJumpAlbums}
+                  disabled={inTrash}
+                  title="去相册 tab 建/改/删"
+                >
+                  管理相册
+                </button>
+              ) : null}
+            </div>
           </label>
 
           <label className={styles.adminEdit__checkRow}>

@@ -20,11 +20,12 @@ import type {
 import DropZone from "./DropZone";
 import AdminPhotoGrid from "./AdminPhotoGrid";
 import UsersTab from "./tabs/UsersTab";
+import AlbumsTab from "./tabs/AlbumsTab";
 
 import { type QueueItem } from "./upload-queue";
 import styles from "./admin.module.css";
 
-export type AdminTab = "photos" | "trash" | "users" | "covers";
+export type AdminTab = "photos" | "trash" | "users" | "covers" | "albums";
 
 export type AdminShellProps = {
   me: PublicUser;
@@ -47,6 +48,18 @@ export type AdminShellProps = {
   onPurge: (id: string) => void | Promise<void>;
   onToggleSelected: (id: string) => void;
   onOpenCover: (album: Album) => void;
+
+  /* Albums tab 联动：viewer + admin 都可见 */
+  onEditAlbum: (a: Album) => void;
+  onCreateAlbum: () => void;
+  onDeleteAlbum: (id: string) => void;
+  onSetAlbumCover?: (a: Album) => void;
+  /** EditLightbox"管理相册"按钮回调（可选：不传则不渲染按钮） */
+  onJumpAlbums?: () => void;
+
+  /* AlbumsTab 局部反馈（来自 useAlbumsPanel，header 已有全局 notice） */
+  albumsBusy?: boolean;
+  albumsMsg?: { kind: "ok" | "err"; text: string } | null;
 };
 
 export default function AdminShell(props: AdminShellProps) {
@@ -69,6 +82,11 @@ export default function AdminShell(props: AdminShellProps) {
     onPurge,
     onToggleSelected,
     onOpenCover,
+    onEditAlbum,
+    onCreateAlbum,
+    onDeleteAlbum,
+    onSetAlbumCover,
+    onJumpAlbums,
   } = props;
 
   /* 严格权限隔离：
@@ -93,6 +111,7 @@ export default function AdminShell(props: AdminShellProps) {
   );
   const trashedCount = scoped.photos.filter((p) => !!p.trashedAt).length;
   const photoCount = scoped.photos.length - trashedCount;
+  const albumCount = scoped.albums.length;
 
   return (
     <div className={`${styles.shell} ${styles.shellMain}`}>
@@ -185,6 +204,13 @@ export default function AdminShell(props: AdminShellProps) {
             封面
           </button>
         ) : null}
+        {/* 相册 tab：viewer + admin 都可见；用于 CRUD 自己名下相册 */}
+        <button
+          className={`${styles.tabBtn} ${tab === "albums" ? styles.tabOn : ""}`}
+          onClick={() => onTab("albums")}
+        >
+          相册 {albumCount}
+        </button>
         {selectedCount > 0 && tab === "photos" ? (
           <button
             className={styles.danger}
@@ -203,6 +229,18 @@ export default function AdminShell(props: AdminShellProps) {
         />
       ) : tab === "users" && me.role === "admin" ? (
         <UsersTab me={me} onSetCoverAlbum={onOpenCover} />
+      ) : tab === "albums" ? (
+        <AlbumsTab
+          me={me}
+          albums={scoped.albums}
+          photos={scoped.photos}
+          onEdit={onEditAlbum}
+          onCreate={onCreateAlbum}
+          onSetCover={onSetAlbumCover ?? onOpenCover}
+          onDelete={onDeleteAlbum}
+          busy={!!props.albumsBusy}
+          msg={props.albumsMsg ?? null}
+        />
       ) : visible.length === 0 ? (
         <p className={styles.muted}>
           {tab === "photos" ? "还没有照片，拖文件到上面。" : "回收站是空的。"}
@@ -216,6 +254,7 @@ export default function AdminShell(props: AdminShellProps) {
           onEditPhoto={(id, patch) => void onEditPhoto(id, patch)}
           onRestore={(id) => void onRestore(id)}
           onPurge={(id) => void onPurge(id)}
+          onJumpAlbums={onJumpAlbums}
           inTrash={tab === "trash"}
         />
       )}
