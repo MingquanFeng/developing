@@ -23,10 +23,26 @@ const { readManifest, writeManifest } = await import(
 
 const cur = await readManifest();
 const SUFFIX = "_default";
+
+// 先 gather 已有 defaultAlbum id —— 兼容新工具（slug=default/u-misc）和旧写死
+// id（alb_<owner>_default）。lib/album-id 是新加的，dist 里没有，所以这里用
+// manifest 字段（slug）查重，避免再写死 alb_<owner>_default。
+const defaultIdsByOwner = new Map();
+for (const a of cur.albums ?? []) {
+  if (
+    (a.slug === "default" || a.slug === "u-misc") &&
+    a.ownerId &&
+    !defaultIdsByOwner.has(a.ownerId)
+  ) {
+    defaultIdsByOwner.set(a.ownerId, a.id);
+  }
+}
+
 let changed = 0;
 const fixed = (cur.photos ?? []).map((p) => {
   if (p.albumId && p.albumId !== "") return p;
-  const targetId = `alb_${p.ownerId}${SUFFIX}`;
+  const targetId =
+    defaultIdsByOwner.get(p.ownerId) ?? `alb_${p.ownerId}${SUFFIX}`;
   console.log(`  fix photo ${p.id}: albumId '' -> ${targetId}`);
   changed++;
   return { ...p, albumId: targetId };

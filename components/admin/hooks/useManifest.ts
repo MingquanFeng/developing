@@ -14,6 +14,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { EMPTY, fetchManifest } from "@/lib/album-client";
 import { updateManifest } from "@/lib/admin-api";
+import {
+  defaultAlbum as makeDefaultAlbum,
+} from "@/lib/album-id";
 import type { Album, Manifest, Photo } from "@/lib/contracts";
 
 export type UseManifestOptions = {
@@ -107,15 +110,18 @@ export function buildNewPhotos(args: {
   }));
 }
 
-/** 没有自己 album 时给新用户/无 album 用户构造的占位 album */
-export function defaultAlbum(ownerId?: string): Album {
-  return {
-    id: `alb_${ownerId ?? "anon"}_default`,
-    slug: "default",
-    name: "默认相册",
-    desc: "",
-    coverKey: null,
-    order: 0,
-    ownerId,
-  };
+/**
+ * 没有自己 album 时给新用户/无 album 用户构造的占位 album。
+ *
+ * 委托给 lib/album-id.defaultAlbum 以保证 id 格式与后端 ensureDefaultAlbum、
+ * scripts/fix-dangling-photo.mjs、fallbackAlbum 一致。
+ *
+ * 兼容旧调用：`useUploadQueue.ts:88` 调 `defaultAlbum(me?.id)` 不传 existing——
+ * existing 默认 [] 即可；撞 id 由前端 agent 接手后修复。
+ */
+export function defaultAlbum(
+  ownerId?: string,
+  existing: readonly Album[] = [],
+): Album {
+  return makeDefaultAlbum(ownerId ?? "anon", existing);
 }

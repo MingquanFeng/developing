@@ -1,5 +1,9 @@
 import { MANIFEST_KEY } from "./config";
 import { getText, putText } from "./cos";
+import {
+  defaultAlbum as makeDefaultAlbum,
+  fallbackAlbum as makeFallbackAlbum,
+} from "@/lib/album-id";
 import type {
   Album as AlbumContract,
   Photo as PhotoContract,
@@ -114,18 +118,21 @@ export function visibleTo(
     return p.isPublic || mine(p);
   });
 
-  // 相册列表只保留「还有可见照片」的，否则会出现空相册壳子
+  // 相册列表规则：
+  //   - viewer 自己的相册（含 0 张照片的空相册）**必须**保留 —— 否则
+  //     AlbumsTab 看不到刚建好的空相册，"toast 承诺的『请先在后台补建
+  //     相册』"路径走不通（建了但看不到 → 没法挪 dangling 照片过来）。
+  //   - 别人相册（含公开相册）只有挂着 viewer 可见照片时才返 —— 否则
+  //     访客/别的 viewer 会看到一堆空壳。
+  //   - 历史注释说"用相册内是否有本人照片判断 mine" —— 那是 ownerId
+  //     没存之前的临时办法；现在 Album.ownerId 已是契约字段，按它判。
   const liveIds = new Set(photos.map((p) => p.albumId));
-  const albums = m.albums.filter(
-    (a) => liveIds.has(a.id) || mine2(a, m, viewerId),
-  );
+  const isMyAlbum = (a: Album) =>
+    viewerId !== null && a.ownerId === viewerId;
+  const albums = m.albums.filter((a) => liveIds.has(a.id) || isMyAlbum(a));
 
   return { albums, photos };
 }
-
-/** 相册本身没有 ownerId，用「相册内是否有本人照片」判断 */
-const mine2 = (a: Album, m: Manifest, viewerId: string | null) =>
-  viewerId !== null && m.photos.some((p) => p.albumId === a.id && p.ownerId === viewerId);
 
 /**
  * 访客视角：只给公开、未进回收站的照片。
@@ -165,21 +172,20 @@ export async function writeManifest(
   return { ok: true, manifest: next };
 }
 
-/** 新建默认相册，首次上传前调用一次，省得前端处理空态 */
+/**
+ * 新建默认相册，首次上传前调用一次，省得前端处理空态。
+ *
+ * id 格式统一走 lib/album-id（与 useManifest.defaultAlbum、fallbackAlbum、
+ * scripts/fix-dangling-photo.mjs 一致）。迁移期语义不变：
+ *   - 已有任意 photo 属此 owner → 不重建
+ *   - 已有任意 album → 不重建（兼容历史 manifest 已经有 alb_<...>_<time> 的）
+ */
 export async function ensureDefaultAlbum(ownerId: string): Promise<Manifest> {
   const m = await readManifest();
-  // 已经给这个用户建过就不重复建
   const hasOwnAlbum = m.photos.some((p) => p.ownerId === ownerId);
   if (hasOwnAlbum || m.albums.length > 0) return m;
 
-  const album: Album = {
-    id: `alb_${ownerId}_${Date.now().toString(36)}`,
-    slug: `u-${ownerId}-misc`,
-    name: "未成册",
-    desc: "不属于任何一次的随手记录。",
-    coverKey: null,
-    order: 1,
-  };
+  const album = makeDefaultAlbum(ownerId, m.albums);
   const next: Manifest = {
     ...m,
     revision: m.revision + 1,
@@ -188,4 +194,74 @@ export async function ensureDefaultAlbum(ownerId: string): Promise<Manifest> {
   };
   await putText(MANIFEST_KEY, JSON.stringify(next, null, 2), "application/json");
   return next;
+}
+
+/**
+ * 删除一个相册：
+ *  - 鉴权：必须有登录 user；只能删自己 ownerId === meId 的相册
+ *    （admin 角色目前不覆盖——admin 也走 mineAlbum 限定；如需 admin
+ *    删任意相册，再加 meId.role === "admin" 分支——本次任务先不做）
+ *  - 该相册下非回收站照片（trashedAt 为空）全部迁移到
+ *    `alb_<ownerId>_fallback`（不存在则自动建一次，order=999）
+ *  - 回收站照片不动
+ *  - 整份走 writeManifest 乐观锁
+ *  - 返回 { ok: true, manifest } | { ok: false, error: "not_found"|"forbidden"|"stale_revision", ... }
+ *
+ * ⚠️ 调用方应先把此函数的失败/成功 Promise 与前端 useAlbumsPanel 拼好；
+ *    这次任务里只新增函数本身 + 必要的 vitest 单测。
+ */
+export async function deleteAlbum(
+  albumId: string,
+  meId: string,
+  currentRevision: number,
+): Promise<
+  | { ok: true; manifest: Manifest }
+  | {
+      ok: false;
+      error: "not_found" | "forbidden" | "stale_revision";
+      current?: Manifest;
+    }
+> {
+  const cur = await readManifest();
+
+  const album = cur.albums.find((a) => a.id === albumId);
+  if (!album) {
+    return { ok: false, error: "not_found" };
+  }
+  if (album.ownerId !== meId) {
+    // TODO: 若要支持 admin 删任意相册，再加 meId.role === "admin" 分支。
+    return { ok: false, error: "forbidden" };
+  }
+
+  // 找 / 建 fallback 相册。owner 取 album.ownerId，与"删相册时照片搬家"语义一致。
+  const ownerId = album.ownerId ?? "";
+  let fallback = cur.albums.find((a) => a.slug === "fallback" && a.ownerId === ownerId);
+  if (!fallback) {
+    fallback = makeFallbackAlbum(ownerId, cur.albums);
+  }
+  const fallbackId = fallback.id;
+
+  // 迁移：仅搬非回收站照片；trashedAt 非空的不动（用户已主动删的）
+  const photos: Photo[] = cur.photos.map((p) =>
+    p.albumId === albumId && !p.trashedAt
+      ? { ...p, albumId: fallbackId }
+      : p,
+  );
+
+  // 删 album：保留 fallback（如果原本就在 cur.albums 里）
+  const albumsNext: Album[] = cur.albums.filter((a) => a.id !== albumId);
+  if (!cur.albums.some((a) => a.id === fallbackId)) {
+    // fallback 是这次新建的，加进去
+    albumsNext.push(fallback);
+  }
+
+  const written = await writeManifest({
+    revision: currentRevision,
+    albums: albumsNext,
+    photos,
+  });
+  if (!written.ok) {
+    return { ok: false, error: "stale_revision", current: written.current };
+  }
+  return { ok: true, manifest: written.manifest };
 }
