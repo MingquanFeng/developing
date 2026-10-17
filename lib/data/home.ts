@@ -1,40 +1,15 @@
 /**
- * 站点内容数据源
+ * 首页正文文案（首屏 + 五系列 + 坐标表 + 订阅）
  * ------------------------------------------------------------------
- * 所有可编辑文案集中在此。将来接 CMS（Sanity / Strapi）时，
- * 只需把本文件替换为 fetch 实现，组件层无需改动。
+ * 第一节 hero —— HeroSection 用
+ * interlude01/03 —— journal 与手记 03 用
+ * series + worksIntro + FALLBACK_IMAGES —— WorksSection 用
+ * coords —— CoordsSection（手记 02）用
+ *
+ * 改字段务必小心：series 的 `image/imageAlt` 在构建期会被
+ * lib/series-covers 替换成 COS 签名 URL。如果改默认值（比如换 Unsplash
+ * 图片），记得回访 __snapshots__ 看一眼产物里有没有意外。
  */
-
-/* ========== 站点级 ========== */
-export const site = {
-  name: "塞上空许",
-  nameEn: "YAN",
-  title: "塞上空许 — 至静之极",
-  description:
-    "塞上空许 — 先锋人像摄影师，工作于上海、北京、大理。一份关于面孔、凝视与沉默的视觉志。",
-  locale: "zh-CN",
-  projectName: "developing",
-  edition: 47,
-  foundedYear: 2014,
-  cities: ["上海", "北京", "大理"],
-  marquee: [
-    "塞上空许工作室 — 上海 ↔ 北京 ↔ 大理",
-    "人像志 · 卷 47",
-  ],
-} as const;
-
-/* ========== 导航 ========== */
-export const nav = [
-  { label: "作品", href: "#works" },
-  { label: "故事", href: "#story" },
-  { label: "手记", href: "#journal" },
-  { label: "关于", href: "#about" },
-  { label: "相册", href: "/album/" },
-  { label: "联系", href: "#contact" },
-  /* 账户入口。登录跳后台口令页；注册开放自助，账号为访客 */
-  { label: "登录", href: "/admin/" },
-  { label: "注册", href: "/register/" },
-] as const;
 
 /* ========== 首屏 ========== */
 export const hero = {
@@ -172,99 +147,6 @@ export const coords = {
   sig: "每一帧是一组对象，每组对象是一段凝视。",
 } as const;
 
-/* ========== 重点故事 ========== */
-export const story = {
-  tag: "— 主推故事 / 05",
-  titleMain: "静蓝",
-  titleSub: "PORTRAIT",
-  image:
-    "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=2400&q=85&auto=format&fit=crop",
-  imageAlt: "大理扎染师肖像",
-  copy: "一位大理扎染师，六个月的凝视——在同一面染缸前，按下 47 次快门。把一个人的快门画成一年。",
-  cta: { label: "阅读全文", href: "#" },
-  caption: "随笔 · 12 分钟 · 中文 / 英文",
-  meta: [
-    { label: "发布", value: "2024 · 09 · 22" },
-    { label: "对象", value: "一位" },
-    { label: "快门", value: "47" },
-    { label: "跨度", value: "六个月" },
-  ],
-} as const;
-
-/* ========== 摄影师介绍 ========== */
-export const about = {
-  kicker: "— 第七幕 / 关于",
-  titleLines: ["一间关于", "面孔", "的工作室。"],
-  titleEmphasisIndex: 1,
-  ledeTop:
-    "塞上空许是一位先锋人像摄影师，工作往返于上海、北京与大理之间。自 2014 年起，专注于以中画幅胶片为陌生人造像——",
-  ledeHighlight:
-    "《新周刊》《GQ 智族》《周末画报》《ID 中国》《时尚芭莎》《嘉人》等刊物拍摄人物肖像",
-  portrait:
-    "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=1200&q=80&auto=format&fit=crop",
-  portraitAlt: "塞上空许肖像",
-  portraitCap: "塞上空许，对象 00，大理扎染工坊，2024 年八月。",
-  exhibitions: [
-    { year: "2024", text: "《面孔》— 三影堂摄影奖，北京" },
-    { year: "2023", text: "《大理静蓝》— 成都当代影像馆，成都" },
-    { year: "2023", text: "《北京素描》— 上海摄影艺术中心，上海" },
-    { year: "2022", text: "《拉萨白墙》— 平遥国际摄影节，山西" },
-    { year: "2021", text: "《对象 00》— 香格纳画廊，上海" },
-  ],
-  press: [
-    { year: "2024", text: "《人像志 · 卷 47》— 自出版" },
-    { year: "2024", text: "《新周刊》— 第 612 期" },
-    { year: "2023", text: "《周末画报》— 2024 春" },
-    { year: "2023", text: "《ID 中国》— 面孔" },
-    { year: "2022", text: "《GQ 智族》— 春季刊" },
-  ],
-  cta: { label: "委托肖像", href: "#contact" },
-  ctaSecondary: "下载艺术家手册（PDF · 1.2 MB）→",
-} as const;
-
-/* ========== 订阅 ========== */
-export const subscribe = {
-  kicker: "— 通讯 / 来自塞上空许的信",
-  titleLines: ["一年四封，", "寄给愿意", "慢下来的人。"],
-  copy: "现场笔记、未公开底片，以及偶尔从一间冷工坊寄出的信。没有折扣码，没有新闻稿。",
-  placeholder: "your@email",
-  button: "订阅 →",
-  success: "已收到——下一封信将于下一个节气寄出。",
-} as const;
-
-/* ========== 页尾 ========== */
-export const footer = {
-  line: "一位先锋人像摄影师。上海 ↔ 北京 ↔ 大理。第 47 版。",
-  columns: [
-    {
-      kicker: "— 工作室",
-      lines: ["上海市普陀区", "M50 艺术区 47 号"],
-    },
-    {
-      kicker: "— 代理",
-      lines: [
-        "亚洲 · East West Agency",
-        "欧洲 · Atelier Booking",
-        "媒体 · 《ID 中国》",
-      ],
-    },
-    {
-      kicker: "— 社交",
-      lines: [
-        { text: "Instagram ↗", href: "#" },
-        { text: "小红书 ↗", href: "#" },
-        { text: "微博 ↗", href: "#" },
-        { text: "Vimeo ↗", href: "#" },
-      ],
-    },
-  ],
-  bottom: [
-    "© 塞上空许工作室 2014 — 2024",
-    "以胶片完成，在某个星期二。",
-    "回到顶部 ↑",
-  ],
-} as const;
-
 /* ========== 图片失败回退池 ========== */
 export const FALLBACK_IMAGES = [
   "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df",
@@ -277,14 +159,3 @@ export const FALLBACK_IMAGES = [
   "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6",
   "https://images.unsplash.com/photo-1517841905240-472988babdf9",
 ];
-
-/* ========== 章节顺序（用于导航索引计数） ========== */
-export const SECTION_IDS = [
-  "hero",
-  "journal",
-  "locations",
-  "works",
-  "story",
-  "about",
-  "contact",
-] as const;

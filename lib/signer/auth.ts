@@ -9,6 +9,7 @@ import {
   verifyCredentials,
   type User,
 } from "./users";
+import type { SessionToken as SessionTokenContract } from "@/lib/contracts";
 
 const COOKIE_NAME = "album_session";
 
@@ -30,7 +31,7 @@ export function issueSession(
   return `${payload}.${hmac(payload)}`;
 }
 
-export type SessionToken = { userId: string; sessionVersion: number };
+export type SessionToken = SessionTokenContract;
 
 export function verifySession(token: string | undefined): SessionToken | null {
   if (!token) return null;
@@ -185,12 +186,15 @@ export const setSessionCookie = (token: string) =>
     `${COOKIE_NAME}=${token}`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Strict",
+    /* SameSite=Lax：保留"同源 POST"传 cookie，同时允许地址栏直接访问
+       / 外部链接 / 书签栏进入后台（Strict 全部拦截，后台体验是灾难）。
+       仍然不允许跨站 GET 带 cookie —— CSRF 防御不破。 */
+    "SameSite=Lax",
     `Max-Age=${SESSION_TTL_SEC}`,
   ].join("; ");
 
 export const clearSessionCookie = () =>
-  `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`;
+  `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
 
 export const sessionCookieName = () => COOKIE_NAME;
 

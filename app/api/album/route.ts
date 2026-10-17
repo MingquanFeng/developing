@@ -67,10 +67,16 @@ export async function PUT(req: NextRequest) {
   // 以服务端现值为底，只挑出请求者自己名下的条目
   const keptPhotos = current.photos.filter((p) => p.ownerId !== me.id);
   const myAlbums = incomingAlbums.filter(mineAlbum);
-  // 别人的相册：只要请求里没提到就原样保留
-  const keptAlbums = current.albums.filter(
-    (a) => !mineAlbum(a) && !incomingAlbums.some((b) => b.id === a.id),
-  );
+  // 别人的相册：永远原样保留。
+  // 旧逻辑加 `&& !incomingAlbums.some((b) => b.id === a.id)` 看似"想删就
+  // 删"，但 viewer GET 时 `visibleTo` 会把公开照片引用的他人 album 也
+  // 一起带回（viewer 看到的相册列表里包含 admin 的 album 是正常的）。
+  // viewer 写入时这些 album id 出现在 incomingAlbums 里，被这条规则误判
+  // 为"viewer 想覆盖/删除"——admin album 被丢，但 admin 的 photo 仍被
+  // `keptPhotos` 保留 → 下一个 dangling 检查 → 400 album_not_found。
+  // 任何 viewer 删除/修改他人 album 的能力本就不该有（被 mineAlbum 限制），
+  // 这里多删一道只会误伤，删掉。
+  const keptAlbums = current.albums.filter((a) => !mineAlbum(a));
 
   const mergedPhotos: Photo[] = [
     ...keptPhotos,
@@ -85,10 +91,17 @@ export async function PUT(req: NextRequest) {
   // ⚠️ 这里**不能**把对不上的 albumId 悄悄改成别的相册或清空 ——
   // 那会让照片「看起来正常」却已经挂错地方，是静默的数据损坏。
   // 目标相册不存在时保留原值，让前端能看出异常。
+  //
+  // 修：原代码用 `p.albumId && !albumIds.has(p.albumId)` —— 空字符串
+  // albumId 被短路掉（'' 视为不存在），导致存了「albumId=''」的悬挂
+  // photo，下次任何 viewer PUT 时这条历史数据都触发 album_not_found。
+  // 修成显式判断：空字符串也算 dangling。
   const albumIds = new Set(mergedAlbums.map((a) => a.id));
-  const dangling = mergedPhotos.filter(
-    (p) => p.albumId && !albumIds.has(p.albumId),
-  );
+  const dangling = mergedPhotos.filter((p) => {
+    const aid = (p.albumId ?? "").trim();
+    if (aid === "") return true;
+    return !albumIds.has(aid);
+  });
   if (dangling.length) {
     return NextResponse.json(
       {

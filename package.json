@@ -21,7 +21,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
-    "user": "node scripts/user.js"
+    "user": "node scripts/user.js",
+    "lint:api-paths": "node scripts/lint-api-paths.mjs",
+    "check:server-only": "node scripts/check-server-only.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -29,13 +31,15 @@
     "dotenv": "^18.0.7",
     "next": "16.3.7",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.9"
   }
 }

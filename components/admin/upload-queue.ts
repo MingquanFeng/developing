@@ -1,5 +1,7 @@
 "use client";
 
+import { presignUpload, SIGN_BATCH_LIMIT } from "@/lib/admin-api";
+
 /**
  * 上传队列
  * ------------------------------------------------------------------
@@ -9,11 +11,19 @@
  * 真实的上传进度，fetch 目前拿不到。
  *
  * 为什么签名一次取一批：/api/sign 最多接受 50 个文件，逐个请求
- * 会让 N 张照片产生 N+1 次往返。
+ * 会让 N 张照片产生 N+1 次往返。50 这个数字现在从
+ * lib/admin-api/upload.ts 的 SIGN_BATCH_LIMIT 单点导出。
  */
 
 export const MAX_BYTES = 50 * 1024 * 1024;
-export const MAX_PER_BATCH = 50;
+
+/**
+ * 签名批大小。统一从 lib/admin-api/upload.ts 的 SIGN_BATCH_LIMIT
+ * 单点导入；这里只留 alias 防破坏老 import。
+ *
+ * @deprecated 直接 import { SIGN_BATCH_LIMIT } from "@/lib/admin-api"。
+ */
+export const MAX_PER_BATCH = SIGN_BATCH_LIMIT;
 export const CONCURRENCY = 3;
 
 const OK_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
@@ -95,33 +105,20 @@ function putFile(
   });
 }
 
-/** 分批签名。超出会按 MAX_PER_BATCH 切块 */
+/** 分批签名。超出会按 SIGN_BATCH_LIMIT 切块 */
 async function signBatch(
   items: QueueItem[],
-  
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  for (let i = 0; i < items.length; i += MAX_PER_BATCH) {
-    const chunk = items.slice(i, i + MAX_PER_BATCH);
-    const res = await fetch(`/api/sign`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        files: chunk.map((it) => ({
-          name: it.file.name,
-          size: it.file.size,
-          type: it.file.type,
-        })),
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.error ?? `取签名失败 HTTP ${res.status}`);
-    }
-    const { items: signed } = (await res.json()) as {
-      items: { key: string; url: string }[];
-    };
+  for (let i = 0; i < items.length; i += SIGN_BATCH_LIMIT) {
+    const chunk = items.slice(i, i + SIGN_BATCH_LIMIT);
+    const signed = await presignUpload(
+      chunk.map((it) => ({
+        name: it.file.name,
+        size: it.file.size,
+        type: it.file.type,
+      })),
+    );
     // 按顺序一一对应，服务端保证按传入顺序生成 key
     chunk.forEach((it, idx) => {
       const s = signed[idx];
