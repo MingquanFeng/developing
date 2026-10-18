@@ -46,6 +46,19 @@ export async function GET(
     const url = await presignGet(photo.key, ci ? { ci } : {});
     return NextResponse.json({ url, variant, expiresIn: config.readExpires });
   } catch (err) {
+    /* COS 上找不到对象（脏数据 / 上传失败 / key 拼错）→ 返 not_found 而不是
+       把 NoSuchKey 原文暴露给客户端（会触发 React error overlay 报警）。 */
+    const code = (err as { code?: string })?.code ?? "";
+    if (
+      code === "NoSuchKey" ||
+      code === "NoSuchObject" ||
+      (err as { statusCode?: number })?.statusCode === 404
+    ) {
+      return NextResponse.json(
+        { error: "not_found", detail: "对象在 COS 上不存在" },
+        { status: 404 },
+      );
+    }
     return NextResponse.json(
       { error: "sign_failed", detail: String(err) },
       { status: 502 },

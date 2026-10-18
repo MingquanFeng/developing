@@ -110,8 +110,6 @@ export default function AlbumBrowser({ initial }: { initial: Manifest | null }) 
     return id ? photos.filter((p) => p.albumId === id) : [];
   }, [photos, albums, active]);
 
-  const countOf = (id: string) => photos.filter((p) => p.albumId === id).length;
-
   const go = (next: string) => {
     window.history.pushState(
       null,
@@ -198,16 +196,6 @@ export default function AlbumBrowser({ initial }: { initial: Manifest | null }) 
             >
               全部 <span className={styles.tabCount}>{photos.length}</span>
             </button>
-            {albums.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                className={`${styles.tab} ${active === a.slug ? styles.tabActive : ""}`}
-                onClick={() => go(a.slug)}
-              >
-                {a.name} <span className={styles.tabCount}>{countOf(a.id)}</span>
-              </button>
-            ))}
           </div>
 
           {list.length === 0 ? (

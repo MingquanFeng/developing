@@ -119,17 +119,23 @@ export function visibleTo(
   });
 
   // 相册列表规则：
-  //   - viewer 自己的相册（含 0 张照片的空相册）**必须**保留 —— 否则
-  //     AlbumsTab 看不到刚建好的空相册，"toast 承诺的『请先在后台补建
-  //     相册』"路径走不通（建了但看不到 → 没法挪 dangling 照片过来）。
-  //   - 别人相册（含公开相册）只有挂着 viewer 可见照片时才返 —— 否则
-  //     访客/别的 viewer 会看到一堆空壳。
-  //   - 历史注释说"用相册内是否有本人照片判断 mine" —— 那是 ownerId
-  //     没存之前的临时办法；现在 Album.ownerId 已是契约字段，按它判。
+  //   - 登录用户（任何角色，含 admin）：**仅自己 ownerId 的相册**。
+  //     自己 0 张照片的空相册**必须**保留 —— 否则 AlbumsTab 看不到刚建好
+  //     的空相册，"toast 承诺的『请先在后台补建相册』"路径走不通。
+  //   - 匿名访客：仅"挂着公开照片"的活相册壳子 —— 访客侧 /album 仍可浏览
+  //     公开相册（GET /api/album 匿名返 publicManifest）。
+  //
+  // 旧逻辑对登录用户也走 liveIds：admin 借此看到别人公开相册，违反产品决策
+  // （admin 与 viewer 一样只看到自己 ownerId 的相册）。现在对登录用户剥除该
+  // 路径；匿名侧不变。photos 规则不动 —— 登录用户能看公开照片。
   const liveIds = new Set(photos.map((p) => p.albumId));
   const isMyAlbum = (a: Album) =>
     viewerId !== null && a.ownerId === viewerId;
-  const albums = m.albums.filter((a) => liveIds.has(a.id) || isMyAlbum(a));
+  const albums = m.albums.filter((a) => {
+    if (isMyAlbum(a)) return true;
+    if (viewerId === null) return liveIds.has(a.id);
+    return false;
+  });
 
   return { albums, photos };
 }

@@ -25,6 +25,28 @@ export function isNetworkError(msg: string): boolean {
   return NETWORK_ERROR_PATTERNS.some((re) => re.test(msg));
 }
 
+/**
+ * 把 fetch 抛出的浏览器层异常（abort / 离线 / DNS / TLS / CORS）
+ * 翻成本地化消息。
+ *
+ * 调用方约定"只 catch (e) { e.message }"——所以这里只产出 message，
+ * 原始 cause 由 client.ts 的 console.error 留存，便于排错。
+ */
+export function networkErrorMessage(err: unknown): string {
+  if (
+    typeof DOMException !== "undefined" &&
+    err instanceof DOMException &&
+    err.name === "AbortError"
+  ) {
+    return "请求已取消";
+  }
+  const msg = err instanceof Error ? err.message : String(err);
+  if (isNetworkError(msg)) {
+    return "网络异常，连不上后端";
+  }
+  return "网络异常";
+}
+
 /** 由 ApiError 拼一句人类可读消息。如果带 detail 拼上去（detail 通常已含足够上下文） */
 export function describeApiError(
   status: number,

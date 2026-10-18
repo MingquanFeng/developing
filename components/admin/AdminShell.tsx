@@ -1,12 +1,21 @@
 "use client";
 
 /**
- * AdminShell —— 后台已登录后的外壳
+ * AdminShell v2 —— 后台已登录后的外壳（sidebar 布局）
  * ------------------------------------------------------------------
- * 三层：
- *   1. 顶栏（标题 / counts / 退出 / 返回首页）
- *   2. notice（成功/失败条）
- *   3. DropZone + 上传队列 + tab 切换 + 当前 tab 内容（Photos/Trash/Users/Covers）
+ * 三区：
+ *   1. 左侧 sidebar（240px 固定）: logo+title + nav + 底部状态
+ *   2. 右侧 main 内: TopBar（搜索/铃铛/头像）+ hero + 当前 nav 的内容
+ *
+ * nav 项 → AdminTab 映射（admin 比 viewer 多 2 项）：
+ *   home    — 仪表盘：Hero + 大上传区 + 装饰卡
+ *   photos  — 照片管理（顶部子筛选全部/回收站切换）
+ *   albums  — 相册分类（AlbumsTab，viewer + admin 可见）
+ *   users   — 用户管理（admin-only：UsersTab）
+ *   system  — 系统设置（admin-only：CoversPanel 封面选择）
+ *
+ * DropZone 大块视觉只挂在 home tab；整页 window-level drag-drop 由
+ * AdminApp 顶层 useGlobalFileDrop 接管，所有 nav 都能响应文件拖入。
  *
  * 不持有任何业务状态——所有回调由 AdminApp 注入。
  */
@@ -17,6 +26,8 @@ import type {
   PublicUser,
 } from "@/lib/contracts";
 
+import { useMemo } from "react";
+
 import DropZone from "./DropZone";
 import AdminPhotoGrid from "./AdminPhotoGrid";
 import UsersTab from "./tabs/UsersTab";
@@ -25,17 +36,18 @@ import AlbumsTab from "./tabs/AlbumsTab";
 import { type QueueItem } from "./upload-queue";
 import styles from "./admin.module.css";
 
-export type AdminTab = "photos" | "trash" | "users" | "covers" | "albums";
+export type AdminTab = "home" | "photos" | "albums" | "users" | "system";
 
 export type AdminShellProps = {
   me: PublicUser;
   data: Manifest;
   tab: AdminTab;
+  /** 当前 nav 内的子筛选：仅 photos tab 用到（"all" | "trash"）。 */
+  photoFilter: "all" | "trash";
+  setPhotoFilter: (v: "all" | "trash") => void;
   notice: { kind: "ok" | "err"; text: string } | null;
   uploadQueue: readonly QueueItem[];
   pendingCount: number;
-  selectedCount: number;
-  /** 当前已选中的 photo id 集合（用于 PhotosTab 行内 checkbox） */
   selectedIds: ReadonlySet<string>;
 
   onTab: (t: AdminTab) => void;
@@ -43,6 +55,7 @@ export type AdminShellProps = {
   onRetryUpload: (item: QueueItem) => void | Promise<void>;
   onLogout: () => void | Promise<void>;
   onTrashSelected: () => void | Promise<void>;
+  onRestoreSelected: () => void | Promise<void>;
   onEditPhoto: (id: string, patch: Partial<Photo>) => void | Promise<void>;
   onRestore: (id: string) => void | Promise<void>;
   onPurge: (id: string) => void | Promise<void>;
@@ -57,9 +70,32 @@ export type AdminShellProps = {
   /** EditLightbox"管理相册"按钮回调（可选：不传则不渲染按钮） */
   onJumpAlbums?: () => void;
 
+  /** 通用 confirm 弹层请求：返回 Promise<boolean>，true = 用户确认。
+   *  不传则子组件退化到 window.confirm（向后兼容旧调用）。 */
+  onRequestConfirm?: (opts: {
+    title: string;
+    body: string;
+    danger?: boolean;
+    confirmLabel?: string;
+    cancelLabel?: string;
+  }) => Promise<boolean>;
+
+  /** 全选/取消全选（仅 photos tab 用） */
+  onSelectAll?: () => void;
+  /** 当前可见 photos 是否全部已选（全选 checkbox 的 checked） */
+  allChecked?: boolean;
+  /** 当前可见 photos 是否部分已选（全选 checkbox 的 indeterminate） */
+  someChecked?: boolean;
+
   /* AlbumsTab 局部反馈（来自 useAlbumsPanel，header 已有全局 notice） */
   albumsBusy?: boolean;
   albumsMsg?: { kind: "ok" | "err"; text: string } | null;
+
+  /* 上传目标相册：AdminApp 算好后传进来，Home tab 显示选择器 */
+  targetAlbumId: string | null;
+  myAlbums: readonly Album[];
+  fallbackAlbum: Album | null;
+  onChangeTargetAlbum: (id: string | null) => void;
 };
 
 export default function AdminShell(props: AdminShellProps) {
@@ -67,16 +103,18 @@ export default function AdminShell(props: AdminShellProps) {
     me,
     data,
     tab,
+    photoFilter,
+    setPhotoFilter,
     notice,
     uploadQueue,
     pendingCount,
-    selectedCount,
     selectedIds,
     onTab,
     onAddFiles,
     onRetryUpload,
     onLogout,
     onTrashSelected,
+    onRestoreSelected,
     onEditPhoto,
     onRestore,
     onPurge,
@@ -87,177 +125,451 @@ export default function AdminShell(props: AdminShellProps) {
     onDeleteAlbum,
     onSetAlbumCover,
     onJumpAlbums,
+    onRequestConfirm,
+    onSelectAll,
+    allChecked = false,
+    someChecked = false,
+    targetAlbumId,
+    myAlbums,
+    fallbackAlbum,
+    onChangeTargetAlbum,
   } = props;
 
-  /* 严格权限隔离：
-     - admin 看全部 photos + albums
-     - viewer 在后台**只看自己**（ownerId === me.id）
-       即使别人的照片 isPublic=true —— 公开照只该出现在
-       /album 访客瀑布流，不该出现在后台。
-     链路：后端 /api/album 用 visibleTo() 返「自己 + 公开」，
-     访客侧 AlbumBrowser 显式「自己 + 公开」用之。
-     AdminShell 这里反而**收紧**到「只自己」，因为后台的语义
-     是「管理」不是「浏览」。 */
-  const scoped = me.role === "admin"
-    ? data
-    : {
-        ...data,
-        albums: data.albums.filter((a) => a.ownerId === me.id),
-        photos: data.photos.filter((p) => p.ownerId === me.id),
-      };
+  /* 严格权限隔离：admin 与 viewer 同权 —— 都只看到自己 ownerId 的相册 + 照片。
+     后端 visibleTo 已按登录用户身份剥除他人公开相册；此处再按 ownerId
+     兜底一道（防御 + 让 AdminShell / 子组件无须再做角色分支）。 */
+  const scoped = {
+    ...data,
+    albums: data.albums.filter((a) => a.ownerId === me.id),
+    photos: data.photos.filter((p) => p.ownerId === me.id),
+  };
+
+  /* photos tab 子筛选：all → 非回收站；trash → 仅回收站 */
+  const photoSubtab: "all" | "trash" =
+    tab === "photos" ? photoFilter : "all";
+
+  /* 当前可见 photos 中已选的数量 —— 必须用 scoped.photos（已按 ownerId
+     过滤），不能用 data.photos（包含他人 ownerId 的公开照片）。
+     这里若用 data.photos 算出"4 张已选"是因为 stale selectedIds 里还残留
+     别的 owner 的 public photo id，UI 把按钮文案"移入回收站 4 张"骗给用户。
+     修复后 liveSelectedCount 跟 visible 同源，按钮文案与实际能操作的张数一致。 */
+  const liveSelectedCount = useMemo(() => {
+    const ids = new Set(selectedIds);
+    return scoped.photos.filter(
+      (p) =>
+        ids.has(p.id) &&
+        (photoSubtab === "all" ? !p.trashedAt : !!p.trashedAt),
+    ).length;
+  }, [scoped.photos, selectedIds, photoSubtab]);
 
   const visible = (scoped.photos).filter((p) =>
-    tab === "photos" ? !p.trashedAt : !!p.trashedAt,
+    photoSubtab === "all" ? !p.trashedAt : !!p.trashedAt,
   );
   const trashedCount = scoped.photos.filter((p) => !!p.trashedAt).length;
   const photoCount = scoped.photos.length - trashedCount;
   const albumCount = scoped.albums.length;
 
+  /* sidebar nav 项（按角色裁剪）：
+     viewer：home / photos / albums 三项；
+     admin：在 albums 之后追加 users（用户管理），再追加 system（系统设置）。 */
+  const navItems: Array<{
+    key: AdminTab;
+    label: string;
+    count?: number;
+  }> = [
+    { key: "home", label: "首页" },
+    { key: "photos", label: "照片管理", count: photoCount },
+    { key: "albums", label: "相册分类", count: albumCount },
+  ];
+  if (me.role === "admin") {
+    navItems.push({ key: "users", label: "用户管理" });
+    navItems.push({ key: "system", label: "系统设置" });
+  }
+
+  const heroUser = me.displayName || me.username || "管理员";
+
+  /* 头像首字母（mono / 取 username 第一字） */
+  const avatarLetter =
+    (me.username || me.displayName || "?").trim().slice(0, 1).toUpperCase();
+
   return (
-    <div className={`${styles.shell} ${styles.shellMain}`}>
-      <header className={styles.head}>
-        <div>
-          <h1 className={styles.title}>相册后台</h1>
-          <p className={styles.sub}>
-            共 {photoCount} 张 · 版本 {String(data.revision).padStart(2, "0")}
-            {me ? ` · ${me.displayName || me.username}` : ""}
-          </p>
+    <div className={styles.layoutRoot}>
+      {/* ---------- 左侧 sidebar ---------- */}
+      <aside className={styles.sidebar} aria-label="侧边导航">
+        <div className={styles.sidebarTop}>
+          <span className={styles.sidebarLogo}>相</span>
+          <span className={styles.sidebarTitle}>相册后台</span>
         </div>
-        <div className={styles.headRight}>
-          <a href="/" className={styles.ghost}>
-            返回首页
-          </a>
-          <button className={styles.ghost} onClick={() => void onLogout()}>
-            退出
-          </button>
-        </div>
-      </header>
 
-      {notice ? (
-        <p className={notice.kind === "ok" ? styles.ok : styles.err}>
-          {notice.text}
-        </p>
-      ) : null}
-
-      <DropZone
-        onFiles={(fs) => void onAddFiles(fs)}
-        busy={false}
-        pending={pendingCount}
-      />
-
-      {uploadQueue.length ? (
-        <ul className={styles.queue}>
-          {uploadQueue.map((it) => (
-            <li key={it.uid} className={styles.qItem}>
-              <span className={styles.qName} title={it.file.name}>
-                {it.file.name}
-              </span>
-              <span className={styles.qBar}>
-                <i style={{ width: `${it.progress}%` }} />
-              </span>
-              <span className={styles.qState}>
-                {it.status === "done"
-                  ? "完成"
-                  : it.status === "error"
-                    ? (it.error ?? "失败")
-                    : `${it.progress}%`}
-              </span>
-              {it.status === "error" ? (
-                <button
-                  className={styles.mini}
-                  onClick={() => void onRetryUpload(it)}
-                >
-                  重试
-                </button>
+        <nav className={styles.sidebarNav}>
+          <span className={styles.navLabel}>导航</span>
+          {navItems.map((it) => (
+            <button
+              key={it.key}
+              type="button"
+              className={`${styles.navItem} ${tab === it.key ? styles.navItemOn : ""}`}
+              onClick={() => onTab(it.key)}
+            >
+              <span>{it.label}</span>
+              {typeof it.count === "number" ? (
+                <span className={styles.navCount}>{it.count}</span>
               ) : null}
-            </li>
+            </button>
           ))}
-        </ul>
-      ) : null}
+        </nav>
 
-      <div className={styles.tabs}>
-        <button
-          className={`${styles.tabBtn} ${tab === "photos" ? styles.tabOn : ""}`}
-          onClick={() => onTab("photos")}
-        >
-          照片 {photoCount}
-        </button>
-        <button
-          className={`${styles.tabBtn} ${tab === "trash" ? styles.tabOn : ""}`}
-          onClick={() => onTab("trash")}
-        >
-          回收站 {trashedCount}
-        </button>
-        {me.role === "admin" ? (
-          <button
-            className={`${styles.tabBtn} ${tab === "users" ? styles.tabOn : ""}`}
-            onClick={() => onTab("users")}
-          >
-            用户
-          </button>
+        <div className={styles.sidebarFoot}>
+          <span className={styles.sidebarStatus}>
+            <span className={styles.sidebarStatusDot} aria-hidden />
+            系统运行正常
+          </span>
+          <span className={styles.sidebarVersion}>v1.0.0</span>
+        </div>
+      </aside>
+
+      {/* ---------- 右侧 main ---------- */}
+      <div className={styles.main}>
+        {/* TopBar */}
+        <header className={styles.topBar}>
+          <label className={styles.topBarSearch}>
+            <svg
+              className={styles.topBarSearchIcon}
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden
+            >
+              <circle
+                cx="7"
+                cy="7"
+                r="5.5"
+                stroke="currentColor"
+                strokeWidth="1.4"
+              />
+              <path
+                d="m11 11 3.5 3.5"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+              />
+            </svg>
+            <input
+              type="text"
+              className={styles.topBarSearchInput}
+              placeholder="搜索照片、相册、标签..."
+            />
+          </label>
+          <div className={styles.topBarRight}>
+            <button
+              type="button"
+              className={styles.topBarBell}
+              aria-label="通知"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden
+              >
+                <path
+                  d="M3.5 11h9l-1-1.2V7a3.5 3.5 0 1 0-7 0v2.8L3.5 11Z"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M6.5 13.5a1.5 1.5 0 0 0 3 0"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className={styles.topBarAvatarBtn}
+              aria-label={`当前用户 ${heroUser}`}
+            >
+              <span className={styles.topBarAvatar}>{avatarLetter}</span>
+              <span className={styles.topBarAvatarDot} aria-hidden />
+            </button>
+            <span className={styles.topBarActions}>
+              <a href="/" className={styles.topBarAction}>
+                返回首页
+              </a>
+              <button
+                type="button"
+                className={styles.topBarAction}
+                onClick={() => void onLogout()}
+              >
+                退出
+              </button>
+            </span>
+          </div>
+        </header>
+
+        {/* 顶部装饰 banner（home / photos / albums 三个 tab 都显示；放最上方） */}
+        {tab !== "system" ? (
+          <aside className={styles.decoCard}>
+            <div className={styles.decoCopy}>
+              <span className={styles.decoKicker}>今日灵感</span>
+              <span className={styles.decoHeadline}>
+                让每一张照片都有归属
+              </span>
+              <p className={styles.decoSub}>
+                上传、归类、设置封面——几秒钟让一组作品成册。
+              </p>
+            </div>
+            <div className={styles.decoStack} aria-hidden>
+              <span className={styles.decoPhoto} />
+              <span className={styles.decoPhoto} />
+              <span className={styles.decoPhoto} />
+            </div>
+          </aside>
         ) : null}
-        {me.role === "admin" ? (
-          <button
-            className={`${styles.tabBtn} ${tab === "covers" ? styles.tabOn : ""}`}
-            onClick={() => onTab("covers")}
-          >
-            封面
-          </button>
+
+        {/* ---------- home tab: notice（DropZone 上方）+ 目标相册选择器 + 大上传 ---------- */}
+        {tab === "home" ? (
+          <>
+            {notice ? (
+              <section className={styles.homeNotice}>
+                <p className={notice.kind === "ok" ? styles.ok : styles.err}>
+                  {notice.text}
+                </p>
+              </section>
+            ) : null}
+            <div className={styles.uploadTarget}>
+              <label className={styles.uploadTargetLabel}>
+                上传到
+              </label>
+              <select
+                className={styles.uploadTargetSelect}
+                value={targetAlbumId ?? fallbackAlbum?.id ?? ""}
+                onChange={(e) =>
+                  onChangeTargetAlbum(e.target.value || null)
+                }
+              >
+                {myAlbums.length === 0 && fallbackAlbum ? (
+                  <option value={fallbackAlbum.id}>
+                    {fallbackAlbum.name}
+                  </option>
+                ) : null}
+                {myAlbums.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className={styles.uploadTargetNew}
+                onClick={() => {
+                  onTab("albums");
+                  onCreateAlbum?.();
+                }}
+              >
+                + 新建
+              </button>
+            </div>
+
+            <DropZone
+              onFiles={(fs) => void onAddFiles(fs)}
+              busy={false}
+              pending={pendingCount}
+            />
+          </>
         ) : null}
-        {/* 相册 tab：viewer + admin 都可见；用于 CRUD 自己名下相册 */}
-        <button
-          className={`${styles.tabBtn} ${tab === "albums" ? styles.tabOn : ""}`}
-          onClick={() => onTab("albums")}
-        >
-          相册 {albumCount}
-        </button>
-        {selectedCount > 0 && tab === "photos" ? (
-          <button
-            className={styles.danger}
-            onClick={() => void onTrashSelected()}
-          >
-            移入回收站 {selectedCount} 张
-          </button>
+
+        {/* 全局 notice（非 home tab 显示——home tab 内已在 DropZone 上方渲染） */}
+        {notice && tab !== "home" ? (
+          <section className={styles.content}>
+            <p className={notice.kind === "ok" ? styles.ok : styles.err}>
+              {notice.text}
+            </p>
+          </section>
+        ) : null}
+
+        {/* ---------- photos tab: 子筛选 + 瀑布 ---------- */}
+        {tab === "photos" ? (
+          <section className={styles.content}>
+            <div className={styles.subTabs}>
+              <label
+                className={`${styles.subTabSelectAll} ${
+                  allChecked ? styles.subTabSelectAllOn : ""
+                }`}
+                title={
+                  allChecked
+                    ? "全部恢复（取消当前可见已选）"
+                    : "全选当前可见"
+                }
+              >
+                <input
+                  type="checkbox"
+                  checked={allChecked}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someChecked && !allChecked;
+                  }}
+                  onChange={() => onSelectAll?.()}
+                  aria-label="全选当前可见"
+                />
+                <span>
+                  {allChecked
+                    ? "已全选（点全部恢复）"
+                    : someChecked
+                      ? "部分选中"
+                      : "全选"}
+                </span>
+              </label>
+              <button
+                className={`${styles.subTabBtn} ${photoSubtab === "all" ? styles.subTabOn : ""}`}
+                onClick={() => setPhotoFilter("all")}
+              >
+                全部 {photoCount}
+              </button>
+              <button
+                className={`${styles.subTabBtn} ${photoSubtab === "trash" ? styles.subTabOn : ""}`}
+                onClick={() => setPhotoFilter("trash")}
+              >
+                回收站 {trashedCount}
+              </button>
+              {liveSelectedCount > 0 && photoSubtab === "all" ? (
+                <>
+                  <button
+                    className={styles.subTabClear}
+                    onClick={() => onSelectAll?.()}
+                    disabled={!someChecked && !allChecked}
+                    title="清除全部已选"
+                  >
+                    清除选择
+                  </button>
+                  <button
+                    className={styles.danger}
+                    onClick={() => void onTrashSelected()}
+                    style={{ marginLeft: "auto" }}
+                  >
+                    移入回收站 {liveSelectedCount} 张
+                  </button>
+                </>
+              ) : liveSelectedCount > 0 && photoSubtab === "trash" ? (
+                <>
+                  <button
+                    className={styles.subTabClear}
+                    onClick={() => onSelectAll?.()}
+                    disabled={!someChecked && !allChecked}
+                    title="清除全部已选"
+                  >
+                    清除选择
+                  </button>
+                  <button
+                    className={styles.subTabRestore}
+                    onClick={() => void onRestoreSelected()}
+                    style={{ marginLeft: "auto" }}
+                  >
+                    恢复 {liveSelectedCount} 张
+                  </button>
+                </>
+              ) : null}
+            </div>
+
+            {uploadQueue.length ? (
+              <ul className={styles.queue}>
+                {uploadQueue.map((it) => (
+                  <li key={it.uid} className={styles.qItem}>
+                    <span className={styles.qName} title={it.file.name}>
+                      {it.file.name}
+                    </span>
+                    <span className={styles.qBar}>
+                      <i style={{ width: `${it.progress}%` }} />
+                    </span>
+                    <span className={styles.qState}>
+                      {it.status === "done"
+                        ? "完成"
+                        : it.status === "error"
+                          ? (it.error ?? "失败")
+                          : `${it.progress}%`}
+                    </span>
+                    {it.status === "error" ? (
+                      <button
+                        className={styles.mini}
+                        onClick={() => void onRetryUpload(it)}
+                      >
+                        重试
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {visible.length === 0 ? (
+              <p className={styles.muted}>
+                {photoSubtab === "all"
+                  ? "还没有照片，拖文件到上面。"
+                  : "回收站是空的。"}
+              </p>
+            ) : (
+              <AdminPhotoGrid
+                photos={visible}
+                albums={scoped.albums}
+                selectedIds={selectedIds}
+                onToggleSelected={onToggleSelected}
+                onEditPhoto={(id, patch) => void onEditPhoto(id, patch)}
+                onRestore={(id) => void onRestore(id)}
+                onPurge={(id) => void onPurge(id)}
+                onJumpAlbums={onJumpAlbums}
+                inTrash={photoSubtab === "trash"}
+              />
+            )}
+          </section>
+        ) : null}
+
+        {/* ---------- albums tab ---------- */}
+        {tab === "albums" ? (
+          <section className={styles.content}>
+            <AlbumsTab
+              me={me}
+              albums={scoped.albums}
+              photos={scoped.photos}
+              onEdit={onEditAlbum}
+              onCreate={onCreateAlbum}
+              onSetCover={onSetAlbumCover ?? onOpenCover}
+              onDelete={onDeleteAlbum}
+              onDeleteConfirm={
+                onRequestConfirm
+                  ? (a: Album) =>
+                      onRequestConfirm({
+                        title: `删除相册「${a.name}」`,
+                        body:
+                          "该相册的非回收站照片会转入「回收相册」。\n回收站照片不动。",
+                        danger: true,
+                        confirmLabel: "删除",
+                      })
+                  : undefined
+              }
+              busy={!!props.albumsBusy}
+              msg={props.albumsMsg ?? null}
+            />
+          </section>
+        ) : null}
+
+        {/* ---------- users tab (admin-only) ---------- */}
+        {tab === "users" && me.role === "admin" ? (
+          <section className={styles.content}>
+            <UsersTab me={me} onSetCoverAlbum={onOpenCover} />
+          </section>
+        ) : null}
+
+        {/* ---------- system tab (admin-only) ---------- */}
+        {tab === "system" && me.role === "admin" ? (
+          <section className={styles.content}>
+            <CoversPanel
+              data={data}
+              onOpenCover={onOpenCover}
+              meId={me.id}
+            />
+          </section>
         ) : null}
       </div>
-
-      {tab === "covers" && me.role === "admin" ? (
-        <CoversPanel
-          data={data}
-          onOpenCover={onOpenCover}
-          meId={me.id}
-        />
-      ) : tab === "users" && me.role === "admin" ? (
-        <UsersTab me={me} onSetCoverAlbum={onOpenCover} />
-      ) : tab === "albums" ? (
-        <AlbumsTab
-          me={me}
-          albums={scoped.albums}
-          photos={scoped.photos}
-          onEdit={onEditAlbum}
-          onCreate={onCreateAlbum}
-          onSetCover={onSetAlbumCover ?? onOpenCover}
-          onDelete={onDeleteAlbum}
-          busy={!!props.albumsBusy}
-          msg={props.albumsMsg ?? null}
-        />
-      ) : visible.length === 0 ? (
-        <p className={styles.muted}>
-          {tab === "photos" ? "还没有照片，拖文件到上面。" : "回收站是空的。"}
-        </p>
-      ) : (
-        <AdminPhotoGrid
-          photos={visible}
-          albums={scoped.albums}
-          selectedIds={selectedIds}
-          onToggleSelected={onToggleSelected}
-          onEditPhoto={(id, patch) => void onEditPhoto(id, patch)}
-          onRestore={(id) => void onRestore(id)}
-          onPurge={(id) => void onPurge(id)}
-          onJumpAlbums={onJumpAlbums}
-          inTrash={tab === "trash"}
-        />
-      )}
     </div>
   );
 }

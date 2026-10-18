@@ -31,6 +31,7 @@ import type {
   PublicUser,
   ResetLinkResponse,
 } from "@/lib/contracts";
+import type { ConfirmModalProps } from "../modals/ConfirmModal";
 
 export type UseUsersPanelOptions = {
   /** 已登录后才启用数据拉取与变更 */
@@ -42,6 +43,11 @@ export type Notice = { kind: "ok" | "err"; text: string };
 export type UseUsersPanelResult = {
   users: PublicUser[];
   msg: Notice | null;
+  /** 列表拉取失败时的错误 message；null = 没出错或还在首次加载中。
+   *  与 users 同时存在：失败也保留旧数据不抹掉，方便"重试"按钮语义清晰。 */
+  loadErr: string | null;
+  /** 当前是否在拉取列表（首次加载或重试中）；用于 UI 转圈 + 防双击。 */
+  loading: boolean;
   /* 表单态 */
   nUser: string;
   nPass: string;
@@ -69,7 +75,13 @@ export type UseUsersPanelResult = {
   kickUser: (u: PublicUser) => Promise<void>;
   copyLink: () => Promise<void>;
   closeLink: () => void;
+  /** 显式重试入口（错误状态 UI 的重试按钮）；正常 mutation 后也会自动跑一次。 */
   loadUsers: () => Promise<void>;
+  /** delete/kick 的二次确认弹层 props；null = 没请求弹窗。
+   *  接入层面：父组件直接 <ConfirmModal {...u.confirmModal} /> 即可。
+   *  选择暴露完整 props（而不是 confirmReq+resolve）的原因：hook 内部
+   *  持有 promise resolve 函数不外露更安全；render 端只关心 Modal 渲染。 */
+  confirmModal: ConfirmModalProps | null;
 };
 
 export function useUsersPanel(
@@ -77,6 +89,8 @@ export function useUsersPanel(
 ): UseUsersPanelResult {
   const [users, setUsers] = useState<PublicUser[]>([]);
   const [msg, setMsg] = useState<Notice | null>(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const [nUser, setNUser] = useState("");
   const [nPass, setNPass] = useState("");
@@ -91,13 +105,55 @@ export function useUsersPanel(
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* 列表拉取 */
+  /* 二次确认弹层：remove / kick 各请求一次。
+     promise resolve 闭包在 state 里 —— 不用 ref，因为弹层生命周期短、
+     只在用户点确认/取消后立即清空；中途 unmount 时不 resolve，
+     让调用方 await 自然挂起到下次渲染即可。 */
+  type ConfirmAction = "remove" | "kick";
+  const [confirmReq, setConfirmReq] = useState<{
+    user: PublicUser;
+    action: ConfirmAction;
+    resolve: (v: boolean) => void;
+  } | null>(null);
+
+  const requestConfirmFor = useCallback(
+    (user: PublicUser, action: ConfirmAction): Promise<boolean> =>
+      new Promise<boolean>((resolve) => {
+        setConfirmReq({ user, action, resolve });
+      }),
+    [],
+  );
+
+  const onConfirmOk = useCallback(() => {
+    const r = confirmReq;
+    if (!r) return;
+    r.resolve(true);
+    setConfirmReq(null);
+  }, [confirmReq]);
+
+  const onConfirmCancel = useCallback(() => {
+    const r = confirmReq;
+    if (!r) return;
+    r.resolve(false);
+    setConfirmReq(null);
+  }, [confirmReq]);
+
+  /* 列表拉取 —— 错误不再 swallow：写入 loadErr 让 UI 暴露（"加载失败 + 重试"）。
+     旧行为（仅靠 console）会让 Network 红色 X + 列表为空时用户毫无线索。 */
   const loadUsers = useCallback(async () => {
+    setLoading(true);
     try {
       const list = await fetchUsers();
       setUsers(list);
-    } catch {
-      /* 沿用旧行为：忽略错误，UI 仍展示旧数据 */
+      setLoadErr(null);
+    } catch (err) {
+      const text = (err as Error).message || String(err);
+      setLoadErr(text);
+      /* 同时打 console.error —— dev tools 能看到、e2e 也能从 console 事件捞到 */
+      // eslint-disable-next-line no-console
+      console.error("[useUsersPanel] fetch /api/users failed:", err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -171,15 +227,8 @@ export function useUsersPanel(
 
   const removeUser = useCallback(
     async (u: PublicUser) => {
-      if (
-        !confirm(
-          `确定删除用户 ${u.username}？\n\n` +
-            `此操作会同时删除该用户的全部照片（COS 对象 + 元数据）与相册，\n` +
-            `且**不可撤销**。`,
-        )
-      ) {
-        return;
-      }
+      const ok = await requestConfirmFor(u, "remove");
+      if (!ok) return;
       setMsg(null);
       try {
         const { deleted: d } = await deleteUser(u.id);
@@ -194,7 +243,7 @@ export function useUsersPanel(
         setMsg({ kind: "err", text: (err as Error).message });
       }
     },
-    [loadUsers],
+    [loadUsers, requestConfirmFor],
   );
 
   const generateLink = useCallback(async (u: PublicUser) => {
@@ -215,7 +264,8 @@ export function useUsersPanel(
 
   const kickUser = useCallback(
     async (u: PublicUser) => {
-      if (!confirm(`确定吊销 ${u.username} 的所有会话？`)) return;
+      const ok = await requestConfirmFor(u, "kick");
+      if (!ok) return;
       setMsg(null);
       try {
         await revokeUserSessions(u.id);
@@ -225,7 +275,7 @@ export function useUsersPanel(
         setMsg({ kind: "err", text: (err as Error).message });
       }
     },
-    [loadUsers],
+    [loadUsers, requestConfirmFor],
   );
 
   const copyLink = useCallback(async () => {
@@ -246,9 +296,43 @@ export function useUsersPanel(
     setCopied(false);
   }, []);
 
+  /* confirmModal —— 从 confirmReq 派生 props；父组件直接 spread 渲染。
+     action 不同走不同文案 + danger。busy=false（无 in-flight 操作需要遮罩）。 */
+  const confirmModal: ConfirmModalProps | null = (() => {
+    if (!confirmReq) return null;
+    const { user, action } = confirmReq;
+    if (action === "remove") {
+      return {
+        open: true,
+        title: `确定删除用户 ${user.username}？`,
+        body:
+          "此操作会同时删除该用户的全部照片（COS 对象 + 元数据）与相册，\n且**不可撤销**。",
+        danger: true,
+        confirmLabel: "删除",
+        cancelLabel: "取消",
+        busy: false,
+        onConfirm: onConfirmOk,
+        onCancel: onConfirmCancel,
+      };
+    }
+    return {
+      open: true,
+      title: `确定吊销 ${user.username} 的所有会话？`,
+      body: "该用户的所有登录设备会被立即踢出，需要重新登录。",
+      danger: false,
+      confirmLabel: "吊销",
+      cancelLabel: "取消",
+      busy: false,
+      onConfirm: onConfirmOk,
+      onCancel: onConfirmCancel,
+    };
+  })();
+
   return {
     users,
     msg,
+    loadErr,
+    loading,
     nUser,
     nPass,
     nName,
@@ -273,5 +357,6 @@ export function useUsersPanel(
     copyLink,
     closeLink,
     loadUsers,
+    confirmModal,
   };
 }

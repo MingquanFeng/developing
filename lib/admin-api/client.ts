@@ -11,6 +11,7 @@
  * credentials: "include" —— 后台需要把 session cookie 自动带上。
  * 早期 admin 用过 "same-origin"，但都自动带 cookie；统一 include 更明确。
  */
+import { networkErrorMessage } from "./errors";
 
 /** 共享默认 headers：JSON 请求体 + JSON 解析 + cookies */
 export const API_BASE = "";
@@ -22,6 +23,12 @@ export const API_BASE = "";
  * - 始终带 credentials: "include"
  * - 若 body 是对象，自动 JSON 化并加 content-type
  * - 不抛 OK 状态（业务模块自己处理）
+ *
+ * 浏览器层异常（abort / 离线 / DNS / TLS / CORS）的归一化：
+ *   - 这些场景拿不到 Response，`asApiError` 跑不到，所以原 `TypeError`
+ *     会原样冒到 UI（曾经显示成 "Failed to fetch"，对用户毫无线索）。
+ *   - 这里统一翻成 readable message 由外层 catch (e) { e.message } 接管；
+ *   - 原 cause 通过 console.error 留存，给排错用。
  *
  * `@returns` 原生 Response —— 业务模块决定怎么解读。
  */
@@ -54,6 +61,17 @@ export function apiFetch(
     credentials: "include",
     headers,
     body,
+  }).catch((err: unknown) => {
+    const message = networkErrorMessage(err);
+    /* console.warn 而不是 console.error —— Next.js 16 dev overlay 只对
+       console.error 上报,避免每次浏览器侧 fetch throw (dev 编译期 transient
+       throw 之类) 都触发错误浮层刷屏。原 cause 通过 Error.cause 字段带出,
+       调用方 catch (e) { e.cause } 仍可拿到原 TypeError 排错。 */
+    if (typeof console !== "undefined") {
+      // eslint-disable-next-line no-console
+      console.warn("[apiFetch]", path, "→", message, err);
+    }
+    throw new Error(message, { cause: err });
   });
 }
 
