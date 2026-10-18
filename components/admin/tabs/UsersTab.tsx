@@ -12,6 +12,7 @@
  * 设计点：所有 CRUD 操作都通过 hook；不持有任何业务 state。
  */
 import { useUsersPanel } from "../hooks/useUsersPanel";
+import ConfirmModal from "../modals/ConfirmModal";
 import ResetLinkModal from "../modals/ResetLinkModal";
 import type { Album, Photo, PublicUser } from "@/lib/contracts";
 import styles from "../admin.module.css";
@@ -25,12 +26,39 @@ export type UsersTabProps = {
 export default function UsersTab({ me, onSetCoverAlbum }: UsersTabProps) {
   const u = useUsersPanel({ enabled: me?.role === "admin" });
 
+  /* 错误状态分支：
+     - 有 loadErr 且已有旧数据 → 顶部黄色 banner（不盖列表）+ 重试按钮
+     - 有 loadErr 且无数据     → 整块红色错误卡 + 重试按钮（替代"静默空列表"）
+     这样网络抖动 / cookie 失效 / 401 时用户能立刻看到，而不是看到一片空白 */
+  const showFullError = u.loadErr !== null && u.users.length === 0;
+  const showBanner = u.loadErr !== null && u.users.length > 0;
+
   return (
     <div>
       {u.msg ? (
         <p className={u.msg.kind === "ok" ? styles.ok : styles.err}>
           {u.msg.text}
         </p>
+      ) : null}
+
+      {showBanner ? (
+        <div
+          className={styles.errBanner}
+          role="alert"
+          data-testid="users-load-banner"
+        >
+          <span>
+            列表刷新失败：{u.loadErr}（旧数据仍在下方，新操作可能不一致）
+          </span>
+          <button
+            type="button"
+            className={styles.mini}
+            onClick={() => void u.loadUsers()}
+            disabled={u.loading}
+          >
+            {u.loading ? "重试中…" : "重试"}
+          </button>
+        </div>
       ) : null}
 
       {u.linkFor ? (
@@ -43,26 +71,58 @@ export default function UsersTab({ me, onSetCoverAlbum }: UsersTabProps) {
         />
       ) : null}
 
-      <ul className={styles.list}>
-        {u.users.map((user) => (
-          <UserRow
-            key={user.id}
-            user={user}
-            meId={me?.id ?? null}
-            pwFor={u.pwFor}
-            pwVal={u.pwVal}
-            setPwFor={u.setPwFor}
-            setPwVal={u.setPwVal}
-            onSetDisplayName={(v) => u.setDisplayName(user, v)}
-            onResetPassword={() => u.resetPassword(user.id)}
-            onToggleDisabled={() => u.toggleDisabled(user)}
-            onGenerateLink={() => u.generateLink(user)}
-            onKick={() => u.kickUser(user)}
-            onRemove={() => u.removeUser(user)}
-            onSetCoverAlbum={onSetCoverAlbum}
-          />
-        ))}
-      </ul>
+      {u.confirmModal ? <ConfirmModal {...u.confirmModal} /> : null}
+
+      {showFullError ? (
+        <div
+          className={styles.errCard}
+          role="alert"
+          data-testid="users-load-error"
+        >
+          <span className={styles.errCardTitle}>加载用户列表失败</span>
+          <span className={styles.errCardDetail}>{u.loadErr}</span>
+          <button
+            type="button"
+            className={styles.primary}
+            style={{ width: "auto", marginTop: 12, padding: "9px 20px" }}
+            onClick={() => void u.loadUsers()}
+            disabled={u.loading}
+            data-testid="users-retry"
+          >
+            {u.loading ? "重试中…" : "重试"}
+          </button>
+        </div>
+      ) : u.loading && u.users.length === 0 ? (
+        <p className={styles.muted} data-testid="users-loading">
+          正在加载用户列表…
+        </p>
+      ) : (
+        <ul className={styles.list} data-testid="users-list">
+          {u.users.length === 0 ? (
+            <li className={styles.row} style={{ borderBottom: 0 }}>
+              <span className={styles.dim}>暂无用户。</span>
+            </li>
+          ) : null}
+          {u.users.map((user) => (
+            <UserRow
+              key={user.id}
+              user={user}
+              meId={me?.id ?? null}
+              pwFor={u.pwFor}
+              pwVal={u.pwVal}
+              setPwFor={u.setPwFor}
+              setPwVal={u.setPwVal}
+              onSetDisplayName={(v) => u.setDisplayName(user, v)}
+              onResetPassword={() => u.resetPassword(user.id)}
+              onToggleDisabled={() => u.toggleDisabled(user)}
+              onGenerateLink={() => u.generateLink(user)}
+              onKick={() => u.kickUser(user)}
+              onRemove={() => u.removeUser(user)}
+              onSetCoverAlbum={onSetCoverAlbum}
+            />
+          ))}
+        </ul>
+      )}
 
       <form className={styles.addUser} onSubmit={u.addUser}>
         <span className={styles.addTitle}>新建用户</span>
