@@ -366,7 +366,7 @@ describe("visibleTo 相册过滤", () => {
     expect(got.photos.find((p) => p.id === "p1")).toBeDefined();
   });
 
-  it("viewer 看到他人非空公开相册 + 自己所有相册（含空）", () => {
+  it("登录用户只看自己 ownerId 的相册（不再通过公开照片引用看到他人公开相册）", () => {
     const pub = {
       id: "alb_u2_pub_1",
       slug: "pub",
@@ -399,11 +399,11 @@ describe("visibleTo 相册过滤", () => {
     });
 
     const got = visibleTo(m, "u1");
-    // 自己空相册
+    // 自己空相册 —— 仍能看到
     expect(got.albums.find((a) => a.id === myEmpty.id)).toBeDefined();
-    // 他人有公开照片的相册
-    expect(got.albums.find((a) => a.id === pub.id)).toBeDefined();
-    // 公开照片
+    // 他人有公开照片的相册 —— 登录用户不再"看到"
+    expect(got.albums.find((a) => a.id === pub.id)).toBeUndefined();
+    // 公开照片仍可见（photos 规则未变）
     expect(got.photos.find((p) => p.id === "p_pub")).toBeDefined();
   });
 });

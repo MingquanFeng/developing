@@ -39,6 +39,15 @@ export type AlbumEditModalProps = {
   onDelete?: (id: string) => Promise<void>;
   /** 触发现有 useCoverModal 弹层（共享 cover 选择 UI） */
   onSetCover?: (album: Album) => void;
+  /** 删除前的二次确认：返回 true 才真正调 onDelete。
+   *  不传则降级到 window.confirm（保留旧 fallback）。 */
+  onRequestConfirm?: (opts: {
+    title: string;
+    body: string;
+    danger?: boolean;
+    confirmLabel?: string;
+    cancelLabel?: string;
+  }) => Promise<boolean>;
   busy: boolean;
 };
 
@@ -53,6 +62,7 @@ export default function AlbumEditModal({
   onPatch,
   onDelete,
   onSetCover,
+  onRequestConfirm,
   busy,
 }: AlbumEditModalProps) {
   /* 受控表单（edit 用现值，create 空起步） */
@@ -64,8 +74,6 @@ export default function AlbumEditModal({
   );
   /* slug 输入：create 模式允许手填覆盖，edit 模式只读 */
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
-  /* 删除二次确认 */
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   /* Esc 关掉 */
   useEffect(() => {
@@ -145,11 +153,22 @@ export default function AlbumEditModal({
 
   async function handleDelete() {
     if (!onDelete || !album) return;
-    if (!confirmDelete) {
-      setConfirmDelete(true);
-      return;
+    /* 优先用 AdminApp 的 confirm 弹层；不传时降级到 window.confirm */
+    let ok = true;
+    if (onRequestConfirm) {
+      ok = await onRequestConfirm({
+        title: `删除相册「${album.name}」`,
+        body:
+          "该相册的非回收站照片会转入「回收相册」。\n回收站照片不动。",
+        danger: true,
+        confirmLabel: "删除",
+      });
+    } else if (
+      !confirm(`确定删除相册「${album.name}」？\n\n该相册的非回收站照片会转入「回收相册」。`)
+    ) {
+      ok = false;
     }
-    await onDelete(album.id);
+    if (ok) await onDelete(album.id);
   }
 
   const canDelete = mode === "edit" && !!onDelete && !!album;
@@ -363,7 +382,7 @@ export default function AlbumEditModal({
                 onClick={handleDelete}
                 disabled={busy}
               >
-                {confirmDelete ? "再次确认删除" : "删除相册"}
+                删除相册
               </button>
             ) : null}
           </footer>

@@ -25,7 +25,7 @@
  */
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchManifest } from "@/lib/album-client";
 import {
   fallbackAlbum,
@@ -80,12 +80,23 @@ export function useAlbumsPanel(
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Notice | null>(null);
 
+  /* me 变化（切换账号 / logout 后再 login）时重置 panel 状态 —— 否则上次的
+     msg/editing/creating 会跨账户残留（用户反馈"提示在所有账户都能看到"） */
+  useEffect(() => {
+    setMsg(null);
+    setEditing(null);
+    setCreating(false);
+    setBusy(false);
+  }, [me?.id]);
+
   const setBothNotices = useCallback(
     (n: Notice | null) => {
       setMsg(n);
-      setShellNotice(n);
+      /* 不再 setShellNotice(n) —— AlbumsTab 内部 msg 已经显示，
+         否则顶部 header 也会渲染同一文本（用户反馈"提示了两次"）。
+         顶部 header 留给 useUploadQueue 等其他模块的错误反馈。 */
     },
-    [setShellNotice],
+    [],
   );
 
   const openCreate = useCallback(() => {

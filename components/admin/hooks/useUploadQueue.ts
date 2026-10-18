@@ -22,7 +22,7 @@ import {
   type QueueItem,
 } from "../upload-queue";
 import { buildNewPhotos, defaultAlbum } from "./useManifest";
-import type { Manifest, PublicUser } from "@/lib/contracts";
+import type { Album, Manifest, PublicUser } from "@/lib/contracts";
 
 export type Notice = { kind: "ok" | "err"; text: string };
 
@@ -31,6 +31,15 @@ export type UseUploadQueueOptions = {
   /** 上传成功后，把元数据并入 manifest 并写回。 */
   save: (next: Manifest) => Promise<unknown>;
   onNotice: (n: Notice) => void;
+  /**
+   * 上传到指定 albumId（string）。null/缺省时走 fallback 逻辑：
+   *   - myAlbums[0]
+   *   - viewer 没自己 album 时先建 defaultAlbum 再上传
+   * AdminApp 侧管理"当前选中的目标相册"。
+   */
+  targetAlbumId?: string | null;
+  /** 当 targetAlbumId 缺省时，fallback 用—— AdminApp 算好传进来，避免 hook 再 fetch */
+  fallbackAlbum?: Album | null;
 };
 
 export type UseUploadQueueResult = {
@@ -45,7 +54,7 @@ export type UseUploadQueueResult = {
 export function useUploadQueue(
   opts: UseUploadQueueOptions,
 ): UseUploadQueueResult {
-  const { me, save, onNotice } = opts;
+  const { me, save, onNotice, targetAlbumId, fallbackAlbum } = opts;
   const [queue, setQueue] = useState<QueueItem[]>([]);
 
   const addFiles = useCallback(
@@ -80,19 +89,30 @@ export function useUploadQueue(
             // 相册按用户隔离：只能挑自己名下的，绝不能拿 cur.albums[0]
             // （那可能是别人的相册，照片会被写进去但 ownerId 对不上）
             const myAlbums = cur.albums.filter((a) => a.ownerId === me?.id);
-            /* viewer 没自己 album 时，**先建一个 defaultAlbum** 再写照片；
-               albumId 用 defaultAlbum.id 而不是空串 —— 否则服务端
-               album_not_found 校验会把整批 PUT 拒掉（之前修过的那个 bug）。
 
-               必须把 cur.albums 传进去让 newAlbumId 走 taken 去重：
-               若同 owner 已存在 `_default_1`，新 album 不会与之撞 id。 */
-            const willAddDefault = myAlbums.length === 0;
-            const targetAlbum = willAddDefault
-              ? defaultAlbum(me?.id ?? "anon", cur.albums)
-              : myAlbums[0];
-            const albumId = targetAlbum.id;
+            // 选相册：优先用 caller 指定的 targetAlbumId（ownerId 必须 == me）；
+            // fallback 由 AdminApp 算好传进来（first existing myAlbum 或新建 defaultAlbum）
+            let chosen: Album | null = null;
+            let willAddDefault = false;
+            if (targetAlbumId) {
+              const match = cur.albums.find((a) => a.id === targetAlbumId);
+              if (match && match.ownerId === me?.id) chosen = match;
+            }
+            if (!chosen && fallbackAlbum) {
+              chosen = fallbackAlbum;
+              willAddDefault = !cur.albums.some((a) => a.id === fallbackAlbum.id);
+            }
+            if (!chosen) {
+              // 兜底：与旧行为一致（myAlbums[0] 或新建 defaultAlbum）
+              willAddDefault = myAlbums.length === 0;
+              chosen = willAddDefault
+                ? defaultAlbum(me?.id ?? "anon", cur.albums)
+                : myAlbums[0];
+            }
+
+            const albumId = chosen.id;
             const albums = willAddDefault
-              ? [...cur.albums, targetAlbum]
+              ? [...cur.albums, chosen]
               : cur.albums;
             const photos = buildNewPhotos({
               uploaded,
@@ -105,7 +125,7 @@ export function useUploadQueue(
               albums,
               photos: [...cur.photos, ...photos],
             });
-            onNotice({ kind: "ok", text: `已入库 ${photos.length} 张` });
+            onNotice({ kind: "ok", text: `已入库 ${photos.length} 张到「${chosen.name}」` });
           } catch (e) {
             onNotice({
               kind: "err",
@@ -117,7 +137,7 @@ export function useUploadQueue(
         onError: (m) => onNotice({ kind: "err", text: m }),
       });
     },
-    [queue, me, save, onNotice],
+    [queue, me, save, onNotice, targetAlbumId, fallbackAlbum],
   );
 
   const retry = useCallback(

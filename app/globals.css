@@ -78,6 +78,29 @@ input {
 em { font-style: italic; }
 
 /* ---------- 基础排印 ---------- */
+
+/* ---------- 后台整页拖拽 overlay ----------
+   useGlobalFileDrop（components/admin/hooks/useGlobalFileDrop.ts）
+   监听到文件被拖到 <html> 时挂 fileDragActive 类，触发全屏 dashed
+   提示。pointer-events: none 让 drop 事件穿透 overlay、由 window
+   监听器处理。 */
+html.fileDragActive::after {
+  content: "";
+  position: fixed;
+  inset: 8px;
+  z-index: 9999;
+  border: 2px dashed var(--hot);
+  border-radius: 12px;
+  pointer-events: none;
+  background: rgba(8, 10, 14, .35);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: fileDragIn .15s var(--ease) both;
+}
+@keyframes fileDragIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 .kicker {
   display: inline-block;
   font-family: var(--mono);

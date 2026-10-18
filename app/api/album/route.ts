@@ -14,8 +14,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * 读清单。**必须登录**才能拿到私有照片。
- * 匿名调用只返回 isPublic 的那些。
+ * 读清单。
+ * - 匿名调用 → 返 publicManifest（只含 isPublic 照片 + 公开相册壳子）
+ * - 登录调用 → 返 visibleTo：自己的全部（含私有 / 含回收站）+ 公开照
+ *
+ * 任何人都能看用户选择公开的部分；只有登录用户能看自己的私有照。
  */
 export async function GET(req: NextRequest) {
   const manifest = await readManifest();

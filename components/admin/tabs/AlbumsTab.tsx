@@ -34,6 +34,9 @@ export type AlbumsTabProps = {
   /** 触发现有 useCoverModal 弹层（admin 看 covers + albums 都用它） */
   onSetCover?: (a: Album) => void;
   onDelete: (id: string) => void;
+  /** 删除相册前的二次确认：返回 true 才真正调 onDelete。
+   *  不传则降级到 window.confirm（保留旧 fallback，避免破坏测试/开发环境）。 */
+  onDeleteConfirm?: (a: Album) => Promise<boolean>;
   busy: boolean;
   msg: Notice | null;
 };
@@ -46,22 +49,13 @@ export default function AlbumsTab({
   onCreate,
   onSetCover,
   onDelete,
+  onDeleteConfirm,
   msg,
 }: AlbumsTabProps) {
-  /* 按 ownerId 分组：admin 看全部，按 owner 分片；viewer 看不到分组头 */
-  const groups = useMemo(() => {
-    if (me.role === "admin") {
-      const m = new Map<string, Album[]>();
-      for (const a of albums) {
-        const k = a.ownerId ?? "_unknown";
-        const arr = m.get(k);
-        if (arr) arr.push(a);
-        else m.set(k, [a]);
-      }
-      return [...m.entries()];
-    }
-    return [["self", albums]] as Array<[string, readonly Album[]]>;
-  }, [albums, me.role]);
+  /* 按之前产品决策：admin 也只看自己 ownerId 的相册（admin 不再有"看全部"
+     特权），所以 albums 全是同一 ownerId —— 无需按 owner 分组，
+     直接走 flat 列表 */
+  const flatAlbums: readonly Album[] = albums;
 
   /* ---------- 瀑布流列数 + 每张卡的 span ---------- */
   const gridRef = useRef<HTMLDivElement>(null);
@@ -141,44 +135,8 @@ export default function AlbumsTab({
         </button>
       </div>
 
-      {albums.length === 0 ? (
-        <p className={styles.muted}>
-          {me.role === "admin"
-            ? "尚无相册。"
-            : "还没有相册，点上面「新建相册」开始。"}
-        </p>
-      ) : me.role === "admin" ? (
-        groups.map(([owner, list]) => (
-          <section key={owner} className={styles.albumSec}>
-            <div className={styles.albumGroup}>
-              <span className={styles.albumOwner}>
-                {owner === "_unknown" ? "未指派" : owner}
-              </span>
-              <div
-                className={styles.adminGrid}
-                style={
-                  {
-                    "--cols": cols,
-                    "--gap": `${gap}px`,
-                  } as React.CSSProperties
-                }
-              >
-                {list.map((a) => (
-                  <AlbumCard
-                    key={a.id}
-                    album={a}
-                    photos={photos}
-                    rowSpan={spanByAlbum.get(a.id) ?? 30}
-                    onEdit={onEdit}
-                    onSetCover={onSetCover}
-                    onDelete={onDelete}
-                    showOwner={false}
-                  />
-                ))}
-              </div>
-            </div>
-          </section>
-        ))
+      {flatAlbums.length === 0 ? (
+        <p className={styles.muted}>还没有相册，点上面「新建相册」开始。</p>
       ) : (
         <div
           className={styles.adminGrid}
@@ -190,7 +148,7 @@ export default function AlbumsTab({
             } as React.CSSProperties
           }
         >
-          {albums.map((a) => (
+          {flatAlbums.map((a) => (
             <AlbumCard
               key={a.id}
               album={a}
@@ -199,7 +157,7 @@ export default function AlbumsTab({
               onEdit={onEdit}
               onSetCover={onSetCover}
               onDelete={onDelete}
-              showOwner={me.role === "admin"}
+              onDeleteConfirm={onDeleteConfirm}
             />
           ))}
         </div>
@@ -220,7 +178,7 @@ function AlbumCard({
   onEdit,
   onSetCover,
   onDelete,
-  showOwner,
+  onDeleteConfirm,
 }: {
   album: Album;
   photos: readonly Photo[];
@@ -228,7 +186,7 @@ function AlbumCard({
   onEdit: (a: Album) => void;
   onSetCover?: (a: Album) => void;
   onDelete: (id: string) => void;
-  showOwner: boolean;
+  onDeleteConfirm?: (a: Album) => Promise<boolean>;
 }) {
   /* 封面 key：优先 album.coverKey，否则拿第一张非回收站照片 */
   const coverPhoto = useMemo(() => {
@@ -241,12 +199,11 @@ function AlbumCard({
     );
   }, [album.coverKey, album.id, photos]);
 
-  const photoCount = photos.filter(
-    (p) => p.albumId === album.id && !p.trashedAt,
-  ).length;
-
   return (
-    <figure className={styles.adminCell}>
+    <figure
+      className={styles.adminCell}
+      style={{ "--span": rowSpan } as React.CSSProperties}
+    >
       <button
         type="button"
         className={styles.adminCell__media}
@@ -262,33 +219,6 @@ function AlbumCard({
 
       <figcaption className={styles.adminCell__caption}>
         <span className={styles.adminCell__title}>{album.name}</span>
-        <span className={styles.adminCell__album}>
-          {album.desc ? (
-            <span
-              style={{
-                fontFamily: "var(--sans)",
-                textTransform: "none",
-                letterSpacing: 0,
-                opacity: 0.7,
-                maxWidth: "100%",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                display: "block",
-              }}
-              title={album.desc}
-            >
-              {album.desc}
-            </span>
-          ) : null}
-          <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span>/{album.slug}</span>
-            <span>· {photoCount} 张</span>
-            {showOwner && album.ownerId ? (
-              <span>· {album.ownerId}</span>
-            ) : null}
-          </span>
-        </span>
 
         <div className={styles.adminCell__actions}>
           {onSetCover ? (
@@ -306,15 +236,21 @@ function AlbumCard({
           <button
             type="button"
             className={`${styles.adminCell__btn} ${styles["adminCell__btn--danger"] ?? ""}`}
-            onClick={(e) => {
+            onClick={async (e) => {
               e.stopPropagation();
-              if (
-                confirm(
+              /* 优先用 AdminApp 的自定义 confirm 弹层；不传时降级到
+                 window.confirm（保留旧 fallback，便于 vitest/Storybook）。 */
+              let ok = true;
+              if (onDeleteConfirm) {
+                ok = await onDeleteConfirm(album);
+              } else if (
+                !confirm(
                   `确定删除相册「${album.name}」？\n\n该相册的非回收站照片会转入「回收相册」。`,
                 )
               ) {
-                onDelete(album.id);
+                ok = false;
               }
+              if (ok) onDelete(album.id);
             }}
             style={{ marginLeft: onSetCover ? "auto" : "0" }}
           >

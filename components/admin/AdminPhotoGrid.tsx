@@ -42,6 +42,27 @@ const GAP_AT_WIDTH = (w: number) => (w < 700 ? 10 : w < 1000 ? 14 : 20);
 /** grid-auto-rows 步长（px），与 admin.module.css 的 .adminGrid 一致 */
 const ROW = 6;
 
+/**
+ * Google Photos 风格日期分桶：按 shotAt 距离今天多久动态命名。
+ * 距离越近桶越细（今天 / 昨天 / 本周早些 / 上周 / 本月早些），
+ * 距离越远桶越粗（X 月 / X 年）。
+ *
+ * 返回 { label, order }：order 用于组间排序（按时间从近到远）。
+ */
+function dateBucket(shotAt: string, now = Date.now()): { label: string; order: number } {
+  const d = new Date(shotAt);
+  const days = Math.floor((now - d.getTime()) / 86_400_000);
+  const monthName = `${d.getMonth() + 1} 月`;
+  if (Number.isNaN(days)) return { label: "未知日期", order: 99 };
+  if (days <= 0) return { label: "今天", order: 0 };
+  if (days === 1) return { label: "昨天", order: 1 };
+  if (days < 7) return { label: "本周早些", order: 2 };
+  if (days < 14) return { label: "上周", order: 3 };
+  if (days < 30) return { label: "本月早些", order: 4 };
+  if (days < 365) return { label: monthName, order: 5 };
+  return { label: `${d.getFullYear()} 年`, order: 6 };
+}
+
 export default function AdminPhotoGrid({
   photos,
   albums,
@@ -82,52 +103,89 @@ export default function AdminPhotoGrid({
     );
   }, [width, cols, gap, photos]);
 
+  /* ---------- 日期分组（Google Photos 自动分桶） ---------- */
+  const sections = useMemo(() => {
+    const groups = new Map<string, { label: string; order: number; photos: Photo[] }>();
+    photos.forEach((p, globalIdx) => {
+      const b = dateBucket(p.shotAt);
+      const key = `${b.order}-${b.label}`;
+      let g = groups.get(key);
+      if (!g) {
+        g = { ...b, photos: [] };
+        groups.set(key, g);
+      }
+      g.photos.push(p);
+      // 把原 photos 数组 index 附到 photo 上，给编辑弹层用
+      (p as Photo & { __idx?: number }).__idx = globalIdx;
+    });
+    // 按 order 升序（最近的在前）；同 order 内保持 photos 数组顺序
+    return [...groups.values()].sort((a, b) => a.order - b.order);
+  }, [photos]);
+
   /* ---------- 选中 + 当前编辑 ---------- */
-  const [editingIdx, setEditingIdx] = useState<number>(-1);
-  const editing = editingIdx >= 0 ? photos[editingIdx] : null;
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = editingId
+    ? photos.find((p) => p.id === editingId) ?? null
+    : null;
 
   /* 切到空集合时关闭编辑器 */
   useEffect(() => {
-    if (editingIdx >= photos.length) setEditingIdx(-1);
-  }, [editingIdx, photos.length]);
+    if (editingId && !photos.find((p) => p.id === editingId)) setEditingId(null);
+  }, [editingId, photos]);
 
   return (
     <>
-      <div
-        ref={gridRef}
-        className={styles.adminGrid}
-        style={
-          {
-            "--cols": cols,
-            "--gap": `${gap}px`,
-          } as React.CSSProperties
-        }
-      >
-        {photos.map((p, i) => (
-          <AdminPhotoCell
-            key={p.id}
-            photo={p}
-            albums={albums}
-            rowSpan={spans[i]}
-            checked={selectedIds.has(p.id)}
-            inTrash={inTrash}
-            onClick={() => setEditingIdx(i)}
-            onToggleSelected={() => onToggleSelected(p.id)}
-            onTogglePublic={() => onEditPhoto(p.id, { isPublic: !p.isPublic })}
-            onTrash={() => onEditPhoto(p.id, { trashedAt: new Date().toISOString() })}
-            onRestore={() => onRestore(p.id)}
-            onPurge={() => onPurge(p.id)}
-          />
-        ))}
-      </div>
+      {sections.map((sec, secIdx) => (
+        <section key={sec.label} className={styles.dateSection}>
+          <h2 className={styles.dateHeader}>
+            {sec.label}
+            <span className={styles.dateCount}>{sec.photos.length}</span>
+          </h2>
+          <div
+            ref={secIdx === 0 ? gridRef : undefined}
+            className={styles.adminGrid}
+            style={
+              {
+                "--cols": cols,
+                "--gap": `${gap}px`,
+              } as React.CSSProperties
+            }
+          >
+            {sec.photos.map((p) => (
+              <AdminPhotoCell
+                key={p.id}
+                photo={p}
+                albums={albums}
+                rowSpan={spans[(p as Photo & { __idx?: number }).__idx ?? 0]}
+                checked={selectedIds.has(p.id)}
+                inTrash={inTrash}
+                onClick={() => setEditingId(p.id)}
+                onToggleSelected={() => onToggleSelected(p.id)}
+                onTogglePublic={() => onEditPhoto(p.id, { isPublic: !p.isPublic })}
+                onTrash={() => onEditPhoto(p.id, { trashedAt: new Date().toISOString() })}
+                onRestore={() => onRestore(p.id)}
+                onPurge={() => onPurge(p.id)}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
 
       {editing ? (
         <EditLightbox
           photo={editing}
           albums={albums}
-          onClose={() => setEditingIdx(-1)}
-          onPrev={() => setEditingIdx((i) => Math.max(0, i - 1))}
-          onNext={() => setEditingIdx((i) => Math.min(photos.length - 1, i + 1))}
+          onClose={() => setEditingId(null)}
+          onPrev={() => {
+            const idx = photos.findIndex((p) => p.id === editing.id);
+            const next = photos[Math.max(0, idx - 1)];
+            if (next) setEditingId(next.id);
+          }}
+          onNext={() => {
+            const idx = photos.findIndex((p) => p.id === editing.id);
+            const next = photos[Math.min(photos.length - 1, idx + 1)];
+            if (next) setEditingId(next.id);
+          }}
           onPatch={(patch) => onEditPhoto(editing.id, patch)}
           onMoveTrash={() =>
             onEditPhoto(editing.id, { trashedAt: new Date().toISOString() })
@@ -207,20 +265,8 @@ function AdminPhotoCell({
         )}
       </button>
 
-      {/* 浮层：标题 + 相册 + 操作 */}
+      {/* 浮层：所在相册 + 公开/私有（移到 actions 行内）+ 操作按钮 */}
       <figcaption className={styles.adminCell__caption}>
-        <span className={styles.adminCell__title}>
-          {photo.title || photo.key}
-        </span>
-        <span className={styles.adminCell__album}>
-          {album?.name ?? "未分组"}
-          {photo.isPublic ? (
-            <span className={styles.adminCell__public}>公开</span>
-          ) : (
-            <span className={styles.adminCell__private}>私有</span>
-          )}
-        </span>
-
         <div className={styles.adminCell__actions}>
           {!inTrash ? (
             <>
@@ -232,11 +278,19 @@ function AdminPhotoCell({
                   aria-label={`选择 ${photo.title}`}
                 />
               </label>
+              <span className={styles.adminCell__album}>
+                {album?.name ?? "未分组"}
+                {photo.isPublic ? (
+                  <span className={styles.adminCell__public}>公开</span>
+                ) : (
+                  <span className={styles.adminCell__private}>私有</span>
+                )}
+              </span>
               <button
                 type="button"
                 className={styles.adminCell__btn}
                 onClick={(e) => {
-                  e.stopPropagation();
+                  e.preventDefault();
                   onTogglePublic();
                 }}
                 title={photo.isPublic ? "设为私有" : "设为公开"}
@@ -256,6 +310,9 @@ function AdminPhotoCell({
             </>
           ) : (
             <>
+              <span className={styles.adminCell__album}>
+                {album?.name ?? "未分组"}
+              </span>
               <button
                 type="button"
                 className={styles.adminCell__btn}
