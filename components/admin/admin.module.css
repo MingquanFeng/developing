@@ -7,7 +7,7 @@
 .shell {
   max-width: 1180px;
   margin: 0 auto;
-  padding: clamp(36px, 6vh, 72px) var(--pad-x) var(--pad-y);
+  padding: clamp(24px, 4vh, 48px) var(--pad-x) var(--pad-y);
   min-height: 100vh;
 }
 .shellMain {
@@ -15,28 +15,82 @@
   color: var(--ink);
 }
 
-/* ---------- 头 ---------- */
+/* ---------- 头（仿访客侧 /album .head：display 大字 + sans 副段 + 右上角 mono 操作） ---------- */
 .head {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
-  padding-bottom: 20px;
-  margin-bottom: 28px;
-  border-bottom: 1px solid var(--line);
+  gap: 40px;
+  padding: 36px 0 24px;
 }
-.title {
-  font-family: var(--sans);
-  font-size: 26px;
-  font-weight: 600;
+.headLeft {
+  flex: 1;
+  min-width: 0;
+}
+.headTitle {
+  font-family: var(--display);
+  font-size: clamp(40px, 5vw, 64px);
+  font-weight: 500;
   letter-spacing: .02em;
+  line-height: .98;
+  margin: 0 0 10px;
+  color: var(--ink);
 }
-.sub {
-  margin-top: 6px;
+.headSub {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 11px;
   letter-spacing: .14em;
   opacity: .5;
+  margin: 0;
+}
+.headIntro {
+  font-family: var(--sans);
+  font-size: 13.5px;
+  line-height: 1.65;
+  opacity: .65;
+  white-space: pre-line;
+  margin: 16px 0 0;
+  max-width: 620px;
+}
+.headRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 22px;
+  flex-shrink: 0;
+  padding-bottom: 6px;
+}
+.headRight a,
+.headRight button {
+  position: relative;
+  padding: 6px 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  opacity: .6;
+  transition: opacity .3s var(--ease);
+}
+.headRight a:hover,
+.headRight button:hover { opacity: 1; }
+.headRight a::after,
+.headRight button::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform .5s var(--ease);
+}
+.headRight a:hover::after,
+.headRight button:hover::after {
+  transform: scaleX(1);
+  transform-origin: left center;
 }
 
 /* ---------- 登录（与 /register 同一视觉语言：kicker + 大标题 em + lede + 表单） ----------
@@ -98,26 +152,74 @@
 .danger:hover:not(:disabled) { background: #e08a8a; color: var(--bg); }
 .danger:disabled { opacity: .35; cursor: not-allowed; }
 
-/* ---------- 拖拽区 ---------- */
+/* ---------- 上传（紧凑按钮 + 全屏 drag overlay） ---------- */
 .drop {
-  display: grid;
-  place-items: center;
-  gap: 8px;
-  padding: clamp(34px, 7vh, 56px) 20px;
-  border: 1px dashed var(--line);
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
   cursor: pointer;
-  text-align: center;
-  transition: border-color .2s var(--ease), background .2s var(--ease);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  transition: border-color .2s var(--ease), background .2s var(--ease),
+    color .2s var(--ease);
 }
-.drop:hover,
-.dropOver { border-color: var(--hot); background: rgba(255, 255, 255, .02); }
-.dropTitle { font-size: 15px; }
+.drop:hover { border-color: var(--hot); background: rgba(255, 255, 255, .04); }
+.dropTitle { font-size: inherit; }
 .dropHint {
   font-family: var(--mono);
   font-size: 10.5px;
   letter-spacing: .12em;
-  opacity: .4;
+  opacity: .5;
+  text-transform: uppercase;
+}
+.dropOver { /* 保留以兼容旧引用；新逻辑由 overlay 承担 */ }
+
+/* 全屏 drag overlay：拖文件到页面任意位置时显示 */
+.dropOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400; /* 高于 adminEdit__backdrop(300)，确保覆盖任何弹层 */
+  background: rgba(8, 10, 14, .75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  /* 让 mouse 穿透到 window，drop 事件最终由 window 监听器处理；
+     同时避免 overlay 自身拦截 dragenter/dragleave 抖动计数 */
+  pointer-events: none;
+  animation: dropOverlayIn .15s var(--ease) both;
+}
+@keyframes dropOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.dropOverlayInner {
+  padding: 60px 80px;
+  border: 2px dashed var(--hot);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .35);
+  text-align: center;
+  font-family: var(--display);
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  color: var(--ink);
+}
+.dropOverlayInner small {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .5;
+  margin-top: 12px;
 }
 
 /* ---------- 上传队列 ---------- */
@@ -160,22 +262,39 @@
   text-align: right;
 }
 
-/* ---------- 标签页 ---------- */
+/* ---------- 标签页（与访客侧 /album .tab 一致：底部下划线） ---------- */
 .tabs {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 34px 0 14px;
+  gap: 4px;
+  margin: 28px 0 14px;
+  border-bottom: 1px solid var(--line);
 }
 .tabBtn {
-  padding: 7px 15px;
-  border: 1px solid transparent;
+  position: relative;
+  padding: 9px 16px;
+  border: 0;
   background: none;
   color: var(--ink);
   opacity: .5;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity .2s var(--ease);
 }
 .tabBtn:hover { opacity: .85; }
-.tabOn { opacity: 1; border-color: var(--line); }
+.tabOn { opacity: 1; }
+.tabOn::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--ink);
+}
 
 /* ---------- 照片列表 ---------- */
 .list {
@@ -249,6 +368,50 @@
   font-size: 11px;
   padding: 1px 5px;
   border: 1px solid var(--line);
+}
+
+/* 拉取失败的顶部 banner（旧数据仍在时不盖列表） */
+.errBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin: 0 0 14px;
+  border: 1px solid rgba(224, 138, 138, .35);
+  border-radius: 5px;
+  background: rgba(224, 138, 138, .06);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #e08a8a;
+}
+.errBanner > span { flex: 1; min-width: 0; word-break: break-word; }
+
+/* 加载失败整块卡片（无旧数据时替代空列表） */
+.errCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 28px 24px;
+  margin: 0 0 18px;
+  border: 1px solid rgba(224, 138, 138, .45);
+  border-radius: 6px;
+  background: rgba(224, 138, 138, .04);
+}
+.errCardTitle {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 500;
+  color: #e08a8a;
+  letter-spacing: .02em;
+}
+.errCardDetail {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink);
+  opacity: .75;
+  word-break: break-word;
 }
 
 @media (max-width: 860px) {
@@ -593,6 +756,46 @@
   transform: translateY(0);
   pointer-events: auto;
 }
+
+/* ---------- AlbumsTab intro ---------- */
+.albumIntro {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .14em;
+  line-height: 1.7;
+  opacity: .5;
+  white-space: pre-line;
+  margin: 0 0 22px;
+  max-width: 620px;
+}
+
+/* ---------- 日期分组（Google Photos 自动分桶） ---------- */
+.dateSection {
+  margin-top: 28px;
+}
+.dateSection:first-of-type {
+  margin-top: 0;
+}
+.dateHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  line-height: 1.2;
+  margin: 0 0 14px;
+  color: var(--ink);
+}
+.dateCount {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  opacity: .4;
+  text-transform: uppercase;
+  font-weight: 400;
+}
 .adminCell__title {
   font-family: var(--display);
   font-size: 15px;
@@ -852,3 +1055,791 @@
   color: #d8896a;
 }
 .adminEdit__btn--danger:hover { background: rgba(216, 137, 106, .12); }
+
+/* ============================================================
+   AdminShell v2 —— sidebar + topbar + hero + dropzone 布局
+   ------------------------------------------------------------
+   整体退掉 .shell max-width/padding 限制，改用 sidebar(240px) +
+   main 流式占剩余空间。.shell/.shellMain 公共变量保留，
+   但 .shellMain 在 .layoutRoot 上下文里覆盖回 100vw + 内置 padding。
+   现状样式（Tabs/PhotoGrid/EditLightbox 等）不变；只在 AdminShell
+   切换到 v2 className 集合。
+   ============================================================ */
+
+/* 整页容器：破掉 .shell 的 max-width */
+.layoutRoot {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* ---------- 左侧 sidebar ---------- */
+.sidebar {
+  flex: 0 0 240px;
+  width: 240px;
+  background: var(--bg-2);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  overflow-y: auto;
+}
+.sidebarTop {
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid var(--line-2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sidebarLogo {
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  background: var(--ink);
+  color: var(--bg);
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  line-height: 1;
+}
+.sidebarTitle {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.sidebarNav {
+  flex: 1;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.navLabel {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  opacity: .35;
+  padding: 14px 12px 8px;
+}
+.navItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 12px;
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 450;
+  letter-spacing: 0;
+  color: var(--ink);
+  opacity: .65;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: background .2s var(--ease), opacity .2s var(--ease);
+}
+.navItem:hover { opacity: 1; background: rgba(255, 255, 255, .03); }
+.navItemOn {
+  opacity: 1;
+  background: rgba(255, 255, 255, .06);
+}
+.navItemOn::before {
+  content: "";
+  position: absolute;
+}
+.navCount {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  opacity: .5;
+  margin-left: 10px;
+}
+
+.sidebarFoot {
+  padding: 16px 18px;
+  border-top: 1px solid var(--line-2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sidebarStatus {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  letter-spacing: 0;
+  color: var(--ink);
+  opacity: .85;
+}
+.sidebarStatusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8fbf8f;
+  box-shadow: 0 0 0 3px rgba(143, 191, 143, .15);
+}
+.sidebarVersion {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  opacity: .4;
+  text-transform: uppercase;
+}
+
+/* ---------- 右侧 main ---------- */
+.main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ---------- 顶部 TopBar ---------- */
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 32px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.topBarSearch {
+  flex: 1;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--ink);
+  transition: border-color .2s var(--ease);
+}
+.topBarSearch:focus-within { border-color: var(--ink); }
+.topBarSearchIcon {
+  width: 14px;
+  height: 14px;
+  opacity: .5;
+  flex-shrink: 0;
+}
+.topBarSearchInput {
+  flex: 1;
+  border: 0;
+  background: none;
+  outline: none;
+  font-family: var(--sans);
+  font-size: 13.5px;
+  color: var(--ink);
+}
+.topBarSearchInput::placeholder {
+  color: var(--muted);
+  opacity: .8;
+}
+.topBarRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.topBarBell,
+.topBarAvatarBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: border-color .2s var(--ease), background .2s var(--ease);
+  position: relative;
+}
+.topBarBell:hover,
+.topBarAvatarBtn:hover {
+  border-color: var(--ink);
+  background: rgba(255, 255, 255, .03);
+}
+.topBarBell { font-size: 16px; line-height: 1; }
+.topBarAvatar {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.topBarAvatarDot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hot);
+}
+.topBarActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: 6px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+.topBarAction {
+  position: relative;
+  padding: 4px 0;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  opacity: .55;
+  transition: opacity .3s var(--ease);
+}
+.topBarAction:hover { opacity: 1; }
+.topBarAction::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform .5s var(--ease);
+}
+.topBarAction:hover::after {
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
+/* ---------- 中央 hero ---------- */
+.heroSection {
+  padding: 56px 56px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.heroTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+}
+.heroLeft { flex: 1; min-width: 0; }
+.heroTitle {
+  font-family: var(--display);
+  font-size: clamp(40px, 5vw, 64px);
+  font-weight: 500;
+  letter-spacing: .02em;
+  line-height: .98;
+  margin: 0;
+  color: var(--ink);
+}
+.heroSub {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .35;
+  margin: 14px 0 0;
+}
+.heroChips {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin: 18px 0 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+}
+.heroChip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 18px;
+  border-left: 1px solid var(--line);
+}
+.heroChip:first-child { padding-left: 0; border-left: 0; }
+.heroChipValue {
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  color: var(--ink);
+}
+.heroChipLabel {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  opacity: .5;
+  text-transform: uppercase;
+}
+.heroIntro {
+  font-family: var(--sans);
+  font-size: 13.5px;
+  line-height: 1.65;
+  opacity: .65;
+  white-space: pre-line;
+  margin: 0;
+  max-width: 620px;
+}
+
+.heroRight {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-shrink: 0;
+  padding-top: 10px;
+}
+.heroRight a,
+.heroRight button {
+  position: relative;
+  padding: 6px 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  opacity: .6;
+  transition: opacity .3s var(--ease);
+}
+.heroRight a:hover,
+.heroRight button:hover { opacity: 1; }
+.heroRight a::after,
+.heroRight button::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform .5s var(--ease);
+}
+.heroRight a:hover::after,
+.heroRight button:hover::after {
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
+/* ---------- 大块上传区（home tab 显示） ---------- */
+.dropZoneCard {
+  margin: 0 56px 36px;
+  padding: 56px 24px;
+  border: 1.5px dashed var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .015);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  color: var(--ink);
+  transition: border-color .25s var(--ease), background .25s var(--ease);
+}
+.dropZoneCard:hover,
+.dropZoneCard:focus-visible {
+  border-color: var(--hot);
+  background: rgba(255, 255, 255, .035);
+  outline: none;
+}
+/* 上传中态:保持 dashed border 卡片外观,把 56px 大 padding 砍到 20px,
+   大 SVG icon 由组件 JSX 条件隐藏 —— 卡片本身不消,提示嵌在卡片内。 */
+.dropZoneCardBusy {
+  padding: 20px 24px;
+}
+.dropZoneIcon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .03);
+  color: var(--ink);
+  opacity: .85;
+}
+.dropZoneTitle {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  line-height: 1.2;
+  text-align: center;
+}
+.dropZoneSub {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .55;
+  text-align: center;
+}
+/* dropZoneBusy 已废弃 —— 现在 uploading 态保留 .dropZoneCard 卡片本身,
+   用 .dropZoneCardBusy modifier 缩 padding。 */
+
+/* ---------- Content 区（photos / albums / system 子内容） ---------- */
+/* home tab 顶部 notice —— 不该用 .content（.content flex:1 1 auto 会让一行小字撑满整段剩余空间） */
+.homeNotice {
+  padding: 14px 56px 0;
+}
+.content {
+  padding: 14px 56px 56px;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* photos 子筛选（全部 / 回收站） */
+.subTabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.subTabBtn {
+  position: relative;
+  padding: 9px 16px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  opacity: .5;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity .2s var(--ease);
+}
+.subTabBtn:hover { opacity: .85; }
+.subTabOn { opacity: 1; }
+.subTabSelectAll {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 6px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  opacity: .5;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity .2s var(--ease), border-color .2s var(--ease);
+}
+.subTabSelectAll:hover { opacity: .85; }
+.subTabSelectAll input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--ink);
+}
+.subTabSelectAllOn { opacity: 1; border-color: var(--line); }
+.subTabClear {
+  margin-left: auto;
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  opacity: .65;
+  cursor: pointer;
+  transition: opacity .2s var(--ease), border-color .2s var(--ease);
+}
+.subTabClear:hover { opacity: 1; border-color: var(--ink); }
+.subTabClear:disabled { opacity: .3; cursor: not-allowed; }
+.subTabRestore {
+  margin-left: auto;
+  padding: 7px 14px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity .2s var(--ease);
+}
+.subTabRestore:hover { opacity: .85; }
+.subTabOn::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -7px;
+  height: 2px;
+  background: var(--ink);
+}
+
+/* 装饰卡片：顶部 banner（每个后台 tab 都展示；admin 模块宣示） */
+.decoCard {
+  margin: 24px 56px 0;
+  padding: 22px 32px;
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(126, 139, 154, .15), rgba(126, 139, 154, 0)) ,
+    var(--bg-2);
+  border: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  align-items: center;
+  gap: 24px;
+  min-height: 96px;
+  overflow: hidden;
+  position: relative;
+}
+.decoCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.decoKicker {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  opacity: .5;
+}
+.decoHeadline {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  line-height: 1.15;
+  color: var(--ink);
+}
+.decoSub {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  opacity: .65;
+  margin: 0;
+}
+.decoStack {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  height: 84px;
+}
+.decoPhoto {
+  border-radius: 6px;
+  background:
+    linear-gradient(160deg, rgba(126, 139, 154, .35), rgba(126, 139, 154, .12));
+  border: 1px solid var(--line);
+  position: relative;
+  overflow: hidden;
+  transform: rotate(0deg);
+}
+.decoPhoto:nth-child(1) { transform: translateY(8px) rotate(-4deg); }
+.decoPhoto:nth-child(2) { transform: translateY(-6px) rotate(2deg); }
+.decoPhoto:nth-child(3) { transform: translateY(4px) rotate(5deg); }
+.decoPhoto::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, .12),
+    transparent 60%
+  );
+}
+
+/* 全局 fileDragActive 样式在 app/globals.css（CSS Modules 不允许顶层 :global 选择器） */
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 860px) {
+  .layoutRoot { flex-direction: column; }
+  .sidebar {
+    flex: 0 0 auto;
+    width: 100%;
+    height: auto;
+    position: relative;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .sidebarFoot { display: none; }
+  .heroSection,
+  .dropZoneCard,
+  .decoCard,
+  .content { padding-left: 20px; padding-right: 20px; margin-left: 0; margin-right: 0; }
+  .heroChips { grid-template-columns: 1fr; }
+  .heroChip { border-left: 0; padding: 8px 0; border-top: 1px solid var(--line); }
+  .heroChip:first-child { border-top: 0; padding-top: 0; }
+  .decoCard { grid-template-columns: 1fr; margin-left: 16px; margin-right: 16px; padding: 16px; }
+}
+
+/* ---------- 目标相册选择器（DropZone 上方） ---------- */
+.uploadTarget {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 32px 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .75;
+}
+.uploadTargetLabel {
+  opacity: .55;
+}
+.uploadTargetSelect {
+  flex: 1;
+  max-width: 360px;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 7px 28px 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  transition: border-color .2s var(--ease);
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 12px center, right 7px center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.uploadTargetSelect:hover,
+.uploadTargetSelect:focus { border-color: var(--ink); outline: none; }
+.uploadTargetNew {
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: .65;
+  transition: opacity .2s var(--ease), border-color .2s var(--ease);
+}
+.uploadTargetNew:hover { opacity: 1; border-color: var(--ink); }
+
+/* ---------- 移动端（phone，≤ 700px）---------- */
+@media (max-width: 700px) {
+  /* TopBar: 搜索框折叠为 icon-only / padding 收紧 / avatar 略小 */
+  .topBar { padding: 12px 16px; gap: 10px; }
+  .topBarSearch {
+    max-width: none;
+    flex: 1;
+    min-width: 0;
+    padding: 6px 10px;
+  }
+  .topBarSearchInput { font-size: 13px; }
+  .topBarBell,
+  .topBarAvatarBtn { width: 32px; height: 32px; }
+
+  /* Sidebar: 横向 4 项 nav 改为更紧凑的横排 + 隐藏 navLabel "管理" 副标题 */
+  .sidebar {
+    width: 100%;
+  }
+  .sidebarTop {
+    flex-direction: row;
+    align-items: center;
+    padding: 14px 16px 8px;
+    border-bottom: 0;
+  }
+  .sidebarLogo { margin-bottom: 0; }
+  .sidebarTitle { font-size: 14px; margin-top: 0; }
+
+  /* nav 横排（4 项）—— 比 column 更省空间，配合 navLabel 隐藏 */
+  .sidebarNav {
+    flex-direction: row;
+    gap: 4px;
+    padding: 6px 12px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .sidebarNav::-webkit-scrollbar { display: none; }
+  .navLabel { display: none; }   /* "管理" 副标题隐藏 */
+  .navItem {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 4px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .navCount { display: none; }   /* nav 计数隐藏省空间 */
+
+  /* Hero: 字号更紧凑 */
+  .heroSection { padding: 28px 16px 16px; }
+  .heroTitle {
+    /* 桌面端 clamp(40,5vw,64) 在 phone 上仍偏大；保留 40-64 但 padding 缩 */
+    font-size: clamp(28px, 9vw, 40px);
+    line-height: 1;
+    margin-bottom: 10px;
+  }
+  .heroSub,
+  .heroIntro { font-size: 12px; max-width: none; }
+  .heroIntro { margin-top: 12px; }
+
+  /* HeroRight 按钮组：移到 heroTitle 下方、横排（不再绝对定位右） */
+  .heroRight {
+    position: static;
+    margin-top: 12px;
+    display: flex;
+    gap: 16px;
+    opacity: .7;
+  }
+  .heroRight a,
+  .heroRight button { padding: 4px 0; font-size: 10.5px; }
+
+  /* DropZone 大块：缩 padding + icon 略小 */
+  .dropZoneCard { padding: 28px 16px; }
+  .dropZoneIcon svg { width: 40px; height: 40px; }
+
+  /* 子筛选 + 标签 chip */
+  .subTabs { gap: 4px; }
+  .subTabBtn { padding: 7px 12px; }
+
+  /* AdminPhotoGrid 在小屏列数自适应已在原 CSS 处理 */
+}
