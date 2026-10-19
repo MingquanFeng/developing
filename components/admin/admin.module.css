@@ -256,84 +256,6 @@
   color: var(--ink);
 }
 
-/* ---------- 头（仿访客侧 /album .head：display 大字 + sans 副段 + 右上角 mono 操作） ---------- */
-.head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 40px;
-  padding: 36px 0 24px;
-}
-.headLeft {
-  flex: 1;
-  min-width: 0;
-}
-.headTitle {
-  font-family: var(--display);
-  font-size: clamp(40px, 5vw, 64px);
-  font-weight: 500;
-  letter-spacing: .02em;
-  line-height: .98;
-  margin: 0 0 10px;
-  color: var(--ink);
-}
-.headSub {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: .14em;
-  opacity: .5;
-  margin: 0;
-}
-.headIntro {
-  font-family: var(--sans);
-  font-size: 13.5px;
-  line-height: 1.65;
-  opacity: .65;
-  white-space: pre-line;
-  margin: 16px 0 0;
-  max-width: 620px;
-}
-.headRight {
-  display: inline-flex;
-  align-items: center;
-  gap: 22px;
-  flex-shrink: 0;
-  padding-bottom: 6px;
-}
-.headRight a,
-.headRight button {
-  position: relative;
-  padding: 6px 0;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  background: none;
-  border: 0;
-  color: var(--ink);
-  cursor: pointer;
-  opacity: .6;
-  transition: opacity .3s var(--ease);
-}
-.headRight a:hover,
-.headRight button:hover { opacity: 1; }
-.headRight a::after,
-.headRight button::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 1px;
-  background: currentColor;
-  transform: scaleX(0);
-  transform-origin: right center;
-  transition: transform .5s var(--ease);
-}
-.headRight a:hover::after,
-.headRight button:hover::after {
-  transform: scaleX(1);
-  transform-origin: left center;
-}
-
 /* ---------- 登录（与 /register 同一视觉语言：kicker + 大标题 em + lede + 表单） ----------
    容器贴左：margin 14vh 0 0（不要 auto），与 .page/.card 整体靠左对齐。
    form 元素直接挂 .login（不是嵌套结构），所以 border-top / padding-top
@@ -1318,8 +1240,8 @@
 
 /* ---------- 左侧 sidebar ---------- */
 .sidebar {
-  flex: 0 0 240px;
-  width: 240px;
+  flex: 0 0 220px;
+  width: 220px;
   background: var(--bg-2);
   border-right: 1px solid var(--line);
   display: flex;
@@ -1398,10 +1320,6 @@
   opacity: 1;
   background: rgba(255, 255, 255, .06);
 }
-.navItemOn::before {
-  content: "";
-  position: absolute;
-}
 .navCount {
   font-family: var(--mono);
   font-size: 10.5px;
@@ -1455,8 +1373,8 @@
 .topBar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 32px;
+  gap: 12px;
+  padding: 10px 24px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
   position: sticky;
@@ -1469,7 +1387,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 6px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--bg-2);
@@ -1500,12 +1418,12 @@
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 .topBarBell,
 .topBarAvatarBtn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: 1px solid var(--line);
   background: var(--bg-2);
@@ -1575,119 +1493,6 @@
   transition: transform .5s var(--ease);
 }
 .topBarAction:hover::after {
-  transform: scaleX(1);
-  transform-origin: left center;
-}
-
-/* ---------- 中央 hero ---------- */
-.heroSection {
-  padding: 56px 56px 36px;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-}
-.heroTop {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 32px;
-}
-.heroLeft { flex: 1; min-width: 0; }
-.heroTitle {
-  font-family: var(--display);
-  font-size: clamp(40px, 5vw, 64px);
-  font-weight: 500;
-  letter-spacing: .02em;
-  line-height: .98;
-  margin: 0;
-  color: var(--ink);
-}
-.heroSub {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  opacity: .35;
-  margin: 14px 0 0;
-}
-.heroChips {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
-  margin: 18px 0 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  padding: 14px 0;
-}
-.heroChip {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0 18px;
-  border-left: 1px solid var(--line);
-}
-.heroChip:first-child { padding-left: 0; border-left: 0; }
-.heroChipValue {
-  font-family: var(--sans);
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: .02em;
-  color: var(--ink);
-}
-.heroChipLabel {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: .12em;
-  opacity: .5;
-  text-transform: uppercase;
-}
-.heroIntro {
-  font-family: var(--sans);
-  font-size: 13.5px;
-  line-height: 1.65;
-  opacity: .65;
-  white-space: pre-line;
-  margin: 0;
-  max-width: 620px;
-}
-
-.heroRight {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  flex-shrink: 0;
-  padding-top: 10px;
-}
-.heroRight a,
-.heroRight button {
-  position: relative;
-  padding: 6px 0;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  background: none;
-  border: 0;
-  color: var(--ink);
-  cursor: pointer;
-  opacity: .6;
-  transition: opacity .3s var(--ease);
-}
-.heroRight a:hover,
-.heroRight button:hover { opacity: 1; }
-.heroRight a::after,
-.heroRight button::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 1px;
-  background: currentColor;
-  transform: scaleX(0);
-  transform-origin: right center;
-  transition: transform .5s var(--ease);
-}
-.heroRight a:hover::after,
-.heroRight button:hover::after {
   transform: scaleX(1);
   transform-origin: left center;
 }
@@ -1855,9 +1660,9 @@
 
 /* 装饰卡片：顶部 banner（每个后台 tab 都展示；admin 模块宣示） */
 .decoCard {
-  margin: 24px 56px 0;
-  padding: 22px 32px;
-  border-radius: 10px;
+  margin: 24px 24px 0;
+  padding: 20px 28px;
+  border-radius: var(--radius-lg);
   background:
     linear-gradient(135deg, rgba(126, 139, 154, .15), rgba(126, 139, 154, 0)) ,
     var(--bg-2);
@@ -1866,7 +1671,7 @@
   grid-template-columns: 1.4fr 1fr;
   align-items: center;
   gap: 24px;
-  min-height: 96px;
+  min-height: 132px;
   overflow: hidden;
   position: relative;
 }
@@ -1900,16 +1705,22 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  height: 84px;
+  height: 92px;
 }
 .decoPhoto {
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background:
     linear-gradient(160deg, rgba(126, 139, 154, .35), rgba(126, 139, 154, .12));
   border: 1px solid var(--line);
   position: relative;
   overflow: hidden;
   transform: rotate(0deg);
+}
+.decoPhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .decoPhoto:nth-child(1) { transform: translateY(8px) rotate(-4deg); }
 .decoPhoto:nth-child(2) { transform: translateY(-6px) rotate(2deg); }
@@ -1939,13 +1750,9 @@
     border-bottom: 1px solid var(--line);
   }
   .sidebarFoot { display: none; }
-  .heroSection,
   .dropZoneCard,
   .decoCard,
   .content { padding-left: 20px; padding-right: 20px; margin-left: 0; margin-right: 0; }
-  .heroChips { grid-template-columns: 1fr; }
-  .heroChip { border-left: 0; padding: 8px 0; border-top: 1px solid var(--line); }
-  .heroChip:first-child { border-top: 0; padding-top: 0; }
   .decoCard { grid-template-columns: 1fr; margin-left: 16px; margin-right: 16px; padding: 16px; }
 }
 
@@ -2050,29 +1857,6 @@
     white-space: nowrap;
   }
   .navCount { display: none; }   /* nav 计数隐藏省空间 */
-
-  /* Hero: 字号更紧凑 */
-  .heroSection { padding: 28px 16px 16px; }
-  .heroTitle {
-    /* 桌面端 clamp(40,5vw,64) 在 phone 上仍偏大；保留 40-64 但 padding 缩 */
-    font-size: clamp(28px, 9vw, 40px);
-    line-height: 1;
-    margin-bottom: 10px;
-  }
-  .heroSub,
-  .heroIntro { font-size: 12px; max-width: none; }
-  .heroIntro { margin-top: 12px; }
-
-  /* HeroRight 按钮组：移到 heroTitle 下方、横排（不再绝对定位右） */
-  .heroRight {
-    position: static;
-    margin-top: 12px;
-    display: flex;
-    gap: 16px;
-    opacity: .7;
-  }
-  .heroRight a,
-  .heroRight button { padding: 4px 0; font-size: 10.5px; }
 
   /* DropZone 大块：缩 padding + icon 略小 */
   .dropZoneCard { padding: 28px 16px; }
