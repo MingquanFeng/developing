@@ -4,6 +4,247 @@
    不用展示体，避免管理时还要欣赏排版
    ============================================================ */
 
+/* ============================================================
+   Base utilities（批 1 引入；现有 262 个 class 完全保留，
+   后续批次新组件优先用这些基类，但 AlbumEditModal / 既有
+   commit 用的旧 className 仍兼容）
+   ============================================================ */
+
+/* 按钮 —— 三种语义 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+.btnPrimary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.btnPrimary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.btnSecondary {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+.btnSecondary:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.btnGhost {
+  background: transparent;
+  color: var(--ink);
+  border-color: transparent;
+}
+.btnGhost:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.btnDanger {
+  background: transparent;
+  color: var(--err);
+  border-color: var(--err);
+}
+.btnDanger:hover:not(:disabled) {
+  background: var(--err);
+  color: var(--bg);
+}
+
+/* 输入框 */
+.input {
+  height: 32px;
+  padding: 0 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 13px;
+  transition: border-color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+.input::placeholder {
+  color: var(--muted);
+}
+
+/* 卡片 */
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+
+/* 徽章 / 标签 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.badgeOk    { color: var(--ok);   border-color: var(--ok);   }
+.badgeWarn  { color: var(--warn); border-color: var(--warn); }
+.badgeErr   { color: var(--err);  border-color: var(--err);  }
+.badgeAccent{ color: var(--accent); border-color: var(--accent); }
+
+/* 字段行 —— label + 控件水平 */
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 32px;
+}
+.fieldLabel {
+  flex: 0 0 auto;
+  min-width: 80px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.fieldControl {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 工具栏 —— 用于 photos 工具栏等横向布局 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  flex-wrap: wrap;
+}
+.toolbarTitle {
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0 16px 0 0;
+}
+.toolbarSpacer { flex: 1 1 auto; }
+
+/* 页面标题 + 段标题 */
+.pageHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin: 0 0 16px;
+}
+.pageTitle {
+  font-family: var(--display);
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+  letter-spacing: .01em;
+}
+.pageSub {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* 段 / 块 */
+.section {
+  margin: 0 0 24px;
+}
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 12px;
+}
+.sectionTitle {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+}
+.sectionAction {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-decoration: none;
+}
+.sectionAction:hover { color: var(--accent-hover); }
+
+/* 空状态 */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  background: var(--surface-1);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-lg);
+  color: var(--muted);
+  text-align: center;
+  gap: 8px;
+}
+.emptyStateTitle {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+}
+.emptyStateBody {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 36ch;
+}
+
+/* 焦点环（统一可达性） */
+:where(.btn, .input, a, button, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .shell {
   max-width: 1180px;
   margin: 0 auto;

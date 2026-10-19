@@ -37,6 +37,38 @@
   /* 间距 */
   --pad-x: clamp(28px, 5vw, 80px);
   --pad-y: clamp(80px, 10vh, 160px);
+
+  /* 表面层（admin 弹层 / 卡片需要；派生自现有 palette） */
+  --surface-1:      #1F2126;   /* 比 --bg 略亮一档 */
+  --surface-2:      #2A2D34;   /* 卡片 / 工具栏背景 */
+  --surface-hover:  #2F3239;   /* 悬停态 */
+  --surface-active: #353940;   /* 选中态 / 按下态 */
+
+  /* 强调色（克制的米白偏暖，仅用于主按钮 / 选中 / 重要交互） */
+  --accent:         #D8D2C5;   /* 冷纸米白 */
+  --accent-ink:     #1C1E22;   /* accent 上文字反色 */
+  --accent-hover:   #C8C0B0;
+
+  /* 状态色（低饱和，跟现有 palette 风格一致） */
+  --ok:             #8AB87A;
+  --warn:           #D4B26A;
+  --err:            #D08585;
+  --info:           #7A9AB8;
+
+  /* 圆角 */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* 阴影（克制） */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.18);
+  --shadow-md: 0 2px 8px rgba(0,0,0,.28);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,.36);
+
+  /* 动画时长 */
+  --dur-fast:  120ms;
+  --dur-base:  200ms;
+  --dur-slow:  400ms;
 }
 
 /* ---------- RESET ---------- */
