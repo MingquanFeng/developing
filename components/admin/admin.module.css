@@ -410,6 +410,93 @@
   height: 32px;
 }
 
+/* ============================================================
+   Users tab 表格 + 新建用户卡片（批 3.4）
+   ============================================================ */
+.usersToolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 4px;
+  flex-wrap: wrap;
+}
+.userTableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  margin: 0 0 24px;
+}
+.userTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.userTableHeader {
+  background: var(--surface-2);
+  text-align: left;
+}
+.userTableHeader th {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 400;
+  white-space: nowrap;
+}
+.userTableRow {
+  border-bottom: 1px solid var(--line-2);
+  transition: background var(--dur-fast) var(--ease);
+}
+.userTableRow:last-child { border-bottom: 0; }
+.userTableRow:hover { background: var(--surface-2); }
+.userTableCell {
+  padding: 10px 14px;
+  vertical-align: middle;
+}
+.userTableCell .input { width: 100%; }
+.userTableAction {
+  text-align: right;
+  white-space: nowrap;
+}
+.userTableActionGroup {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* 新建用户卡片（替代原 .addUser 5-col grid） */
+.userAddCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  margin: 0 0 24px;
+}
+.userAddTitle {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+}
+.userAddFields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.userAddAction {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .shell {
   max-width: 1180px;
   margin: 0 auto;
@@ -1962,6 +2049,8 @@
   .photosToolbar { padding: 12px 0 8px; gap: 8px; }
   .photosSearch,
   .photosAlbumFilter { width: 100%; }
+  /* 批 3.4 Users tab: toolbar 紧凑; table 横向滚动由 .userTableWrap overflow-x: auto 处理 */
+  .usersToolbar { padding: 12px 0 4px; }
 }
 
 /* ---------- 目标相册选择器（DropZone 上方） ---------- */

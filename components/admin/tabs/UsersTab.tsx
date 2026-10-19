@@ -35,6 +35,15 @@ export default function UsersTab({ me, onSetCoverAlbum }: UsersTabProps) {
 
   return (
     <div>
+      {/* 批 3.4 新增 toolbar */}
+      <header className={styles.usersToolbar}>
+        <div className={styles.pageHeader}>
+          <h2 className={styles.pageTitle}>用户</h2>
+          <span className={styles.pageSub}>共 {u.users.length} 个</span>
+        </div>
+        <div className={styles.toolbarSpacer} />
+      </header>
+
       {u.msg ? (
         <p className={u.msg.kind === "ok" ? styles.ok : styles.err}>
           {u.msg.text}
@@ -52,7 +61,7 @@ export default function UsersTab({ me, onSetCoverAlbum }: UsersTabProps) {
           </span>
           <button
             type="button"
-            className={styles.mini}
+            className={`${styles.btn} ${styles.btnGhost}`}
             onClick={() => void u.loadUsers()}
             disabled={u.loading}
           >
@@ -83,7 +92,7 @@ export default function UsersTab({ me, onSetCoverAlbum }: UsersTabProps) {
           <span className={styles.errCardDetail}>{u.loadErr}</span>
           <button
             type="button"
-            className={styles.primary}
+            className={`${styles.btn} ${styles.btnPrimary}`}
             style={{ width: "auto", marginTop: 12, padding: "9px 20px" }}
             onClick={() => void u.loadUsers()}
             disabled={u.loading}
@@ -97,62 +106,101 @@ export default function UsersTab({ me, onSetCoverAlbum }: UsersTabProps) {
           正在加载用户列表…
         </p>
       ) : (
-        <ul className={styles.list} data-testid="users-list">
-          {u.users.length === 0 ? (
-            <li className={styles.row} style={{ borderBottom: 0 }}>
-              <span className={styles.dim}>暂无用户。</span>
-            </li>
-          ) : null}
-          {u.users.map((user) => (
-            <UserRow
-              key={user.id}
-              user={user}
-              meId={me?.id ?? null}
-              pwFor={u.pwFor}
-              pwVal={u.pwVal}
-              setPwFor={u.setPwFor}
-              setPwVal={u.setPwVal}
-              onSetDisplayName={(v) => u.setDisplayName(user, v)}
-              onResetPassword={() => u.resetPassword(user.id)}
-              onToggleDisabled={() => u.toggleDisabled(user)}
-              onGenerateLink={() => u.generateLink(user)}
-              onKick={() => u.kickUser(user)}
-              onRemove={() => u.removeUser(user)}
-              onSetCoverAlbum={onSetCoverAlbum}
-            />
-          ))}
-        </ul>
+        /* 批 3.4: ul → table 元素, 5 列表头 (语义化 + a11y) */
+        <div className={styles.userTableWrap}>
+          <table className={styles.userTable}>
+            <thead className={styles.userTableHeader}>
+              <tr>
+                <th>用户名</th>
+                <th>显示名</th>
+                <th>最近登录</th>
+                <th>状态</th>
+                <th className={styles.userTableAction}>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {u.users.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className={styles.userTableCell}>
+                    <span className={styles.dim}>暂无用户。</span>
+                  </td>
+                </tr>
+              ) : null}
+              {u.users.map((user) => (
+                <UserRow
+                  key={user.id}
+                  user={user}
+                  meId={me?.id ?? null}
+                  pwFor={u.pwFor}
+                  pwVal={u.pwVal}
+                  setPwFor={u.setPwFor}
+                  setPwVal={u.setPwVal}
+                  onSetDisplayName={(v) => u.setDisplayName(user, v)}
+                  onResetPassword={() => u.resetPassword(user.id)}
+                  onToggleDisabled={() => u.toggleDisabled(user)}
+                  onGenerateLink={() => u.generateLink(user)}
+                  onKick={() => u.kickUser(user)}
+                  onRemove={() => u.removeUser(user)}
+                  onSetCoverAlbum={onSetCoverAlbum}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
-      <form className={styles.addUser} onSubmit={u.addUser}>
-        <span className={styles.addTitle}>新建用户</span>
-        <input
-          className={styles.input}
-          value={u.nUser}
-          onChange={(e) => u.setNUser(e.target.value)}
-          placeholder="用户名（字母数字，≥3 位）"
-        />
-        <input
-          className={styles.input}
-          type="password"
-          value={u.nPass}
-          onChange={(e) => u.setNPass(e.target.value)}
-          placeholder="密码（≥8 位）"
-          autoComplete="new-password"
-        />
-        <input
-          className={styles.input}
-          value={u.nName}
-          onChange={(e) => u.setNName(e.target.value)}
-          placeholder="显示名（可选）"
-        />
-        <button
-          className={styles.primary}
-          style={{ width: "auto", marginTop: 0, padding: "9px 20px" }}
-          disabled={!u.nUser || !u.nPass}
-        >
-          创建
-        </button>
+      {/* 批 3.4: 新建用户表单从 5-col grid 升级为 .card 容器 + .fieldRow 列表 */}
+      <form className={styles.userAddCard} onSubmit={u.addUser}>
+        <h3 className={styles.userAddTitle}>新建用户</h3>
+        <div className={styles.userAddFields}>
+          <div className={styles.fieldRow}>
+            <label className={styles.fieldLabel} htmlFor="new-username">
+              用户名
+            </label>
+            <input
+              id="new-username"
+              className={styles.input}
+              value={u.nUser}
+              onChange={(e) => u.setNUser(e.target.value)}
+              placeholder="字母数字，≥3 位"
+            />
+          </div>
+          <div className={styles.fieldRow}>
+            <label className={styles.fieldLabel} htmlFor="new-password">
+              密码
+            </label>
+            <input
+              id="new-password"
+              className={styles.input}
+              type="password"
+              value={u.nPass}
+              onChange={(e) => u.setNPass(e.target.value)}
+              placeholder="≥8 位"
+              autoComplete="new-password"
+            />
+          </div>
+          <div className={styles.fieldRow}>
+            <label className={styles.fieldLabel} htmlFor="new-displayname">
+              显示名
+            </label>
+            <input
+              id="new-displayname"
+              className={styles.input}
+              value={u.nName}
+              onChange={(e) => u.setNName(e.target.value)}
+              placeholder="可选"
+            />
+          </div>
+        </div>
+        <div className={styles.userAddAction}>
+          <button
+            type="submit"
+            className={`${styles.btn} ${styles.btnPrimary}`}
+            disabled={!u.nUser || !u.nPass}
+          >
+            创建
+          </button>
+        </div>
       </form>
     </div>
   );
@@ -192,10 +240,15 @@ function UserRow({
   onRemove: () => void;
   onSetCoverAlbum: (album: Album) => void;
 }) {
+  const isMe = user.id === meId;
+  const isEditing = pwFor === user.id;
+
   return (
-    <li className={styles.row}>
-      <div className={styles.fields}>
+    <tr className={styles.userTableRow}>
+      <td className={styles.userTableCell}>
         <input className={styles.input} value={user.username} disabled />
+      </td>
+      <td className={styles.userTableCell}>
         <input
           className={styles.input}
           value={user.displayName}
@@ -203,6 +256,8 @@ function UserRow({
             await onSetDisplayName(e.target.value);
           }}
         />
+      </td>
+      <td className={styles.userTableCell}>
         <span className={styles.dim}>
           {user.lastLoginAt
             ? `最近登录 ${user.lastLoginAt
@@ -210,13 +265,18 @@ function UserRow({
                 .replace("T", " ")}${user.lastLoginIp ? ` · ${user.lastLoginIp}` : ""}`
             : "从未登录"}
         </span>
-      </div>
-
-      {user.disabled ? <span className={styles.dim}>已停用</span> : null}
-
-      <span className={styles.actions}>
-        {pwFor === user.id ? (
-          <>
+      </td>
+      <td className={styles.userTableCell}>
+        {/* 批 3.4: 状态徽章 — .badgeOk / .badgeWarn (批 1 共享) */}
+        {user.disabled ? (
+          <span className={styles.badgeWarn}>已停用</span>
+        ) : (
+          <span className={styles.badgeOk}>启用</span>
+        )}
+      </td>
+      <td className={`${styles.userTableCell} ${styles.userTableAction}`}>
+        {isEditing ? (
+          <div className={styles.fieldRow}>
             <input
               className={styles.input}
               type="password"
@@ -225,43 +285,58 @@ function UserRow({
               placeholder="新密码"
               style={{ width: 130 }}
             />
-            <button className={styles.mini} onClick={onResetPassword}>
+            <button
+              className={`${styles.btn} ${styles.btnGhost}`}
+              onClick={onResetPassword}
+            >
               保存
             </button>
-            <button className={styles.mini} onClick={() => setPwFor(null)}>
+            <button
+              className={`${styles.btn} ${styles.btnGhost}`}
+              onClick={() => setPwFor(null)}
+            >
               取消
             </button>
-          </>
+          </div>
         ) : (
-          <>
-            <button className={styles.mini} onClick={() => setPwFor(user.id)}>
+          <div className={styles.userTableActionGroup}>
+            <button
+              className={`${styles.btn} ${styles.btnGhost}`}
+              onClick={() => setPwFor(user.id)}
+            >
               改密码
             </button>
-            <button className={styles.mini} onClick={onGenerateLink}>
-              生成重置链接
+            <button
+              className={`${styles.btn} ${styles.btnGhost}`}
+              onClick={onGenerateLink}
+            >
+              重置链接
             </button>
-            <button className={styles.mini} onClick={onToggleDisabled}>
+            <button
+              className={`${styles.btn} ${styles.btnGhost}`}
+              onClick={onToggleDisabled}
+            >
               {user.disabled ? "启用" : "停用"}
             </button>
             <button
-              className={styles.miniDanger}
+              className={`${styles.btn} ${styles.btnDanger}`}
               onClick={onKick}
-              disabled={user.id === meId}
-              title={user.id === meId ? "不能吊销自己的会话" : undefined}
+              disabled={isMe}
+              title={isMe ? "不能吊销自己的会话" : undefined}
             >
-              踢出此账号
+              踢出
             </button>
             <button
-              className={styles.miniDanger}
+              className={`${styles.btn} ${styles.btnDanger}`}
               onClick={onRemove}
-              disabled={user.id === meId}
-              title={user.id === meId ? "不能删除当前登录的账号" : undefined}
+              disabled={isMe}
+              title={isMe ? "不能删除当前登录的账号" : undefined}
             >
               删除
             </button>
-          </>
+          </div>
         )}
-      </span>
-    </li>
+      </td>
+    </tr>
   );
 }
