@@ -420,6 +420,84 @@ export default function AdminShell(props: AdminShellProps) {
               busy={false}
               pending={pendingCount}
             />
+
+            {/* 批 3.1：照片空间概览（4 个 stat card）+ 最近照片网格。
+                recentPhotos / thumbUrls 已在上面 hook 算好 + useEffect 拿签名 URL,
+                这里直接复用,不另开 fetch。data.updatedAt 是 manifest 顶层 ISO,
+                渲染时 formatUpdatedAt 转 YYYY-MM-DD HH:MM,失败 fallback "—"。 */}
+            <section className={styles.homeStats} aria-label="照片空间概览">
+              <header className={styles.pageHeader}>
+                <h2 className={styles.pageTitle}>照片空间</h2>
+                <span className={styles.pageSub}>
+                  最后更新 {formatUpdatedAt(data.updatedAt)}
+                </span>
+              </header>
+              <div className={styles.statGrid}>
+                <article className={`${styles.card} ${styles.statCard}`}>
+                  <span className={styles.statValue}>{photoCount}</span>
+                  <span className={styles.statLabel}>照片</span>
+                </article>
+                <article className={`${styles.card} ${styles.statCard}`}>
+                  <span className={styles.statValue}>{albumCount}</span>
+                  <span className={styles.statLabel}>相册</span>
+                </article>
+                <article className={`${styles.card} ${styles.statCard}`}>
+                  <span className={styles.statValue}>{trashedCount}</span>
+                  <span className={styles.statLabel}>回收站</span>
+                </article>
+                <article className={`${styles.card} ${styles.statCard}`}>
+                  <span className={styles.statValue}>{myAlbums.length}</span>
+                  <span className={styles.statLabel}>我的相册</span>
+                </article>
+              </div>
+            </section>
+
+            <section className={styles.section} aria-label="最近照片">
+              <header className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>最近照片</h2>
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnGhost}`}
+                  onClick={() => onTab("photos")}
+                >
+                  查看全部 →
+                </button>
+              </header>
+              {recentPhotos.length > 0 ? (
+                <div className={styles.recentGrid}>
+                  {recentPhotos.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`${styles.card} ${styles.recentCell}`}
+                      onClick={() => onTab("photos")}
+                      aria-label={`查看 ${p.title || p.id}`}
+                    >
+                      <div className={styles.recentThumb}>
+                        {thumbUrls[p.id] ? (
+                          <img src={thumbUrls[p.id]} alt="" loading="lazy" />
+                        ) : null}
+                      </div>
+                      <div className={styles.recentMeta}>
+                        <span className={styles.recentTitle}>
+                          {p.title || "未命名"}
+                        </span>
+                        <span className={styles.recentDate}>
+                          {p.shotAt || "—"}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.emptyState}>
+                  <h3 className={styles.emptyStateTitle}>还没有照片</h3>
+                  <p className={styles.emptyStateBody}>
+                    拖文件到上方 DropZone 上传，或点上传区按钮选择文件。
+                  </p>
+                </div>
+              )}
+            </section>
           </>
         ) : null}
 
@@ -655,4 +733,14 @@ function CoversPanel({
       ))}
     </section>
   );
+}
+
+/* ---------- helpers (本文件内部使用) ---------- */
+
+/** ISO 字符串 → "YYYY-MM-DD HH:MM"，失败 / 空 fallback "—" */
+function formatUpdatedAt(iso: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }

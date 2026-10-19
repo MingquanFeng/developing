@@ -245,6 +245,105 @@
   outline-offset: 2px;
 }
 
+/* ============================================================
+   Home tab 概览 + 最近照片（批 3.1）
+   ============================================================ */
+.homeStats {
+  padding: 8px 24px 0;
+  margin: 0;
+}
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 8px;
+}
+.statCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+}
+.statValue {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: .01em;
+  color: var(--ink);
+  line-height: 1.1;
+}
+.statLabel {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.recentGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 24px 24px;
+}
+.recentCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
+  font: inherit;
+  color: inherit;
+}
+.recentCell:hover {
+  border-color: var(--ink);
+  background: var(--surface-2);
+}
+.recentCell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.recentThumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--surface-2);
+  position: relative;
+  overflow: hidden;
+}
+.recentThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.recentMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+}
+.recentTitle {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recentDate {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  color: var(--muted);
+}
+
 .shell {
   max-width: 1180px;
   margin: 0 auto;
@@ -1754,6 +1853,11 @@
   .decoCard,
   .content { padding-left: 20px; padding-right: 20px; margin-left: 0; margin-right: 0; }
   .decoCard { grid-template-columns: 1fr; margin-left: 16px; margin-right: 16px; padding: 16px; }
+  /* 批 3.1 Home tab: 概览 + 最近照片 mobile 改 2 列 */
+  .statGrid,
+  .recentGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .homeStats,
+  .recentGrid { padding-left: 16px; padding-right: 16px; margin-left: 0; margin-right: 0; }
 }
 
 /* ---------- 目标相册选择器（DropZone 上方） ---------- */
