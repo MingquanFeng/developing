@@ -116,10 +116,10 @@ export default function PhotoRow({
 
       {inTrash ? (
         <span className={styles.actions}>
-          <button className={styles.mini} onClick={onRestore}>
+          <button className={`${styles.btn} ${styles.btnGhost}`} onClick={onRestore}>
             恢复
           </button>
-          <button className={styles.miniDanger} onClick={onPurge}>
+          <button className={`${styles.btn} ${styles.btnDanger}`} onClick={onPurge}>
             彻底删除
           </button>
         </span>

@@ -427,21 +427,21 @@ function EditLightbox({
 
   return (
     <div
-      className={styles.adminEdit__backdrop}
+      className={styles.modalBackdrop}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="编辑照片"
     >
       <div
-        className={styles.adminEdit}
+        className={`${styles.modal} ${styles.modalWide}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 左：大图 */}
-        <div className={styles.adminEdit__media}>
+        <div className={styles.modalMedia}>
           <button
             type="button"
-            className={styles.adminEdit__nav}
+            className={`${styles.btn} ${styles.btnGhost} ${styles.modalMediaNav}`}
             onClick={onPrev}
             aria-label="上一张"
           >
@@ -454,7 +454,7 @@ function EditLightbox({
           )}
           <button
             type="button"
-            className={`${styles.adminEdit__nav} ${styles["adminEdit__nav--right"] ?? ""}`}
+            className={`${styles.btn} ${styles.btnGhost} ${styles.modalMediaNav} ${styles.modalMediaNavRight}`}
             onClick={onNext}
             aria-label="下一张"
           >
@@ -463,9 +463,9 @@ function EditLightbox({
         </div>
 
         {/* 右：编辑表单 */}
-        <aside className={styles.adminEdit__side}>
-          <header className={styles.adminEdit__head}>
-            <h2>编辑照片</h2>
+        <aside className={styles.modalSide}>
+          <header className={styles.modalHead}>
+            <h2 className={styles.modalTitle}>编辑照片</h2>
             <button
               type="button"
               onClick={onClose}
@@ -476,48 +476,51 @@ function EditLightbox({
             </button>
           </header>
 
-          <label className={styles.adminEdit__field}>
-            <span>标题</span>
+          <div className={styles.fieldRow}>
+            <label className={styles.fieldLabel} htmlFor="ep-title">标题</label>
             <input
+              id="ep-title"
               type="text"
+              className={styles.input}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={inTrash}
             />
-          </label>
+          </div>
 
-          <label className={styles.adminEdit__field}>
-            <span>地点</span>
+          <div className={styles.fieldRow}>
+            <label className={styles.fieldLabel} htmlFor="ep-place">地点</label>
             <input
+              id="ep-place"
               type="text"
+              className={styles.input}
               value={place}
               onChange={(e) => setPlace(e.target.value)}
               placeholder="拍摄地点"
               disabled={inTrash}
             />
-          </label>
+          </div>
 
-          <label className={styles.adminEdit__field}>
-            <span>简介</span>
+          <div className={styles.fieldRow}>
+            <label className={styles.fieldLabel} htmlFor="ep-caption">简介</label>
             <textarea
+              id="ep-caption"
+              className={styles.input}
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder="作品的说明"
               rows={4}
               disabled={inTrash}
+              style={{ height: "auto", minHeight: 80 }}
             />
-          </label>
+          </div>
 
-          <label className={styles.adminEdit__field}>
-            <span>所在相册</span>
-            <div
-              style={{
-                display: "flex",
-                gap: 6,
-                alignItems: "stretch",
-              }}
-            >
+          <div className={styles.fieldRow}>
+            <label className={styles.fieldLabel} htmlFor="ep-album">所在相册</label>
+            <div className={styles.fieldControl} style={{ display: "flex", gap: 6 }}>
               <select
+                id="ep-album"
+                className={styles.input}
                 value={albumId}
                 onChange={(e) => setAlbumId(e.target.value)}
                 disabled={inTrash}
@@ -532,7 +535,7 @@ function EditLightbox({
               {onJumpAlbums ? (
                 <button
                   type="button"
-                  className={styles.mini}
+                  className={`${styles.btn} ${styles.btnGhost}`}
                   onClick={onJumpAlbums}
                   disabled={inTrash}
                   title="去相册 tab 建/改/删"
@@ -541,22 +544,25 @@ function EditLightbox({
                 </button>
               ) : null}
             </div>
-          </label>
+          </div>
 
-          <label className={styles.adminEdit__checkRow}>
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-              disabled={inTrash}
-            />
-            <span>公开（出现在 /album 瀑布流）</span>
-          </label>
+          <div className={styles.fieldRow}>
+            <label className={styles.checkRow} htmlFor="ep-public">
+              <input
+                id="ep-public"
+                type="checkbox"
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+                disabled={inTrash}
+              />
+              <span>公开（出现在 /album 瀑布流）</span>
+            </label>
+          </div>
 
-          <footer className={styles.adminEdit__foot}>
+          <footer className={styles.modalFoot}>
             <button
               type="button"
-              className={styles.adminEdit__save}
+              className={`${styles.btn} ${styles.btnPrimary}`}
               onClick={save}
               disabled={inTrash}
             >
@@ -565,7 +571,7 @@ function EditLightbox({
             {!inTrash ? (
               <button
                 type="button"
-                className={`${styles.adminEdit__btn} ${styles["adminEdit__btn--danger"] ?? ""}`}
+                className={`${styles.btn} ${styles.btnDanger}`}
                 onClick={onMoveTrash}
               >
                 移到回收站
@@ -574,14 +580,14 @@ function EditLightbox({
               <>
                 <button
                   type="button"
-                  className={styles.adminEdit__btn}
+                  className={`${styles.btn} ${styles.btnGhost}`}
                   onClick={onRestore}
                 >
                   恢复
                 </button>
                 <button
                   type="button"
-                  className={`${styles.adminEdit__btn} ${styles["adminEdit__btn--danger"] ?? ""}`}
+                  className={`${styles.btn} ${styles.btnDanger}`}
                   onClick={onPurge}
                 >
                   彻底删除

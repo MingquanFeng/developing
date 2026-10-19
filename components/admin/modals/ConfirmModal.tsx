@@ -73,7 +73,7 @@ export default function ConfirmModal({
         >
           <button
             type="button"
-            className={styles.ghost}
+            className={`${styles.btn} ${styles.btnGhost}`}
             onClick={onCancel}
             disabled={busy}
           >
@@ -81,7 +81,7 @@ export default function ConfirmModal({
           </button>
           <button
             type="button"
-            className={danger ? `${styles.mini} ${styles.miniDanger}` : styles.mini}
+            className={`${styles.btn} ${danger ? styles.btnDanger : styles.btnPrimary}`}
             onClick={onConfirm}
             disabled={busy}
           >
