@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# 防止 hang CI runner —— 同 branch 新 push 自动取消旧 run
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: typecheck + test + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test (vitest)
+        run: npx vitest run
+
+      - name: Build
+        # 离线构建 (不连真实 COS / 后端): 设占位 ENV 让 Next.js 不报运行时错误
+        run: |
+          COS_BUCKET=test \
+          COS_REGION=test \
+          COS_SECRET_ID=test \
+          COS_SECRET_KEY=test \
+          SESSION_SECRET=$(node -e "console.log('test'.repeat(12))") \
+          npm run build
+
+      - name: api-paths lint (smoke)
+        # 维护脚本: 检查 /api/* 路径是否在 client bundle 里被硬编码
+        # 失败通常代表有未走 admin-api SDK 的裸 fetch
+        run: npm run lint:api-paths
