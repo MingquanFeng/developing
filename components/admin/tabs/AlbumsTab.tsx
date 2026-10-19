@@ -57,6 +57,28 @@ export default function AlbumsTab({
      直接走 flat 列表 */
   const flatAlbums: readonly Album[] = albums;
 
+  /* 批 3.3: 排序 (按名称字典序 / 按更新时间近似)
+     Album contract 无 createdAt / updatedAt 字段, "更新时间"fallback 用
+     该相册内 photos 数组最大 id 字符码 (项目习惯 photoId 按时间序生成) */
+  const [sortKey, setSortKey] = useState<"name" | "updated">("name");
+  const sortedAlbums = useMemo(() => {
+    const list = [...flatAlbums];
+    if (sortKey === "name") {
+      list.sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
+    } else {
+      list.sort((a, b) => {
+        const aMax = photos
+          .filter((p) => p.albumId === a.id)
+          .reduce((m, p) => Math.max(m, p.id.charCodeAt(0)), 0);
+        const bMax = photos
+          .filter((p) => p.albumId === b.id)
+          .reduce((m, p) => Math.max(m, p.id.charCodeAt(0)), 0);
+        return bMax - aMax;
+      });
+    }
+    return list;
+  }, [flatAlbums, photos, sortKey]);
+
   /* ---------- 瀑布流列数 + 每张卡的 span ---------- */
   const gridRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -108,60 +130,73 @@ export default function AlbumsTab({
         </p>
       ) : null}
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginTop: 4,
-          marginBottom: 18,
-        }}
-      >
-        <span className={styles.addTitle}>
-          相册 {albums.length}
-        </span>
-        <button
-          type="button"
-          className={styles.primary}
-          onClick={onCreate}
-          style={{
-            width: "auto",
-            marginTop: 0,
-            padding: "8px 18px",
-            marginLeft: "auto",
-          }}
-        >
-          新建相册
-        </button>
-      </div>
+      <section className={styles.albumsSection}>
+        <header className={styles.albumsToolbar}>
+          <div className={styles.pageHeader}>
+            <h2 className={styles.pageTitle}>相册</h2>
+            <span className={styles.pageSub}>共 {albums.length} 个</span>
+          </div>
+          <div className={styles.toolbarSpacer} />
+          <select
+            className={`${styles.input} ${styles.albumsSort}`}
+            value={sortKey}
+            onChange={(e) =>
+              setSortKey(e.target.value as "name" | "updated")
+            }
+            aria-label="排序"
+          >
+            <option value="name">按名称</option>
+            <option value="updated">按更新时间</option>
+          </select>
+          <button
+            type="button"
+            className={`${styles.btn} ${styles.btnPrimary}`}
+            onClick={onCreate}
+          >
+            + 新建相册
+          </button>
+        </header>
 
-      {flatAlbums.length === 0 ? (
-        <p className={styles.muted}>还没有相册，点上面「新建相册」开始。</p>
-      ) : (
-        <div
-          className={styles.adminGrid}
-          style={
-            {
-              "--cols": cols,
-              "--gap": `${gap}px`,
-              marginTop: 0,
-            } as React.CSSProperties
-          }
-        >
-          {flatAlbums.map((a) => (
-            <AlbumCard
-              key={a.id}
-              album={a}
-              photos={photos}
-              rowSpan={spanByAlbum.get(a.id) ?? 30}
-              onEdit={onEdit}
-              onSetCover={onSetCover}
-              onDelete={onDelete}
-              onDeleteConfirm={onDeleteConfirm}
-            />
-          ))}
-        </div>
-      )}
+        {flatAlbums.length === 0 ? (
+          <div className={styles.emptyState}>
+            <h3 className={styles.emptyStateTitle}>还没有相册</h3>
+            <p className={styles.emptyStateBody}>
+              点上方「新建相册」开始分组管理照片。
+            </p>
+            <button
+              type="button"
+              className={`${styles.btn} ${styles.btnPrimary}`}
+              onClick={onCreate}
+            >
+              + 新建相册
+            </button>
+          </div>
+        ) : (
+          <div
+            className={styles.adminGrid}
+            style={
+              {
+                "--cols": cols,
+                "--gap": `${gap}px`,
+                marginTop: 0,
+              } as React.CSSProperties
+            }
+          >
+            {sortedAlbums.map((a) => (
+              <AlbumCard
+                key={a.id}
+                album={a}
+                photos={photos}
+                rowSpan={spanByAlbum.get(a.id) ?? 30}
+                onEdit={onEdit}
+                onSetCover={onSetCover}
+                onDelete={onDelete}
+                onDeleteConfirm={onDeleteConfirm}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -199,9 +234,15 @@ function AlbumCard({
     );
   }, [album.coverKey, album.id, photos]);
 
+  /* 批 3.3: 照片数显式 (spec 要) */
+  const photoCount = useMemo(
+    () => photos.filter((p) => p.albumId === album.id && !p.trashedAt).length,
+    [photos, album.id],
+  );
+
   return (
     <figure
-      className={styles.adminCell}
+      className={`${styles.adminCell} ${styles["adminCell--alwaysCaption"] ?? ""}`}
       style={{ "--span": rowSpan } as React.CSSProperties}
     >
       <button
@@ -217,8 +258,12 @@ function AlbumCard({
         )}
       </button>
 
+      {/* 批 3.3: caption 始终可见, 不再 hover 触发 (CSS 同步改 .adminCell__caption opacity 1) */}
       <figcaption className={styles.adminCell__caption}>
-        <span className={styles.adminCell__title}>{album.name}</span>
+        <div className={styles.adminCell__captionRow}>
+          <span className={styles.adminCell__title}>{album.name}</span>
+          <span className={styles.albumCount}>{photoCount} 张</span>
+        </div>
 
         <div className={styles.adminCell__actions}>
           {onSetCover ? (

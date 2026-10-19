@@ -390,6 +390,26 @@
   max-width: 44ch;
 }
 
+/* ============================================================
+   Albums tab toolbar（批 3.3）
+   ============================================================ */
+.albumsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.albumsToolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 4px;
+  flex-wrap: wrap;
+}
+.albumsSort {
+  width: 160px;
+  height: 32px;
+}
+
 .shell {
   max-width: 1180px;
   margin: 0 auto;
@@ -1063,6 +1083,40 @@
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
+}
+
+/* 批 3.3: Albums 卡片 caption 始终可见 (mod, 不影响 photos 网格 hover 行为)
+   Albums 显式加 .adminCell--alwaysCaption, photos 网格不沾 */
+.adminCell--alwaysCaption .adminCell__caption,
+.adminCell--alwaysCaption:hover .adminCell__caption,
+.adminCell--alwaysCaption:focus-within .adminCell__caption {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 10, 14, 0) 0%,
+    rgba(8, 10, 14, .55) 40%,
+    rgba(8, 10, 14, .85) 100%
+  );
+}
+
+/* caption 内部 row 布局: 标题左 + 计数右 */
+.adminCell__captionRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.albumCount {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  color: var(--paper);
+  flex: 0 0 auto;
+  white-space: nowrap;
+  opacity: .9;
 }
 
 /* ---------- AlbumsTab intro ---------- */
