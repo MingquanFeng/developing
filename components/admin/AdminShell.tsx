@@ -172,7 +172,12 @@ export default function AdminShell(props: AdminShellProps) {
 
   /* 顶部 decoCard 缩略图：取自己最近 3 张非回收站 photo，签名 URL 走
      fetchPhotoUrl（15min TTL 缓存 + 自动刷新），失败 fallback 留空 src
-     让 .decoPhoto 渐变背景兜底。0 张时不渲染 decoStack 段。 */
+     让 .decoPhoto 渐变背景兜底。0 张时不渲染 decoStack 段。
+
+     坑：scoped.photos 每次 render 都是新数组（filter 出来的），
+     直接 useMemo[scoped.photos] 引用每次都变 → useEffect[recentPhotos]
+     每次都跑 → setThumbUrls 触发 re-render → 死循环。改成"按 photoId
+     序列化的字符串"做依赖，引用稳定。 */
   const recentPhotos = useMemo(
     () => scoped.photos.filter((p) => !p.trashedAt).slice(0, 3),
     [scoped.photos],
@@ -184,7 +189,7 @@ export default function AdminShell(props: AdminShellProps) {
       recentPhotos.map(async (p) => {
         try {
           const url = await fetchPhotoUrl(p.id, "thumb");
-          return [p.id, url] as const;
+          return [p.id, url ?? ""] as const;
         } catch {
           return [p.id, ""] as const;
         }
@@ -192,13 +197,14 @@ export default function AdminShell(props: AdminShellProps) {
     ).then((entries) => {
       if (cancelled) return;
       const next: Record<string, string> = {};
-      for (const [id, url] of entries) next[id] = url ?? "";
+      for (const [id, url] of entries) next[id] = url;
       setThumbUrls(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [recentPhotos]);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [recentPhotos.map((p) => p.id).join("|")]);
 
   /* sidebar nav 项（按角色裁剪）：
      viewer：home / photos / albums 三项；
