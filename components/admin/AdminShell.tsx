@@ -498,9 +498,9 @@ export default function AdminShell(props: AdminShellProps) {
                         ) : null}
                       </div>
                       <div className={styles.recentMeta}>
-                        <span className={styles.recentTitle}>
-                          {p.title || "未命名"}
-                        </span>
+                        {/* 首页最近照片卡片不显文件名 (Photo.title
+                            默认是 file.name 去后缀 — 用户不要)
+                            只留 shotAt; title 字段保留供 photos 网格用 */}
                         <span className={styles.recentDate}>
                           {p.shotAt || "—"}
                         </span>
