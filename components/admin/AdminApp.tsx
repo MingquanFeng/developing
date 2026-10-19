@@ -342,7 +342,11 @@ export default function AdminApp({ initialMe = null }: AdminAppProps = {}) {
      session.status === 'authed' && session.me 非空。 */
   const visiblePhotoIds = useMemo(
     () => {
-      const meId = session.me!.id;
+      /* useMemo 早于三态 early return 定义,不能假设 session.me 非空。
+         anonymous / loading 时返回空数组 —— 全选/移入回收站按钮自然
+         因 liveSelectedCount=0 不显示,逻辑层无副作用。 */
+      const meId = session.me?.id;
+      if (!meId) return [];
       return manifest.data.photos
         .filter((p) => p.ownerId === meId)
         .filter((p) =>
