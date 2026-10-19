@@ -264,19 +264,6 @@ export default function AlbumEditModal({
                     : undefined
                 }
               />
-              {mode === "create" ? (
-                <small
-                  style={{
-                    fontFamily: "var(--mono)",
-                    fontSize: 10.5,
-                    letterSpacing: ".1em",
-                    opacity: 0.5,
-                    marginTop: 2,
-                  }}
-                >
-                  id: {previewId || "—"}
-                </small>
-              ) : null}
             </div>
           </div>
 
