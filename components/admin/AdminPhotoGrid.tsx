@@ -476,7 +476,7 @@ function EditLightbox({
             </button>
           </header>
 
-          <div className={styles.fieldRow}>
+          <div className={styles.modalField}>
             <label className={styles.fieldLabel} htmlFor="ep-title">标题</label>
             <input
               id="ep-title"
@@ -488,7 +488,7 @@ function EditLightbox({
             />
           </div>
 
-          <div className={styles.fieldRow}>
+          <div className={styles.modalField}>
             <label className={styles.fieldLabel} htmlFor="ep-place">地点</label>
             <input
               id="ep-place"
@@ -501,7 +501,7 @@ function EditLightbox({
             />
           </div>
 
-          <div className={styles.fieldRow}>
+          <div className={styles.modalField}>
             <label className={styles.fieldLabel} htmlFor="ep-caption">简介</label>
             <textarea
               id="ep-caption"
@@ -515,7 +515,7 @@ function EditLightbox({
             />
           </div>
 
-          <div className={styles.fieldRow}>
+          <div className={styles.modalField}>
             <label className={styles.fieldLabel} htmlFor="ep-album">所在相册</label>
             <div className={styles.fieldControl} style={{ display: "flex", gap: 6 }}>
               <select
@@ -546,7 +546,7 @@ function EditLightbox({
             </div>
           </div>
 
-          <div className={styles.fieldRow}>
+          <div className={styles.modalField}>
             <label className={styles.checkRow} htmlFor="ep-public">
               <input
                 id="ep-public"

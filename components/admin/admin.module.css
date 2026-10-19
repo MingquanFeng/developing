@@ -142,6 +142,24 @@
   min-width: 0;
 }
 
+/* 批 4 hotfix: modal 上下文用 .modalField (vertical 堆叠)
+   .fieldRow 是 horizontal (页面级表单宽, label 80px 在左), 模态右侧
+   panel 仅 280-360px 宽放不下 label+control, 改 vertical */
+.modalField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 18px 0;
+}
+.modalField .fieldLabel {
+  flex: none;
+  min-width: 0;
+}
+.modalField .fieldControl {
+  flex: none;
+  width: 100%;
+}
+
 /* 工具栏 —— 用于 photos 工具栏等横向布局 */
 .toolbar {
   display: flex;

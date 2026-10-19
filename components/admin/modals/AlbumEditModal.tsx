@@ -230,7 +230,7 @@ export default function AlbumEditModal({
             </button>
           </header>
 
-          <div className={styles.fieldRow}>
+          <div className={styles.modalField}>
             <label className={styles.fieldLabel} htmlFor="alb-name">名称</label>
             <input
               id="alb-name"
@@ -244,7 +244,7 @@ export default function AlbumEditModal({
             />
           </div>
 
-          <div className={styles.fieldRow}>
+          <div className={styles.modalField}>
             <label className={styles.fieldLabel} htmlFor="alb-slug">slug</label>
             <div className={styles.fieldControl}>
               <input
@@ -280,7 +280,7 @@ export default function AlbumEditModal({
             </div>
           </div>
 
-          <div className={styles.fieldRow}>
+          <div className={styles.modalField}>
             <label className={styles.fieldLabel} htmlFor="alb-desc">简介</label>
             <textarea
               id="alb-desc"
@@ -294,7 +294,7 @@ export default function AlbumEditModal({
             />
           </div>
 
-          <div className={styles.fieldRow}>
+          <div className={styles.modalField}>
             <label className={styles.fieldLabel} htmlFor="alb-cover">封面</label>
             <div
               className={styles.fieldControl}
@@ -353,7 +353,7 @@ export default function AlbumEditModal({
           </div>
 
           {mode === "edit" && photos.length > 0 ? (
-            <div className={styles.fieldRow}>
+            <div className={styles.modalField}>
               <label className={styles.fieldLabel}>
                 该相册照片（前 {Math.min(8, photos.length)} 张）
               </label>
