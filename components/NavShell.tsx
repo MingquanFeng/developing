@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import { site, SECTION_IDS } from "@/lib/data";
 import type { PublicUser } from "@/lib/album-client";
+import { logoutSession } from "@/lib/admin-api";
 import styles from "./Nav.module.css";
 
 /* 移动端断点与 .module.css @media 对齐 */
@@ -317,10 +318,7 @@ function LogoutButton({
       className={danger ? styles["nav__usermenu-danger"] ?? "" : ""}
       onClick={() => {
         if (onAfter) onAfter();
-        fetch(`/api/logout`, {
-          method: "POST",
-          credentials: "same-origin",
-        })
+        void logoutSession()
           .catch(() => {})
           .finally(() => {
             window.location.reload();
