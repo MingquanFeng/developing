@@ -756,7 +756,6 @@ export default function AdminShell(props: AdminShellProps) {
             <CoversPanel
               data={data}
               onOpenCover={onOpenCover}
-              meId={me.id}
             />
           </section>
         ) : null}
@@ -772,35 +771,49 @@ export default function AdminShell(props: AdminShellProps) {
 function CoversPanel({
   data,
   onOpenCover,
-  meId,
 }: {
   data: Manifest;
   onOpenCover: (a: Album) => void;
-  meId: string;
 }) {
-  void meId;
   return (
-    <section className={styles.albumSec}>
-      <span className={styles.addTitle}>首页作品集封面</span>
-      {data.albums.map((a) => (
-        <div key={a.id} className={styles.albumRow}>
-          <span className={styles.albumName}>{a.name}</span>
-          <span className={styles.albumSlug}>/{a.slug}</span>
-          <span className={styles.albumCover}>
-            {a.coverKey
-              ? data.photos.find((p) => p.key === a.coverKey)?.title ??
-                a.coverKey
-              : "（未设）"}
-          </span>
-          <button
-            type="button"
-            className={styles.mini}
-            onClick={() => onOpenCover(a)}
-          >
-            {a.coverKey ? "改封面" : "设封面"}
-          </button>
+    <section className={styles.content}>
+      {/* 批 3.5: pageHeader + section + card 模式, 与 Albums/Users/Photos tab 视觉一致 */}
+      <header className={styles.pageHeader}>
+        <h2 className={styles.pageTitle}>系统设置</h2>
+        <span className={styles.pageSub}>首页作品集封面</span>
+      </header>
+
+      <section className={styles.section} aria-label="首页作品集封面">
+        <header className={styles.sectionHeader}>
+          <h3 className={styles.sectionTitle}>封面管理</h3>
+        </header>
+        <div className={styles.coversList}>
+          {data.albums.map((a) => (
+            <article
+              key={a.id}
+              className={`${styles.card} ${styles.coversRow}`}
+            >
+              <div className={styles.coversMeta}>
+                <span className={styles.coversName}>{a.name}</span>
+                <span className={styles.coversSlug}>/{a.slug}</span>
+                <span className={styles.coversCoverText}>
+                  {a.coverKey
+                    ? data.photos.find((p) => p.key === a.coverKey)?.title ??
+                      a.coverKey
+                    : "（未设封面）"}
+                </span>
+              </div>
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnGhost}`}
+                onClick={() => onOpenCover(a)}
+              >
+                {a.coverKey ? "改封面" : "设封面"}
+              </button>
+            </article>
+          ))}
         </div>
-      ))}
+      </section>
     </section>
   );
 }
