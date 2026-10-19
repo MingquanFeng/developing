@@ -36,7 +36,9 @@ export type AdminPhotoGridProps = {
 };
 
 /** 与 AlbumBrowser 一致的瀑布流列数/间距策略 */
-const COLS_AT_WIDTH = (w: number) => (w < 700 ? 2 : w < 1000 ? 3 : w < 1400 ? 4 : 5);
+/* 批 3.2: 1280+ 起步默认 4 列(spec 要桌面 4 列),不再 5 列过密
+   移动端渐进: <480 → 1 列, <768 → 2 列, <1024 → 3 列, ≥1024 → 4 列 */
+const COLS_AT_WIDTH = (w: number) => (w < 480 ? 1 : w < 768 ? 2 : w < 1024 ? 3 : 4);
 const GAP_AT_WIDTH = (w: number) => (w < 700 ? 10 : w < 1000 ? 14 : 20);
 
 /** grid-auto-rows 步长（px），与 admin.module.css 的 .adminGrid 一致 */

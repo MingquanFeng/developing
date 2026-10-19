@@ -145,6 +145,12 @@ export default function AdminShell(props: AdminShellProps) {
     photos: data.photos.filter((p) => p.ownerId === me.id),
   };
 
+  /* 批 3.2 新增: photos tab 客户端搜索 + 按相册筛选 (无后端,
+     仅 client-side 过滤 title/caption/place + albumId)
+     必须在 visible 之前声明 (visible useMemo 引用) */
+  const [photoSearch, setPhotoSearch] = useState("");
+  const [photoAlbumFilter, setPhotoAlbumFilter] = useState("");
+
   /* photos tab 子筛选：all → 非回收站；trash → 仅回收站 */
   const photoSubtab: "all" | "trash" =
     tab === "photos" ? photoFilter : "all";
@@ -163,9 +169,21 @@ export default function AdminShell(props: AdminShellProps) {
     ).length;
   }, [scoped.photos, selectedIds, photoSubtab]);
 
-  const visible = (scoped.photos).filter((p) =>
-    photoSubtab === "all" ? !p.trashedAt : !!p.trashedAt,
-  );
+  const visible = useMemo(() => {
+    const base = scoped.photos.filter((p) =>
+      photoSubtab === "all" ? !p.trashedAt : !!p.trashedAt,
+    );
+    const q = photoSearch.trim().toLowerCase();
+    return base
+      .filter((p) => !photoAlbumFilter || p.albumId === photoAlbumFilter)
+      .filter(
+        (p) =>
+          !q ||
+          p.title?.toLowerCase().includes(q) ||
+          p.caption?.toLowerCase().includes(q) ||
+          p.place?.toLowerCase().includes(q),
+      );
+  }, [scoped.photos, photoSubtab, photoSearch, photoAlbumFilter]);
   const trashedCount = scoped.photos.filter((p) => !!p.trashedAt).length;
   const photoCount = scoped.photos.length - trashedCount;
   const albumCount = scoped.albums.length;
@@ -182,6 +200,7 @@ export default function AdminShell(props: AdminShellProps) {
     () => scoped.photos.filter((p) => !p.trashedAt).slice(0, 3),
     [scoped.photos],
   );
+
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   useEffect(() => {
     let cancelled = false;
@@ -510,9 +529,43 @@ export default function AdminShell(props: AdminShellProps) {
           </section>
         ) : null}
 
-        {/* ---------- photos tab: 子筛选 + 瀑布 ---------- */}
+        {/* ---------- photos tab: toolbar + 子筛选 + 瀑布 ---------- */}
         {tab === "photos" ? (
           <section className={styles.content}>
+            {/* 批 3.2 新增：toolbar 段（pageHeader + 搜索 + 相册筛选） */}
+            <header className={styles.photosToolbar}>
+              <div className={styles.pageHeader}>
+                <h2 className={styles.pageTitle}>照片</h2>
+                <span className={styles.pageSub}>
+                  {liveSelectedCount > 0
+                    ? `已选 ${liveSelectedCount} / ${photoCount}`
+                    : `共 ${photoCount} 张`}
+                </span>
+              </div>
+              <div className={styles.toolbarSpacer} />
+              <input
+                type="search"
+                className={`${styles.input} ${styles.photosSearch}`}
+                placeholder="搜索标题、说明、地点…"
+                value={photoSearch}
+                onChange={(e) => setPhotoSearch(e.target.value)}
+                aria-label="搜索照片"
+              />
+              <select
+                className={`${styles.input} ${styles.photosAlbumFilter}`}
+                value={photoAlbumFilter}
+                onChange={(e) => setPhotoAlbumFilter(e.target.value)}
+                aria-label="按相册筛选"
+              >
+                <option value="">所有相册</option>
+                {scoped.albums.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </header>
+
             <div className={styles.subTabs}>
               <label
                 className={`${styles.subTabSelectAll} ${
@@ -542,13 +595,13 @@ export default function AdminShell(props: AdminShellProps) {
                 </span>
               </label>
               <button
-                className={`${styles.subTabBtn} ${photoSubtab === "all" ? styles.subTabOn : ""}`}
+                className={`${styles.btn} ${styles.subTabBtn} ${photoSubtab === "all" ? styles.subTabOn : ""}`}
                 onClick={() => setPhotoFilter("all")}
               >
                 全部 {photoCount}
               </button>
               <button
-                className={`${styles.subTabBtn} ${photoSubtab === "trash" ? styles.subTabOn : ""}`}
+                className={`${styles.btn} ${styles.subTabBtn} ${photoSubtab === "trash" ? styles.subTabOn : ""}`}
                 onClick={() => setPhotoFilter("trash")}
               >
                 回收站 {trashedCount}
@@ -556,15 +609,13 @@ export default function AdminShell(props: AdminShellProps) {
               {liveSelectedCount > 0 && photoSubtab === "all" ? (
                 <>
                   <button
-                    className={styles.subTabClear}
+                    className={`${styles.btn} ${styles.btnGhost}`}
                     onClick={() => onSelectAll?.()}
-                    disabled={!someChecked && !allChecked}
-                    title="清除全部已选"
                   >
                     清除选择
                   </button>
                   <button
-                    className={styles.danger}
+                    className={`${styles.btn} ${styles.btnDanger}`}
                     onClick={() => void onTrashSelected()}
                     style={{ marginLeft: "auto" }}
                   >
@@ -574,15 +625,13 @@ export default function AdminShell(props: AdminShellProps) {
               ) : liveSelectedCount > 0 && photoSubtab === "trash" ? (
                 <>
                   <button
-                    className={styles.subTabClear}
+                    className={`${styles.btn} ${styles.btnGhost}`}
                     onClick={() => onSelectAll?.()}
-                    disabled={!someChecked && !allChecked}
-                    title="清除全部已选"
                   >
                     清除选择
                   </button>
                   <button
-                    className={styles.subTabRestore}
+                    className={`${styles.btn} ${styles.btnPrimary}`}
                     onClick={() => void onRestoreSelected()}
                     style={{ marginLeft: "auto" }}
                   >
@@ -611,7 +660,7 @@ export default function AdminShell(props: AdminShellProps) {
                     </span>
                     {it.status === "error" ? (
                       <button
-                        className={styles.mini}
+                        className={`${styles.btn} ${styles.btnGhost}`}
                         onClick={() => void onRetryUpload(it)}
                       >
                         重试
@@ -622,12 +671,33 @@ export default function AdminShell(props: AdminShellProps) {
               </ul>
             ) : null}
 
+            {/* 收紧空状态 — 复用批 1 .emptyState 思路, 批 3.2 单独 class 以适配 photos 上下文 */}
             {visible.length === 0 ? (
-              <p className={styles.muted}>
-                {photoSubtab === "all"
-                  ? "还没有照片，拖文件到上面。"
-                  : "回收站是空的。"}
-              </p>
+              <div className={styles.photosEmpty}>
+                <h3 className={styles.photosEmptyTitle}>
+                  {photoSubtab === "trash"
+                    ? "回收站是空的"
+                    : photoSearch || photoAlbumFilter
+                      ? "没有匹配的照片"
+                      : "还没有照片"}
+                </h3>
+                <p className={styles.photosEmptyBody}>
+                  {photoSubtab === "trash"
+                    ? "已删除的照片会显示在这里。"
+                    : photoSearch || photoAlbumFilter
+                      ? "试试调整搜索或筛选条件。"
+                      : "拖文件到 Home tab 上传，或点上传按钮选择文件。"}
+                </p>
+                {photoSubtab === "all" && !photoSearch && !photoAlbumFilter ? (
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnPrimary}`}
+                    onClick={() => onTab("home")}
+                  >
+                    前往上传
+                  </button>
+                ) : null}
+              </div>
             ) : (
               <AdminPhotoGrid
                 photos={visible}

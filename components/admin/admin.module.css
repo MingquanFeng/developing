@@ -344,6 +344,52 @@
   color: var(--muted);
 }
 
+/* ============================================================
+   Photos tab 工具栏 + 空状态（批 3.2）
+   ============================================================ */
+.photosToolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 12px;
+  flex-wrap: wrap;
+}
+.photosSearch {
+  width: 240px;
+  height: 32px;
+}
+.photosAlbumFilter {
+  width: 200px;
+  height: 32px;
+}
+.photosEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 16px;
+  background: var(--surface-1);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-lg);
+  color: var(--muted);
+  text-align: center;
+  gap: 12px;
+  margin: 24px 0;
+}
+.photosEmptyTitle {
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+}
+.photosEmptyBody {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 44ch;
+}
+
 .shell {
   max-width: 1180px;
   margin: 0 auto;
@@ -1858,6 +1904,10 @@
   .recentGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .homeStats,
   .recentGrid { padding-left: 16px; padding-right: 16px; margin-left: 0; margin-right: 0; }
+  /* 批 3.2 Photos tab: toolbar 紧凑 + 搜索/筛选全宽 */
+  .photosToolbar { padding: 12px 0 8px; gap: 8px; }
+  .photosSearch,
+  .photosAlbumFilter { width: 100%; }
 }
 
 /* ---------- 目标相册选择器（DropZone 上方） ---------- */
