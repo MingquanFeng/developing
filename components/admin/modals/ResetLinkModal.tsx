@@ -34,7 +34,7 @@ export default function ResetLinkModal({
         aria-label="重置链接"
       >
         <div className={styles.modalHead}>
-          <h3 className={styles.modalTitle}>重置链接</h3>
+          <h2 className={styles.modalTitle}>重置链接</h2>
           <button className={styles.modalClose} onClick={onClose}>
             关闭
           </button>

@@ -84,7 +84,7 @@ export default function CoverModal({
             </b>
             <button
               type="button"
-              className={styles.mini}
+              className={`${styles.btn} ${styles.btnGhost}`}
               onClick={onClear}
               disabled={busy}
             >
@@ -120,7 +120,7 @@ export default function CoverModal({
                     {p.title || p.id}
                   </span>
                   {isCurrent ? (
-                    <span className={styles.coverBadge}>当前</span>
+                    <span className={`${styles.badge} ${styles.badgeAccent}`}>当前</span>
                   ) : null}
                 </button>
               );

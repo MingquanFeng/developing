@@ -142,6 +142,24 @@
   min-width: 0;
 }
 
+/* 批 4 hotfix: modal 上下文用 .modalField (vertical 堆叠)
+   .fieldRow 是 horizontal (页面级表单宽, label 80px 在左), 模态右侧
+   panel 仅 280-360px 宽放不下 label+control, 改 vertical */
+.modalField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 18px 0;
+}
+.modalField .fieldLabel {
+  flex: none;
+  min-width: 0;
+}
+.modalField .fieldControl {
+  flex: none;
+  width: 100%;
+}
+
 /* 工具栏 —— 用于 photos 工具栏等横向布局 */
 .toolbar {
   display: flex;
@@ -245,6 +263,258 @@
   outline-offset: 2px;
 }
 
+/* ============================================================
+   Home tab 概览 + 最近照片（批 3.1）
+   ============================================================ */
+.homeStats {
+  padding: 8px 24px 0;
+  margin: 0;
+}
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 8px;
+}
+.statCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+}
+.statValue {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: .01em;
+  color: var(--ink);
+  line-height: 1.1;
+}
+.statLabel {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.recentGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 24px 24px;
+}
+.recentCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--dur-fast) var(--ease),
+              background var(--dur-fast) var(--ease);
+  font: inherit;
+  color: inherit;
+}
+.recentCell:hover {
+  border-color: var(--ink);
+  background: var(--surface-2);
+}
+.recentCell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.recentThumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--surface-2);
+  position: relative;
+  overflow: hidden;
+}
+.recentThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.recentMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+}
+.recentTitle {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recentDate {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  color: var(--muted);
+}
+
+/* ============================================================
+   Photos tab 工具栏 + 空状态（批 3.2）
+   ============================================================ */
+.photosToolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 12px;
+  flex-wrap: wrap;
+}
+.photosSearch {
+  width: 240px;
+  height: 32px;
+}
+.photosAlbumFilter {
+  width: 200px;
+  height: 32px;
+}
+.photosEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 16px;
+  background: var(--surface-1);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-lg);
+  color: var(--muted);
+  text-align: center;
+  gap: 12px;
+  margin: 24px 0;
+}
+.photosEmptyTitle {
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+}
+.photosEmptyBody {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 44ch;
+}
+
+/* ============================================================
+   Albums tab toolbar（批 3.3）
+   ============================================================ */
+.albumsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.albumsToolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 4px;
+  flex-wrap: wrap;
+}
+.albumsSort {
+  width: 160px;
+  height: 32px;
+}
+
+/* ============================================================
+   Users tab 表格 + 新建用户卡片（批 3.4）
+   ============================================================ */
+.usersToolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 4px;
+  flex-wrap: wrap;
+}
+.userTableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  margin: 0 0 24px;
+}
+.userTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.userTableHeader {
+  background: var(--surface-2);
+  text-align: left;
+}
+.userTableHeader th {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 400;
+  white-space: nowrap;
+}
+.userTableRow {
+  border-bottom: 1px solid var(--line-2);
+  transition: background var(--dur-fast) var(--ease);
+}
+.userTableRow:last-child { border-bottom: 0; }
+.userTableRow:hover { background: var(--surface-2); }
+.userTableCell {
+  padding: 10px 14px;
+  vertical-align: middle;
+}
+.userTableCell .input { width: 100%; }
+.userTableAction {
+  text-align: right;
+  white-space: nowrap;
+}
+.userTableActionGroup {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* 新建用户卡片（替代原 .addUser 5-col grid） */
+.userAddCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  margin: 0 0 24px;
+}
+.userAddTitle {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+  margin: 0;
+}
+.userAddFields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.userAddAction {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .shell {
   max-width: 1180px;
   margin: 0 auto;
@@ -263,11 +533,6 @@
 /* 登录样式已全部抽到 app/globals.css 的 .acct-* 公共样式。
    /admin 登录页 与 /register 注册页 直接用 raw className，100% 同一份 CSS。 */
 
-.primary,
-.ghost,
-.mini,
-.miniDanger,
-.danger,
 .tabBtn {
   font-family: var(--mono);
   font-size: 11.5px;
@@ -276,44 +541,6 @@
   cursor: pointer;
   transition: background .2s var(--ease), color .2s var(--ease), border-color .2s var(--ease);
 }
-.primary {
-  width: 100%;
-  margin-top: 14px;
-  padding: 11px;
-  border: 1px solid var(--ink);
-  background: var(--ink);
-  color: var(--bg);
-}
-.primary:disabled { opacity: .35; cursor: not-allowed; }
-.ghost {
-  padding: 8px 16px;
-  border: 1px solid var(--line);
-  background: none;
-  color: var(--ink);
-}
-.ghost:hover { border-color: var(--ink); }
-
-.mini,
-.miniDanger {
-  padding: 5px 11px;
-  border: 1px solid var(--line);
-  background: none;
-  color: var(--ink);
-  white-space: nowrap;
-}
-.mini:hover { border-color: var(--hot); }
-.miniDanger { color: #e08a8a; border-color: rgba(224, 138, 138, .3); }
-.miniDanger:hover { background: #e08a8a; color: var(--bg); }
-
-.danger {
-  margin-left: auto;
-  padding: 7px 14px;
-  border: 1px solid rgba(224, 138, 138, .35);
-  background: none;
-  color: #e08a8a;
-}
-.danger:hover:not(:disabled) { background: #e08a8a; color: var(--bg); }
-.danger:disabled { opacity: .35; cursor: not-allowed; }
 
 /* ---------- 上传（紧凑按钮 + 全屏 drag overlay） ---------- */
 .drop {
@@ -709,45 +936,52 @@
   margin: 0;
 }
 
-/* ---------- 相册封面（user 行下方） ---------- */
-.albumSec {
-  margin-top: 28px;
-  padding-top: 22px;
-  border-top: 1px solid var(--line-2);
-  display: grid;
-  gap: 14px;
+/* ---------- 相册封面 (CoversPanel, 批 3.5) ----------
+   旧 .albumSec / .albumRow / .albumName / .albumSlug / .albumCover /
+   .albumGroup / .albumOwner 7 个 class 已无引用, 整段替换为新视觉 */
+.coversList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.albumGroup {
-  display: grid;
-  grid-template-columns: 100px 1fr;
-  gap: 14px;
-  align-items: start;
-}
-.albumOwner {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  letter-spacing: .12em;
-  opacity: .55;
-  padding-top: 7px;
-}
-.albumRow {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr 1.6fr auto;
-  gap: 12px;
+.coversRow {
+  display: flex;
   align-items: center;
-  padding: 9px 10px;
-  border: 1px solid var(--line-2);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, .02);
-  font-size: 12.5px;
+  gap: 16px;
+  padding: 14px 16px;
 }
-.albumName { font-weight: 500; }
-.albumSlug {
+.coversMeta {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.coversName {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.coversSlug {
   font-family: var(--mono);
   font-size: 10.5px;
-  letter-spacing: .1em;
-  opacity: .5;
+  letter-spacing: .14em;
+  color: var(--muted);
 }
+.coversCoverText {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* .albumCover 仍被 AlbumEditModal 引用, 保留规则 */
 .albumCover {
   font-family: var(--mono);
   font-size: 11px;
@@ -759,8 +993,7 @@
 }
 
 @media (max-width: 860px) {
-  .albumGroup { grid-template-columns: 1fr; }
-  .albumRow { grid-template-columns: 1fr; row-gap: 6px; }
+  .coversRow { flex-direction: column; align-items: flex-start; gap: 12px; }
 }
 
 /* ---------- 封面网格（弹层内） ---------- */
@@ -813,18 +1046,7 @@
   border-color: var(--hot);
   box-shadow: 0 0 0 1px var(--hot) inset;
 }
-.coverBadge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: .1em;
-  padding: 2px 6px;
-  background: var(--hot);
-  color: var(--bg);
-  border-radius: 2px;
-}
+/* .coverBadge 删 (批 4: 改用 .badge .badgeAccent 共享基类) */
 
 /* ============================================================
    AdminPhotoGrid —— 后台 Photos tab 瀑布网格（与访客侧 /album 一致）
@@ -918,6 +1140,40 @@
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
+}
+
+/* 批 3.3: Albums 卡片 caption 始终可见 (mod, 不影响 photos 网格 hover 行为)
+   Albums 显式加 .adminCell--alwaysCaption, photos 网格不沾 */
+.adminCell--alwaysCaption .adminCell__caption,
+.adminCell--alwaysCaption:hover .adminCell__caption,
+.adminCell--alwaysCaption:focus-within .adminCell__caption {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 10, 14, 0) 0%,
+    rgba(8, 10, 14, .55) 40%,
+    rgba(8, 10, 14, .85) 100%
+  );
+}
+
+/* caption 内部 row 布局: 标题左 + 计数右 */
+.adminCell__captionRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.albumCount {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  color: var(--paper);
+  flex: 0 0 auto;
+  white-space: nowrap;
+  opacity: .9;
 }
 
 /* ---------- AlbumsTab intro ---------- */
@@ -1032,45 +1288,27 @@
 }
 
 /* ============================================================
-   EditLightbox —— 编辑弹层
+   EditLightbox / AlbumEditModal 共享大弹层布局（批 4）
+   —— 通用 .modalBackdrop + .modalWide 替代原 adminEdit__backdrop / adminEdit
+   —— 内部 .modalMedia + .modalSide 双栏布局替代原 adminEdit__media / adminEdit__side
+   —— 内部 .modalFoot 替代原 adminEdit__foot
    ============================================================ */
-.adminEdit__backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(8, 10, 14, .82);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 300;
-  padding: 4vh 4vw;
-  animation: adminEditIn .18s var(--ease) both;
-}
-@keyframes adminEditIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.adminEdit {
+.modalWide {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(280px, 360px);
   width: 100%;
   max-width: 1100px;
-  height: 100%;
   max-height: 86vh;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, .5);
   overflow: hidden;
 }
 @media (max-width: 760px) {
-  .adminEdit {
+  .modalWide {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr auto;
     max-height: 92vh;
   }
 }
-.adminEdit__media {
+.modalMedia {
   position: relative;
   background: #000;
   display: flex;
@@ -1078,103 +1316,36 @@
   justify-content: center;
   overflow: hidden;
 }
-.adminEdit__media img {
+.modalMedia img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
 }
-.adminEdit__nav {
+.modalMediaNav {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
   left: 14px;
   width: 38px;
   height: 38px;
-  border: 0;
+  padding: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, .08);
   color: var(--paper);
   font-size: 22px;
   line-height: 1;
-  cursor: pointer;
-  transition: background .2s var(--ease);
 }
-.adminEdit__nav--right { left: auto; right: 14px; }
-.adminEdit__nav:hover { background: rgba(255, 255, 255, .18); }
-
-.adminEdit__side {
+.modalMediaNav:hover:not(:disabled) {
+  background: rgba(255, 255, 255, .18);
+}
+.modalMediaNavRight { left: auto; right: 14px; }
+.modalSide {
   display: flex;
   flex-direction: column;
   background: var(--bg-2);
   overflow: hidden;
 }
-.adminEdit__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--line);
-}
-.adminEdit__head h2 {
-  font-family: var(--display);
-  font-size: 18px;
-  font-weight: 500;
-  margin: 0;
-}
-.adminEdit__field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 18px 0;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  opacity: .65;
-}
-.adminEdit__field input,
-.adminEdit__field textarea,
-.adminEdit__field select {
-  font: inherit;
-  font-family: var(--sans);
-  font-size: 14px;
-  letter-spacing: 0;
-  text-transform: none;
-  opacity: 1;
-  color: var(--ink);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  padding: 9px 10px;
-  outline: none;
-  transition: border-color .2s var(--ease);
-  width: 100%;
-}
-.adminEdit__field input:focus,
-.adminEdit__field textarea:focus,
-.adminEdit__field select:focus {
-  border-color: var(--hot);
-}
-.adminEdit__field input:disabled,
-.adminEdit__field textarea:disabled,
-.adminEdit__field select:disabled {
-  opacity: .5;
-  cursor: not-allowed;
-}
-.adminEdit__field textarea {
-  resize: vertical;
-  min-height: 70px;
-  font-family: var(--sans);
-}
-.adminEdit__checkRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 18px 0;
-  font-size: 12.5px;
-  opacity: .85;
-  cursor: pointer;
-}
-.adminEdit__foot {
+.modalFoot {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -1182,42 +1353,16 @@
   margin-top: auto;
   border-top: 1px solid var(--line);
 }
-.adminEdit__save {
-  margin-right: auto;
-  font: inherit;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  padding: 10px 18px;
-  background: var(--ink);
-  color: var(--bg);
-  border: 0;
+/* EditLightbox / AlbumEditModal 共享 checkbox row (公开/私有) */
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 0 0;
+  font-size: 12.5px;
+  opacity: .85;
   cursor: pointer;
-  transition: opacity .2s var(--ease);
 }
-.adminEdit__save:hover { opacity: .85; }
-.adminEdit__save:disabled { opacity: .35; cursor: not-allowed; }
-.adminEdit__btn {
-  font: inherit;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  padding: 9px 14px;
-  background: transparent;
-  color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background .2s var(--ease);
-}
-.adminEdit__btn:hover { background: rgba(255, 255, 255, .05); }
-.adminEdit__btn--danger {
-  border-color: rgba(216, 137, 106, .35);
-  color: #d8896a;
-}
-.adminEdit__btn--danger:hover { background: rgba(216, 137, 106, .12); }
 
 /* ============================================================
    AdminShell v2 —— sidebar + topbar + hero + dropzone 布局
@@ -1754,6 +1899,17 @@
   .decoCard,
   .content { padding-left: 20px; padding-right: 20px; margin-left: 0; margin-right: 0; }
   .decoCard { grid-template-columns: 1fr; margin-left: 16px; margin-right: 16px; padding: 16px; }
+  /* 批 3.1 Home tab: 概览 + 最近照片 mobile 改 2 列 */
+  .statGrid,
+  .recentGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .homeStats,
+  .recentGrid { padding-left: 16px; padding-right: 16px; margin-left: 0; margin-right: 0; }
+  /* 批 3.2 Photos tab: toolbar 紧凑 + 搜索/筛选全宽 */
+  .photosToolbar { padding: 12px 0 8px; gap: 8px; }
+  .photosSearch,
+  .photosAlbumFilter { width: 100%; }
+  /* 批 3.4 Users tab: toolbar 紧凑; table 横向滚动由 .userTableWrap overflow-x: auto 处理 */
+  .usersToolbar { padding: 12px 0 4px; }
 }
 
 /* ---------- 目标相册选择器（DropZone 上方） ---------- */

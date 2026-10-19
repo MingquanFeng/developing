@@ -145,6 +145,12 @@ export default function AdminShell(props: AdminShellProps) {
     photos: data.photos.filter((p) => p.ownerId === me.id),
   };
 
+  /* 批 3.2 新增: photos tab 客户端搜索 + 按相册筛选 (无后端,
+     仅 client-side 过滤 title/caption/place + albumId)
+     必须在 visible 之前声明 (visible useMemo 引用) */
+  const [photoSearch, setPhotoSearch] = useState("");
+  const [photoAlbumFilter, setPhotoAlbumFilter] = useState("");
+
   /* photos tab 子筛选：all → 非回收站；trash → 仅回收站 */
   const photoSubtab: "all" | "trash" =
     tab === "photos" ? photoFilter : "all";
@@ -163,9 +169,21 @@ export default function AdminShell(props: AdminShellProps) {
     ).length;
   }, [scoped.photos, selectedIds, photoSubtab]);
 
-  const visible = (scoped.photos).filter((p) =>
-    photoSubtab === "all" ? !p.trashedAt : !!p.trashedAt,
-  );
+  const visible = useMemo(() => {
+    const base = scoped.photos.filter((p) =>
+      photoSubtab === "all" ? !p.trashedAt : !!p.trashedAt,
+    );
+    const q = photoSearch.trim().toLowerCase();
+    return base
+      .filter((p) => !photoAlbumFilter || p.albumId === photoAlbumFilter)
+      .filter(
+        (p) =>
+          !q ||
+          p.title?.toLowerCase().includes(q) ||
+          p.caption?.toLowerCase().includes(q) ||
+          p.place?.toLowerCase().includes(q),
+      );
+  }, [scoped.photos, photoSubtab, photoSearch, photoAlbumFilter]);
   const trashedCount = scoped.photos.filter((p) => !!p.trashedAt).length;
   const photoCount = scoped.photos.length - trashedCount;
   const albumCount = scoped.albums.length;
@@ -182,6 +200,7 @@ export default function AdminShell(props: AdminShellProps) {
     () => scoped.photos.filter((p) => !p.trashedAt).slice(0, 3),
     [scoped.photos],
   );
+
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({});
   useEffect(() => {
     let cancelled = false;
@@ -420,6 +439,84 @@ export default function AdminShell(props: AdminShellProps) {
               busy={false}
               pending={pendingCount}
             />
+
+            {/* 批 3.1：照片空间概览（4 个 stat card）+ 最近照片网格。
+                recentPhotos / thumbUrls 已在上面 hook 算好 + useEffect 拿签名 URL,
+                这里直接复用,不另开 fetch。data.updatedAt 是 manifest 顶层 ISO,
+                渲染时 formatUpdatedAt 转 YYYY-MM-DD HH:MM,失败 fallback "—"。 */}
+            <section className={styles.homeStats} aria-label="照片空间概览">
+              <header className={styles.pageHeader}>
+                <h2 className={styles.pageTitle}>照片空间</h2>
+                <span className={styles.pageSub}>
+                  最后更新 {formatUpdatedAt(data.updatedAt)}
+                </span>
+              </header>
+              <div className={styles.statGrid}>
+                <article className={`${styles.card} ${styles.statCard}`}>
+                  <span className={styles.statValue}>{photoCount}</span>
+                  <span className={styles.statLabel}>照片</span>
+                </article>
+                <article className={`${styles.card} ${styles.statCard}`}>
+                  <span className={styles.statValue}>{albumCount}</span>
+                  <span className={styles.statLabel}>相册</span>
+                </article>
+                <article className={`${styles.card} ${styles.statCard}`}>
+                  <span className={styles.statValue}>{trashedCount}</span>
+                  <span className={styles.statLabel}>回收站</span>
+                </article>
+                <article className={`${styles.card} ${styles.statCard}`}>
+                  <span className={styles.statValue}>{myAlbums.length}</span>
+                  <span className={styles.statLabel}>我的相册</span>
+                </article>
+              </div>
+            </section>
+
+            <section className={styles.section} aria-label="最近照片">
+              <header className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>最近照片</h2>
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnGhost}`}
+                  onClick={() => onTab("photos")}
+                >
+                  查看全部 →
+                </button>
+              </header>
+              {recentPhotos.length > 0 ? (
+                <div className={styles.recentGrid}>
+                  {recentPhotos.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`${styles.card} ${styles.recentCell}`}
+                      onClick={() => onTab("photos")}
+                      aria-label={`查看 ${p.title || p.id}`}
+                    >
+                      <div className={styles.recentThumb}>
+                        {thumbUrls[p.id] ? (
+                          <img src={thumbUrls[p.id]} alt="" loading="lazy" />
+                        ) : null}
+                      </div>
+                      <div className={styles.recentMeta}>
+                        {/* 首页最近照片卡片不显文件名 (Photo.title
+                            默认是 file.name 去后缀 — 用户不要)
+                            只留 shotAt; title 字段保留供 photos 网格用 */}
+                        <span className={styles.recentDate}>
+                          {p.shotAt || "—"}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.emptyState}>
+                  <h3 className={styles.emptyStateTitle}>还没有照片</h3>
+                  <p className={styles.emptyStateBody}>
+                    拖文件到上方 DropZone 上传，或点上传区按钮选择文件。
+                  </p>
+                </div>
+              )}
+            </section>
           </>
         ) : null}
 
@@ -432,9 +529,43 @@ export default function AdminShell(props: AdminShellProps) {
           </section>
         ) : null}
 
-        {/* ---------- photos tab: 子筛选 + 瀑布 ---------- */}
+        {/* ---------- photos tab: toolbar + 子筛选 + 瀑布 ---------- */}
         {tab === "photos" ? (
           <section className={styles.content}>
+            {/* 批 3.2 新增：toolbar 段（pageHeader + 搜索 + 相册筛选） */}
+            <header className={styles.photosToolbar}>
+              <div className={styles.pageHeader}>
+                <h2 className={styles.pageTitle}>照片</h2>
+                <span className={styles.pageSub}>
+                  {liveSelectedCount > 0
+                    ? `已选 ${liveSelectedCount} / ${photoCount}`
+                    : `共 ${photoCount} 张`}
+                </span>
+              </div>
+              <div className={styles.toolbarSpacer} />
+              <input
+                type="search"
+                className={`${styles.input} ${styles.photosSearch}`}
+                placeholder="搜索标题、说明、地点…"
+                value={photoSearch}
+                onChange={(e) => setPhotoSearch(e.target.value)}
+                aria-label="搜索照片"
+              />
+              <select
+                className={`${styles.input} ${styles.photosAlbumFilter}`}
+                value={photoAlbumFilter}
+                onChange={(e) => setPhotoAlbumFilter(e.target.value)}
+                aria-label="按相册筛选"
+              >
+                <option value="">所有相册</option>
+                {scoped.albums.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </header>
+
             <div className={styles.subTabs}>
               <label
                 className={`${styles.subTabSelectAll} ${
@@ -464,13 +595,13 @@ export default function AdminShell(props: AdminShellProps) {
                 </span>
               </label>
               <button
-                className={`${styles.subTabBtn} ${photoSubtab === "all" ? styles.subTabOn : ""}`}
+                className={`${styles.btn} ${styles.subTabBtn} ${photoSubtab === "all" ? styles.subTabOn : ""}`}
                 onClick={() => setPhotoFilter("all")}
               >
                 全部 {photoCount}
               </button>
               <button
-                className={`${styles.subTabBtn} ${photoSubtab === "trash" ? styles.subTabOn : ""}`}
+                className={`${styles.btn} ${styles.subTabBtn} ${photoSubtab === "trash" ? styles.subTabOn : ""}`}
                 onClick={() => setPhotoFilter("trash")}
               >
                 回收站 {trashedCount}
@@ -478,15 +609,13 @@ export default function AdminShell(props: AdminShellProps) {
               {liveSelectedCount > 0 && photoSubtab === "all" ? (
                 <>
                   <button
-                    className={styles.subTabClear}
+                    className={`${styles.btn} ${styles.btnGhost}`}
                     onClick={() => onSelectAll?.()}
-                    disabled={!someChecked && !allChecked}
-                    title="清除全部已选"
                   >
                     清除选择
                   </button>
                   <button
-                    className={styles.danger}
+                    className={`${styles.btn} ${styles.btnDanger}`}
                     onClick={() => void onTrashSelected()}
                     style={{ marginLeft: "auto" }}
                   >
@@ -496,15 +625,13 @@ export default function AdminShell(props: AdminShellProps) {
               ) : liveSelectedCount > 0 && photoSubtab === "trash" ? (
                 <>
                   <button
-                    className={styles.subTabClear}
+                    className={`${styles.btn} ${styles.btnGhost}`}
                     onClick={() => onSelectAll?.()}
-                    disabled={!someChecked && !allChecked}
-                    title="清除全部已选"
                   >
                     清除选择
                   </button>
                   <button
-                    className={styles.subTabRestore}
+                    className={`${styles.btn} ${styles.btnPrimary}`}
                     onClick={() => void onRestoreSelected()}
                     style={{ marginLeft: "auto" }}
                   >
@@ -533,7 +660,7 @@ export default function AdminShell(props: AdminShellProps) {
                     </span>
                     {it.status === "error" ? (
                       <button
-                        className={styles.mini}
+                        className={`${styles.btn} ${styles.btnGhost}`}
                         onClick={() => void onRetryUpload(it)}
                       >
                         重试
@@ -544,12 +671,33 @@ export default function AdminShell(props: AdminShellProps) {
               </ul>
             ) : null}
 
+            {/* 收紧空状态 — 复用批 1 .emptyState 思路, 批 3.2 单独 class 以适配 photos 上下文 */}
             {visible.length === 0 ? (
-              <p className={styles.muted}>
-                {photoSubtab === "all"
-                  ? "还没有照片，拖文件到上面。"
-                  : "回收站是空的。"}
-              </p>
+              <div className={styles.photosEmpty}>
+                <h3 className={styles.photosEmptyTitle}>
+                  {photoSubtab === "trash"
+                    ? "回收站是空的"
+                    : photoSearch || photoAlbumFilter
+                      ? "没有匹配的照片"
+                      : "还没有照片"}
+                </h3>
+                <p className={styles.photosEmptyBody}>
+                  {photoSubtab === "trash"
+                    ? "已删除的照片会显示在这里。"
+                    : photoSearch || photoAlbumFilter
+                      ? "试试调整搜索或筛选条件。"
+                      : "拖文件到 Home tab 上传，或点上传按钮选择文件。"}
+                </p>
+                {photoSubtab === "all" && !photoSearch && !photoAlbumFilter ? (
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnPrimary}`}
+                    onClick={() => onTab("home")}
+                  >
+                    前往上传
+                  </button>
+                ) : null}
+              </div>
             ) : (
               <AdminPhotoGrid
                 photos={visible}
@@ -608,7 +756,6 @@ export default function AdminShell(props: AdminShellProps) {
             <CoversPanel
               data={data}
               onOpenCover={onOpenCover}
-              meId={me.id}
             />
           </section>
         ) : null}
@@ -624,35 +771,59 @@ export default function AdminShell(props: AdminShellProps) {
 function CoversPanel({
   data,
   onOpenCover,
-  meId,
 }: {
   data: Manifest;
   onOpenCover: (a: Album) => void;
-  meId: string;
 }) {
-  void meId;
   return (
-    <section className={styles.albumSec}>
-      <span className={styles.addTitle}>首页作品集封面</span>
-      {data.albums.map((a) => (
-        <div key={a.id} className={styles.albumRow}>
-          <span className={styles.albumName}>{a.name}</span>
-          <span className={styles.albumSlug}>/{a.slug}</span>
-          <span className={styles.albumCover}>
-            {a.coverKey
-              ? data.photos.find((p) => p.key === a.coverKey)?.title ??
-                a.coverKey
-              : "（未设）"}
-          </span>
-          <button
-            type="button"
-            className={styles.mini}
-            onClick={() => onOpenCover(a)}
-          >
-            {a.coverKey ? "改封面" : "设封面"}
-          </button>
+    <section className={styles.content}>
+      {/* 批 3.5: pageHeader + section + card 模式, 与 Albums/Users/Photos tab 视觉一致 */}
+      <header className={styles.pageHeader}>
+        <h2 className={styles.pageTitle}>系统设置</h2>
+        <span className={styles.pageSub}>首页作品集封面</span>
+      </header>
+
+      <section className={styles.section} aria-label="首页作品集封面">
+        <header className={styles.sectionHeader}>
+          <h3 className={styles.sectionTitle}>封面管理</h3>
+        </header>
+        <div className={styles.coversList}>
+          {data.albums.map((a) => (
+            <article
+              key={a.id}
+              className={`${styles.card} ${styles.coversRow}`}
+            >
+              <div className={styles.coversMeta}>
+                <span className={styles.coversName}>{a.name}</span>
+                <span className={styles.coversSlug}>/{a.slug}</span>
+                <span className={styles.coversCoverText}>
+                  {a.coverKey
+                    ? data.photos.find((p) => p.key === a.coverKey)?.title ??
+                      a.coverKey
+                    : "（未设封面）"}
+                </span>
+              </div>
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnGhost}`}
+                onClick={() => onOpenCover(a)}
+              >
+                {a.coverKey ? "改封面" : "设封面"}
+              </button>
+            </article>
+          ))}
         </div>
-      ))}
+      </section>
     </section>
   );
+}
+
+/* ---------- helpers (本文件内部使用) ---------- */
+
+/** ISO 字符串 → "YYYY-MM-DD HH:MM"，失败 / 空 fallback "—" */
+function formatUpdatedAt(iso: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }

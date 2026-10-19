@@ -175,18 +175,18 @@ export default function AlbumEditModal({
 
   return (
     <div
-      className={styles.adminEdit__backdrop}
+      className={styles.modalBackdrop}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={mode === "create" ? "新建相册" : "编辑相册"}
     >
       <div
-        className={styles.adminEdit}
+        className={`${styles.modal} ${styles.modalWide}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 左：大图预览 */}
-        <div className={styles.adminEdit__media}>
+        <div className={styles.modalMedia}>
           {mode === "create" ? (
             <span
               className={styles.adminCell__loading}
@@ -215,9 +215,11 @@ export default function AlbumEditModal({
         </div>
 
         {/* 右：表单 */}
-        <aside className={styles.adminEdit__side}>
-          <header className={styles.adminEdit__head}>
-            <h2>{mode === "create" ? "新建相册" : "编辑相册"}</h2>
+        <aside className={styles.modalSide}>
+          <header className={styles.modalHead}>
+            <h2 className={styles.modalTitle}>
+              {mode === "create" ? "新建相册" : "编辑相册"}
+            </h2>
             <button
               type="button"
               onClick={onClose}
@@ -228,70 +230,62 @@ export default function AlbumEditModal({
             </button>
           </header>
 
-          <label className={styles.adminEdit__field}>
-            <span>名称</span>
+          <div className={styles.modalField}>
+            <label className={styles.fieldLabel} htmlFor="alb-name">名称</label>
             <input
+              id="alb-name"
               type="text"
+              className={styles.input}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="相册名"
               disabled={busy}
               autoFocus
             />
-          </label>
+          </div>
 
-          <label className={styles.adminEdit__field}>
-            <span>slug</span>
-            <input
-              type="text"
-              value={slug}
-              onChange={(e) => {
-                setSlugTouched(true);
-                setSlug(e.target.value);
-              }}
-              placeholder={mode === "create" ? "自动从名称推导" : ""}
-              disabled={busy || mode === "edit"}
-              style={
-                mode === "create"
-                  ? { fontFamily: "var(--mono)", fontSize: 13 }
-                  : undefined
-              }
-            />
-            {mode === "create" ? (
-              <small
-                style={{
-                  fontFamily: "var(--mono)",
-                  fontSize: 10.5,
-                  letterSpacing: ".1em",
-                  opacity: 0.5,
-                  marginTop: 2,
+          <div className={styles.modalField}>
+            <label className={styles.fieldLabel} htmlFor="alb-slug">slug</label>
+            <div className={styles.fieldControl}>
+              <input
+                id="alb-slug"
+                type="text"
+                className={styles.input}
+                value={slug}
+                onChange={(e) => {
+                  setSlugTouched(true);
+                  setSlug(e.target.value);
                 }}
-              >
-                id: {previewId || "—"}
-              </small>
-            ) : null}
-          </label>
+                placeholder={mode === "create" ? "自动从名称推导" : ""}
+                disabled={busy || mode === "edit"}
+                style={
+                  mode === "create"
+                    ? { fontFamily: "var(--mono)", fontSize: 13 }
+                    : undefined
+                }
+              />
+            </div>
+          </div>
 
-          <label className={styles.adminEdit__field}>
-            <span>简介</span>
+          <div className={styles.modalField}>
+            <label className={styles.fieldLabel} htmlFor="alb-desc">简介</label>
             <textarea
+              id="alb-desc"
+              className={styles.input}
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               placeholder="一句话描述（可空）"
               rows={3}
               disabled={busy}
+              style={{ height: "auto", minHeight: 60 }}
             />
-          </label>
+          </div>
 
-          <div className={styles.adminEdit__field}>
-            <span>封面</span>
+          <div className={styles.modalField}>
+            <label className={styles.fieldLabel} htmlFor="alb-cover">封面</label>
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "8px 0",
-              }}
+              className={styles.fieldControl}
+              style={{ display: "flex", alignItems: "center", gap: 10 }}
             >
               {coverKey ? (
                 <span
@@ -306,7 +300,7 @@ export default function AlbumEditModal({
               )}
               <button
                 type="button"
-                className={styles.mini}
+                className={`${styles.btn} ${styles.btnGhost}`}
                 onClick={() => {
                   // create 时保存完才能选——否则 album 还没 id。
                   // 但 useCoverModal 需要 album 参数；
@@ -335,7 +329,7 @@ export default function AlbumEditModal({
               {coverKey ? (
                 <button
                   type="button"
-                  className={styles.mini}
+                  className={`${styles.btn} ${styles.btnGhost}`}
                   onClick={() => setCoverKey(null)}
                   disabled={busy}
                 >
@@ -346,14 +340,16 @@ export default function AlbumEditModal({
           </div>
 
           {mode === "edit" && photos.length > 0 ? (
-            <div className={styles.adminEdit__field}>
-              <span>该相册照片（前 {Math.min(8, photos.length)} 张）</span>
+            <div className={styles.modalField}>
+              <label className={styles.fieldLabel}>
+                该相册照片（前 {Math.min(8, photos.length)} 张）
+              </label>
               <div
+                className={styles.fieldControl}
                 style={{
                   display: "grid",
                   gridTemplateColumns: "repeat(4, 1fr)",
                   gap: 6,
-                  padding: "6px 0 0",
                 }}
               >
                 {photos.slice(0, 8).map((p) => (
@@ -363,10 +359,10 @@ export default function AlbumEditModal({
             </div>
           ) : null}
 
-          <footer className={styles.adminEdit__foot}>
+          <footer className={styles.modalFoot}>
             <button
               type="button"
-              className={styles.adminEdit__save}
+              className={`${styles.btn} ${styles.btnPrimary}`}
               onClick={submit}
               disabled={busy || !name.trim()}
             >
@@ -376,9 +372,7 @@ export default function AlbumEditModal({
             {canDelete ? (
               <button
                 type="button"
-                className={`${styles.adminEdit__btn} ${
-                  styles["adminEdit__btn--danger"] ?? ""
-                }`}
+                className={`${styles.btn} ${styles.btnDanger}`}
                 onClick={handleDelete}
                 disabled={busy}
               >
