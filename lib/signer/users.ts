@@ -11,10 +11,7 @@
  *    重启后文件系统会清空，用户会全部消失 —— 那种环境不能用 SQLite。
  */
 import { createHmac } from "node:crypto";
-// @ts-expect-error node:sqlite 是 Node 22+ 内置模块，@types/node 20 还没声明
-import { DatabaseSync } from "node:sqlite";
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { db, DB_PATH } from "./_db";
 import bcrypt from "bcryptjs";
 import { config } from "./config";
 import type {
@@ -32,14 +29,6 @@ import type {
 export type Role = RoleContract;
 export type User = UserContract;
 export type PublicUser = PublicUserContract;
-
-const DB_PATH = process.env.USERS_DB_PATH
-  ? path.resolve(process.env.USERS_DB_PATH)
-  : path.join(process.cwd(), "data", "users.db");
-
-fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-
-const db = new DatabaseSync(DB_PATH);
 
 /**
  * 创建表时一气呵成把 schema 写齐 —— `role` / `session_version` 都是后加的，
@@ -73,7 +62,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS security_log (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    kind        TEXT NOT NULL,            -- 'login_fail' | 'login_success' | 'register_attempt' | 'register_fail' | 'register_ok' | 'session_invalid' | 'password_changed' | 'password_reset' | 'session_revoked'
+    kind        TEXT NOT NULL,            -- 'login_fail' | 'login_success' | 'register_attempt' | 'register_fail' | 'register_ok' | 'session_invalid' | 'password_changed' | 'password_reset' | 'session_revoked' | 'site_content_write' | 'site_content_reset'
     user_ref    TEXT,                      -- 尝试的用户名（注册时可能为 NULL）
     ip          TEXT NOT NULL,
     detail      TEXT,                      -- JSON
@@ -82,6 +71,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_security_ip        ON security_log(ip, created_at);
   CREATE INDEX IF NOT EXISTS idx_security_user      ON security_log(user_ref, created_at);
   CREATE INDEX IF NOT EXISTS idx_security_kind_time ON security_log(kind, created_at);
+
+  CREATE TABLE IF NOT EXISTS site_content (
+    section_key TEXT PRIMARY KEY,           -- 'hero' | 'about' | 'subscribe' | 'footer'
+    content     TEXT NOT NULL,              -- JSON.stringify(content)
+    updated_at  TEXT NOT NULL,
+    updated_by  TEXT                        -- userId，审计
+  );
+  CREATE INDEX IF NOT EXISTS idx_site_content_updated ON site_content(updated_at);
 `);
 
 /**
@@ -132,6 +129,14 @@ function migrateAddLastLoginIp(): void {
   db.exec("ALTER TABLE users ADD COLUMN last_login_ip TEXT");
 }
 migrateAddLastLoginIp();
+
+/* ------------------------------------------------------------
+   首次启动把 lib/data 静态默认值喂进 site_content。
+   在所有迁移函数末尾调用：表刚建好时为空 → 写种子；
+   已有数据（手动改过的 / 已部署过种的）→ 跳过，不覆盖。
+   ------------------------------------------------------------ */
+import { seedHomeContentFromDefaults } from "@/lib/data/site-content";
+seedHomeContentFromDefaults();
 
 const newId = () =>
   `usr_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -512,7 +517,9 @@ export type SecurityLogKind =
   | "session_invalid"
   | "password_changed"
   | "password_reset"
-  | "session_revoked";
+  | "session_revoked"
+  | "site_content_write"
+  | "site_content_reset";
 
 export function recordSecurityEvent(input: {
   kind: SecurityLogKind;

@@ -12,6 +12,11 @@
  *   import { subscribe } from "@/lib/data/subscribe";
  *   import { footer } from "@/lib/data/footer";
  *
+ * 首期动态化：hero / about / subscribe / footer 4 个 section 已有后台编辑。
+ * 异步拉取走新模块：
+ *
+ *   import { listHomeContent, getHero } from "@/lib/data/site-content";
+ *
  * 拆分是物理迁移，零行为变化；下个 PR（PR-6）会顺一次把老 import
  * 都迁到精确路径。
  */

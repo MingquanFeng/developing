@@ -117,6 +117,46 @@ export type ResetLinkResponse = {
 };
 
 /* ============================================================
+   首页内容（后台动态化首期）
+   ============================================================ */
+
+/**
+ * 首页后台可编辑的 section key。首期 4 个：
+ * - hero / about / subscribe / footer（高变动区域）
+ * 后续 interlude01 / interlude03 / coords / worksIntro / story /
+ * nav / site 会在下一期加入。
+ */
+export type SiteSectionKey = "hero" | "about" | "subscribe" | "footer";
+
+/** 一节内容的元信息（updatedAt + 改 userId） */
+export type SiteContentMeta = {
+  key: SiteSectionKey;
+  updatedAt: string;
+  updatedBy: string | null;
+};
+
+/**
+ * 按 key 索引对应 section 的精确内容类型。
+ * SDK / 后台编辑器都用它做端到端类型校验（不光是 DB 表层 isHero）。
+ *
+ * 与 lib/data/*.ts 的字面类型同步：lib/data 改 schema 必须同步改这里。
+ */
+import type { hero } from "./data/home";
+import type { about } from "./data/about";
+import type { subscribe } from "./data/subscribe";
+import type { footer } from "./data/footer";
+
+export type SectionContent<K extends SiteSectionKey> = K extends "hero"
+  ? typeof hero
+  : K extends "about"
+    ? typeof about
+    : K extends "subscribe"
+      ? typeof subscribe
+      : K extends "footer"
+        ? typeof footer
+        : never;
+
+/* ============================================================
    错误契约
    ============================================================ */
 

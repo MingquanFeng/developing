@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { about } from "@/lib/data";
+import { about as aboutData } from "@/lib/data/about";
 import Reveal from "./Reveal";
 import styles from "./About.module.css";
 
@@ -25,16 +25,20 @@ function ListBlock({
   );
 }
 
-/** 摄影师介绍：双栏，克制人像 + 创作理念与经历 */
-export default function About() {
+/** 摄影师介绍：双栏，克制人像 + 创作理念与经历
+ *
+ * 数据来源：AboutSection 透传（来自 listHomeContent() 异步拉取）。
+ * 不传 data 时 fallback 到 lib/data 静态 about。
+ */
+export default function About({ data = aboutData }: { data?: typeof aboutData }) {
   return (
     <section className={styles.about} id="about">
       <div className={styles.grid}>
         <Reveal className={styles.media}>
           <div className={styles.frame}>
             <Image
-              src={about.portrait}
-              alt={about.portraitAlt}
+              src={data.portrait}
+              alt={data.portraitAlt}
               fill
               sizes="(max-width: 1100px) 480px, 40vw"
               style={{ objectFit: "cover" }}
@@ -42,16 +46,16 @@ export default function About() {
           </div>
           <div className={styles.cap}>
             <span className="kicker kicker--dark">— 自拍像</span>
-            <p>{about.portraitCap}</p>
+            <p>{data.portraitCap}</p>
           </div>
         </Reveal>
 
         <Reveal className={styles.body}>
-          <span className="kicker kicker--dark">{about.kicker}</span>
+          <span className="kicker kicker--dark">{data.kicker}</span>
 
           <h2 className={styles.title}>
-            {about.titleLines.map((l, i) =>
-              i === about.titleEmphasisIndex ? (
+            {data.titleLines.map((l, i) =>
+              i === data.titleEmphasisIndex ? (
                 <em key={l}>{l}</em>
               ) : (
                 <span key={l}>{l}</span>
@@ -60,22 +64,22 @@ export default function About() {
           </h2>
 
           <p className={styles.lede}>
-            {about.ledeTop}
-            <span className={styles.hl}>{about.ledeHighlight}</span>。
+            {data.ledeTop}
+            <span className={styles.hl}>{data.ledeHighlight}</span>。
           </p>
 
           <div className={styles.cols}>
-            <ListBlock kicker="— 代表个展" items={about.exhibitions} />
-            <ListBlock kicker="— 代表出版" items={about.press} />
+            <ListBlock kicker="— 代表个展" items={data.exhibitions} />
+            <ListBlock kicker="— 代表出版" items={data.press} />
           </div>
 
           <div className={styles.cta}>
-            <a href={about.cta.href} className="btn btn--ink">
-              <span className="btn__label">{about.cta.label}</span>
+            <a href={data.cta.href} className="btn btn--ink">
+              <span className="btn__label">{data.cta.label}</span>
               <span className="btn__arrow">→</span>
             </a>
             <a href="#" className={styles.linkLine}>
-              {about.ctaSecondary}
+              {data.ctaSecondary}
             </a>
           </div>
         </Reveal>

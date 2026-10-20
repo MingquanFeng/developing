@@ -68,3 +68,12 @@ export {
   type SignRequestFile,
   type SignResponseItem,
 } from "./upload";
+
+// 首页内容（后台动态化）
+export {
+  fetchSiteContent,
+  saveSiteSection,
+  resetSiteSection,
+  type SiteContentDraft,
+  type SiteContentResponse,
+} from "./site-content";
