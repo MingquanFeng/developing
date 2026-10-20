@@ -26,7 +26,7 @@ import type {
   PublicUser,
 } from "@/lib/contracts";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import DropZone from "./DropZone";
 import AdminPhotoGrid from "./AdminPhotoGrid";
@@ -151,6 +151,26 @@ export default function AdminShell(props: AdminShellProps) {
   const [photoSearch, setPhotoSearch] = useState("");
   const [photoAlbumFilter, setPhotoAlbumFilter] = useState("");
 
+  /* 右上角 avatar 下拉 open 状态 + 外部点击 / Esc 关闭 */
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const root = userMenuRootRef.current;
+      if (root && !root.contains(e.target as Node)) setUserMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setUserMenuOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [userMenuOpen]);
+
   /* photos tab 子筛选：all → 非回收站；trash → 仅回收站 */
   const photoSubtab: "all" | "trash" =
     tab === "photos" ? photoFilter : "all";
@@ -254,7 +274,7 @@ export default function AdminShell(props: AdminShellProps) {
       <aside className={styles.sidebar} aria-label="侧边导航">
         <div className={styles.sidebarTop}>
           <span className={styles.sidebarLogo}>相</span>
-          <span className={styles.sidebarTitle}>相册后台</span>
+          <span className={styles.sidebarTitle}>相册</span>
         </div>
 
         <nav className={styles.sidebarNav}>
@@ -287,34 +307,12 @@ export default function AdminShell(props: AdminShellProps) {
       <div className={styles.main}>
         {/* TopBar */}
         <header className={styles.topBar}>
-          <label className={styles.topBarSearch}>
-            <svg
-              className={styles.topBarSearchIcon}
-              viewBox="0 0 16 16"
-              fill="none"
-              aria-hidden
-            >
-              <circle
-                cx="7"
-                cy="7"
-                r="5.5"
-                stroke="currentColor"
-                strokeWidth="1.4"
-              />
-              <path
-                d="m11 11 3.5 3.5"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-              />
-            </svg>
-            <input
-              type="text"
-              className={styles.topBarSearchInput}
-              placeholder="搜索照片、相册、标签..."
-            />
-          </label>
           <div className={styles.topBarRight}>
+            {/* 「返回首页」平铺按钮: 放头部右侧, 在通知铃铛前面。
+                设计: 跟原版一致：mono / uppercase / 下划线 hover。 */}
+            <a href="/" className={styles.topBarHomeLink}>
+              返回首页
+            </a>
             <button
               type="button"
               className={styles.topBarBell}
@@ -341,26 +339,99 @@ export default function AdminShell(props: AdminShellProps) {
                 />
               </svg>
             </button>
-            <button
-              type="button"
-              className={styles.topBarAvatarBtn}
-              aria-label={`当前用户 ${heroUser}`}
+            {/* avatar 块: 点击展开个人空间 + 退出。
+                「返回首页」已在外面, 这里只放两个用户中心动作。 */}
+            <div
+              className={styles.topBarAvatarRoot}
+              ref={userMenuRootRef}
             >
-              <span className={styles.topBarAvatar}>{avatarLetter}</span>
-              <span className={styles.topBarAvatarDot} aria-hidden />
-            </button>
-            <span className={styles.topBarActions}>
-              <a href="/" className={styles.topBarAction}>
-                返回首页
-              </a>
               <button
                 type="button"
-                className={styles.topBarAction}
-                onClick={() => void onLogout()}
+                className={styles.topBarAvatarBtn}
+                aria-label={`当前用户 ${heroUser}`}
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
+                onClick={() => setUserMenuOpen((v) => !v)}
               >
-                退出
+                <span className={styles.topBarAvatar}>{avatarLetter}</span>
+                <span className={styles.topBarAvatarDot} aria-hidden />
               </button>
-            </span>
+              {userMenuOpen ? (
+                <div className={styles.userMenu} role="menu">
+                  <div className={styles.userMenuHeader}>
+                    <span className={styles.userMenuName}>{heroUser}</span>
+                    <span className={styles.userMenuRole}>
+                      {me.role === "admin" ? "管理员" : "访客"}
+                    </span>
+                  </div>
+                  <a
+                    href="/account"
+                    className={styles.userMenuItem}
+                    role="menuitem"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <svg
+                      className={styles.userMenuItemIcon}
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      aria-hidden
+                    >
+                      <circle
+                        cx="8"
+                        cy="6"
+                        r="2.5"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                      />
+                      <path
+                        d="M3 13c.7-2.4 2.7-3.8 5-3.8s4.3 1.4 5 3.8"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    个人空间
+                  </a>
+                  <button
+                    type="button"
+                    className={`${styles.userMenuItem} ${styles.userMenuDanger}`}
+                    role="menuitem"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      void onLogout();
+                    }}
+                  >
+                    <svg
+                      className={styles.userMenuItemIcon}
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      aria-hidden
+                    >
+                      <path
+                        d="M9.5 3H4.5c-.6 0-1 .4-1 1v8c0 .6.4 1 1 1h5"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="m11 5.5 2.5 2.5L11 10.5"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M13.5 8H7"
+                        stroke="currentColor"
+                        strokeWidth="1.2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    退出
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
 

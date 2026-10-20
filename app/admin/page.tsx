@@ -5,7 +5,7 @@ import { readCookie, verifySession, sessionCookieName } from "@/lib/signer/auth"
 import { findById, toPublic } from "@/lib/signer/users";
 
 export const metadata: Metadata = {
-  title: "相册后台",
+  title: "相册",
   // 后台页没有对外展示价值，别进搜索索引
   robots: { index: false, follow: false },
 };

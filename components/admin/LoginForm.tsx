@@ -46,10 +46,9 @@ export default function LoginForm({
       </div>
 
       <section className="acct-card">
-        <span className="acct-kicker">— 后台 / 登录</span>
+        <span className="acct-kicker">— 相册 / 登录</span>
         <h1 className="acct-title">
           <em>相册</em>
-          <em>后台</em>
         </h1>
         <p className="acct-lede">
           登录以管理照片、清单与用户。改密与踢人均在「账户」页可自助完成。

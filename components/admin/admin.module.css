@@ -1525,46 +1525,44 @@
   position: sticky;
   top: 0;
   z-index: 20;
-}
-.topBarSearch {
-  flex: 1;
-  max-width: 420px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--bg-2);
-  color: var(--ink);
-  transition: border-color .2s var(--ease);
-}
-.topBarSearch:focus-within { border-color: var(--ink); }
-.topBarSearchIcon {
-  width: 14px;
-  height: 14px;
-  opacity: .5;
-  flex-shrink: 0;
-}
-.topBarSearchInput {
-  flex: 1;
-  border: 0;
-  background: none;
-  outline: none;
-  font-family: var(--sans);
-  font-size: 13.5px;
-  color: var(--ink);
-}
-.topBarSearchInput::placeholder {
-  color: var(--muted);
-  opacity: .8;
+  min-height: 52px;
 }
 .topBarRight {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
 }
+
+/* 「返回首页」平铺按钮: mono / uppercase / hover 下划线, 与原版一致。 */
+.topBarHomeLink {
+  position: relative;
+  padding: 4px 0;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-decoration: none;
+  opacity: .55;
+  transition: opacity .3s var(--ease);
+}
+.topBarHomeLink:hover { opacity: 1; }
+.topBarHomeLink::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform .5s var(--ease);
+}
+.topBarHomeLink:hover::after {
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
 .topBarBell,
 .topBarAvatarBtn {
   width: 32px;
@@ -1600,46 +1598,96 @@
   border-radius: 50%;
   background: var(--hot);
 }
-.topBarActions {
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-  margin-left: 6px;
-  padding-left: 14px;
-  border-left: 1px solid var(--line);
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: .18em;
-  text-transform: uppercase;
-}
-.topBarAction {
+
+/* avatar 下拉容器：让 .userMenu 能相对定位。 */
+.topBarAvatarRoot {
   position: relative;
-  padding: 4px 0;
+}
+.topBarAvatarBtn[aria-expanded="true"] {
+  border-color: var(--ink);
+  background: rgba(255, 255, 255, .03);
+}
+
+/* avatar 下拉浮层：右对齐到 avatar 下沿, 浅阴影 + 边框, 与顶栏视觉同源。 */
+.userMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  padding: 6px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, .35);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 30;
+  animation: userMenuIn .14s var(--ease) both;
+}
+@keyframes userMenuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.userMenuHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--line-2);
+  margin: 0 0 4px;
+}
+.userMenuName {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: .02em;
+}
+.userMenuRole {
   font-family: var(--mono);
   font-size: 10.5px;
-  letter-spacing: .18em;
+  letter-spacing: .14em;
   text-transform: uppercase;
+  opacity: .5;
+}
+.userMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 5px;
   background: none;
   border: 0;
   color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
   cursor: pointer;
-  opacity: .55;
-  transition: opacity .3s var(--ease);
+  text-align: left;
+  text-decoration: none;
+  opacity: .75;
+  width: 100%;
+  transition: background .2s var(--ease), opacity .2s var(--ease);
 }
-.topBarAction:hover { opacity: 1; }
-.topBarAction::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 1px;
-  background: currentColor;
-  transform: scaleX(0);
-  transform-origin: right center;
-  transition: transform .5s var(--ease);
+.userMenuItem:hover,
+.userMenuItem:focus-visible {
+  opacity: 1;
+  background: rgba(255, 255, 255, .04);
+  outline: none;
 }
-.topBarAction:hover::after {
-  transform: scaleX(1);
-  transform-origin: left center;
+.userMenuItemIcon {
+  width: 14px;
+  height: 14px;
+  opacity: .6;
+  flex-shrink: 0;
+}
+.userMenuDanger { color: var(--err); opacity: .85; }
+.userMenuDanger:hover,
+.userMenuDanger:focus-visible {
+  background: rgba(224, 138, 138, .1);
+  opacity: 1;
 }
 
 /* ---------- 大块上传区（home tab 显示） ---------- */
@@ -1970,15 +2018,9 @@
 
 /* ---------- 移动端（phone，≤ 700px）---------- */
 @media (max-width: 700px) {
-  /* TopBar: 搜索框折叠为 icon-only / padding 收紧 / avatar 略小 */
+  /* TopBar: padding 收紧 / avatar 略小 */
   .topBar { padding: 12px 16px; gap: 10px; }
-  .topBarSearch {
-    max-width: none;
-    flex: 1;
-    min-width: 0;
-    padding: 6px 10px;
-  }
-  .topBarSearchInput { font-size: 13px; }
+  .topBarRight { gap: 10px; }
   .topBarBell,
   .topBarAvatarBtn { width: 32px; height: 32px; }
 

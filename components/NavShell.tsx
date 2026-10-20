@@ -141,7 +141,7 @@ export default function NavShell({ me }: NavShellProps) {
               <>
                 {me.role === "admin" ? (
                   <li>
-                    <a href="/admin" onClick={closeDrawer}>后台</a>
+                    <a href="/admin" onClick={closeDrawer}>相册</a>
                   </li>
                 ) : (
                   <li>
@@ -217,7 +217,7 @@ function UserMenu({ me }: { me: PublicUser }) {
      之前 viewer 下拉只有 "个人空间 / 账户" 两个 href 都指 /account
      的窘境也顺手清掉（React 重复 key 警告的根源之一）。 */
   const items: Array<{ label: string; href: string; danger?: boolean }> = [
-    { label: "后台", href: "/admin" },
+    { label: "相册", href: "/admin" },
     { label: "账户", href: "/account" },
   ];
 
