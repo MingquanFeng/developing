@@ -155,7 +155,16 @@ function cliUserAdd(username, password, role = "viewer") {
   execFileSync(
     "npm",
     ["--prefix", root, "run", "user", "--", "add", username, role],
-    { input: `${password}\n${password}\n`, stdio: ["pipe", "pipe", "pipe"] },
+    {
+      env: {
+        ...process.env,
+        USERS_DB_PATH:
+          process.env.USERS_DB_PATH ||
+          path.join(root, "data", "users.db"),
+      },
+      input: `${password}\n${password}\n`,
+      stdio: ["pipe", "pipe", "pipe"],
+    },
   );
 }
 
@@ -164,7 +173,15 @@ function cliUserRm(username) {
     execFileSync(
       "npm",
       ["--prefix", root, "run", "user", "--", "rm", username],
-      { stdio: ["pipe", "pipe", "pipe"] },
+      {
+        env: {
+          ...process.env,
+          USERS_DB_PATH:
+            process.env.USERS_DB_PATH ||
+            path.join(root, "data", "users.db"),
+        },
+        stdio: ["pipe", "pipe", "pipe"],
+      },
     );
   } catch {
     /* 删失败不致命 */
@@ -412,6 +429,123 @@ try {
     });
   });
 
+  await step("首页默认 hero 标题含「至静」", async () => {
+    c.cookieJar.clear();
+    const r = await c.fetch(`/`, { headers: { Accept: "text/html" } });
+    if (r.status !== 200) throw new Error(`HTTP ${r.status} ≠ 200`);
+    const html = await r.text();
+    if (!html.includes("至静")) {
+      throw new Error("首页 HTML 不含默认 hero 标题「至静」");
+    }
+  });
+
+  await step("GET /api/site/content（无需登录）返回 4 个 section + meta", async () => {
+    c.cookieJar.clear();
+    const r = await c.json(`/api/site/content`);
+    assert.status(r, 200, "HTTP");
+    assert.truthy(r.body.sections, "sections 字段");
+    for (const key of ["hero", "about", "subscribe", "footer"]) {
+      assert.truthy(r.body.sections[key], `sections.${key}`);
+    }
+    assert.truthy(Array.isArray(r.body.meta), "meta 是数组");
+    /* 默认值 hero.titleLines[0] 应是 "至静" */
+    assert.field(
+      r.body.sections.hero,
+      "titleLines.0",
+      "至静",
+      "默认 hero 第 1 行",
+    );
+  });
+
+  await step("admin PUT /api/site/content/hero 写新 titleLines → 写库 + 首页反映", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    /* 拿当前 sections 作为 base（PUT body.content 是整节，不是 patch） */
+    const cur = await c.json(`/api/site/content`);
+    const hero = cur.body.sections.hero;
+    const next = { ...hero, titleLines: ["动态首屏", "后台可控"] };
+    const put = await c.json(`/api/site/content/hero`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    assert.status(put, 200, "HTTP");
+    assert.field(put.body, "key", "hero", "key");
+    assert.truthy(put.body.updatedAt, "updatedAt");
+
+    /* 落库后 GET 应该看到新值 */
+    const after = await c.json(`/api/site/content`);
+    assert.field(
+      after.body.sections.hero,
+      "titleLines.0",
+      "动态首屏",
+      "DB 落库反映",
+    );
+
+    /* 首页 HTML 反映（force-static + revalidatePath 同步生效） */
+    const homeR = await c.fetch(`/`, {
+      headers: { Accept: "text/html" },
+    });
+    if (homeR.status !== 200) {
+      throw new Error(`首页 HTTP ${homeR.status} ≠ 200`);
+    }
+    const html = await homeR.text();
+    if (!html.includes("动态首屏")) {
+      throw new Error("首页 HTML 没反映 PUT 后内容（revalidatePath 未生效？）");
+    }
+  });
+
+  await step("viewer PUT /api/site/content/hero → 403 forbidden", async () => {
+    /* 重新创建 viewer 用于此测试 —— 上一个 step 可能已被删除 */
+    const tmpViewer = `smoke_site_${stamp}`;
+    const tmpPass = `SmokeSite${stamp}!1`;
+    cliUserAdd(tmpViewer, tmpPass);
+    try {
+      c.cookieJar.clear();
+      await c.login(tmpViewer, tmpPass);
+      const cur = await c.json(`/api/site/content`);
+      const next = {
+        ...cur.body.sections.hero,
+        titleLines: ["越权", "失败"],
+      };
+      const r = await c.json(`/api/site/content/hero`, {
+        method: "PUT",
+        body: JSON.stringify({ content: next }),
+      });
+      assert.status(r, 403, "HTTP");
+      assert.field(r.body, "error", "forbidden", "error");
+    } finally {
+      cliUserRm(tmpViewer);
+    }
+  });
+
+  await step("admin PUT 形状不符 → 400 invalid_section_shape", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/hero`, {
+      method: "PUT",
+      body: JSON.stringify({ content: { tags: "不是数组" } }),
+    });
+    assert.status(r, 400, "HTTP");
+    assert.field(r.body, "error", "invalid_section_shape", "error");
+  });
+
+  await step("admin DELETE /api/site/content/hero → 回落到默认", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/hero`, { method: "DELETE" });
+    assert.status(r, 200, "HTTP");
+    assert.field(r.body, "key", "hero", "key");
+    assert.field(r.body, "reset", true, "reset");
+
+    const after = await c.json(`/api/site/content`);
+    assert.field(
+      after.body.sections.hero,
+      "titleLines.0",
+      "至静",
+      "DELETE 后回落默认",
+    );
+  });
+
   await step("admin 删 user → 200 + 联动清资源 (photos/albums/objects)", async () => {
     c.cookieJar.clear();
     await c.login(ADMIN_USER, ADMIN_PASS);
@@ -454,7 +588,9 @@ try {
   });
 
   await step("security_log 落库（password_reset 与 session_revoked）", async () => {
-    const dbPath = path.join(root, "data", "users.db");
+    const dbPath =
+      process.env.USERS_DB_PATH ||
+      path.join(root, "data", "users.db");
     const out = execFileSync("sqlite3", [
       dbPath,
       `SELECT kind, COUNT(*) FROM security_log WHERE kind IN ('password_reset','session_revoked') GROUP BY kind;`,
