@@ -72,8 +72,10 @@ export {
 // 首页内容（后台动态化）
 export {
   fetchSiteContent,
+  fetchSiteContentMeta,
   saveSiteSection,
   resetSiteSection,
   type SiteContentDraft,
   type SiteContentResponse,
+  type SiteContentMetaResponse,
 } from "./site-content";

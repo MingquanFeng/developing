@@ -3,6 +3,7 @@
  * ------------------------------------------------------------------
  * 端点：
  *   GET    /api/site/content              —— 取全部 section（公开）
+ *   GET    /api/site/content/meta         —— 取各 key 元信息（admin-only）
  *   PUT    /api/site/content/[key]        —— 写入一节（admin）
  *   DELETE /api/site/content/[key]        —— 重置一节为静态默认（admin）
  *
@@ -29,16 +30,28 @@ export type SiteContentDraft = {
   footer: unknown;
 };
 
+/** 公开 GET 响应：只 sections，不含 meta（meta 在 admin-only 端点）。 */
 export type SiteContentResponse = {
   sections: SiteContentDraft;
+};
+
+/** admin GET meta 响应：meta 含 userId 等内部信息。 */
+export type SiteContentMetaResponse = {
   meta: SiteContentMeta[];
 };
 
-/** GET /api/site/content —— 后台首屏拉数据初始化表单 */
+/** GET /api/site/content —— 拉 sections（公开） */
 export async function fetchSiteContent(): Promise<SiteContentResponse> {
   const r = await apiFetch("/api/site/content", { cache: "no-store" });
   if (!r.ok) await asApiError(r, "获取首页内容失败");
   return await readJson<SiteContentResponse>(r);
+}
+
+/** GET /api/site/content/meta —— 拉 meta（admin-only） */
+export async function fetchSiteContentMeta(): Promise<SiteContentMetaResponse> {
+  const r = await apiFetch("/api/site/content/meta", { cache: "no-store" });
+  if (!r.ok) await asApiError(r, "获取首页内容元信息失败");
+  return await readJson<SiteContentMetaResponse>(r);
 }
 
 /** PUT /api/site/content/[key] —— 保存一节。

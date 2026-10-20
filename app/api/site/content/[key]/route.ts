@@ -83,11 +83,14 @@ export async function PUT(
     throw e;
   }
 
-  /* 审计独立捕获：失败不阻塞用户成功反馈，仅打点。 */
+  /* 审计独立捕获：失败不阻塞用户成功反馈，仅打点。
+     site_content_* 事件专用 actor_user_id 列；user_ref 列仍按 username
+     语义，不与 site_content 写混合。 */
   try {
     recordSecurityEvent({
       kind: "site_content_write",
-      userRef: auth.id,
+      userRef: null,
+      actorUserId: auth.id,
       ip: clientIp(req),
       detail: { key },
     });
@@ -127,7 +130,8 @@ export async function DELETE(
   try {
     recordSecurityEvent({
       kind: "site_content_reset",
-      userRef: auth.id,
+      userRef: null,
+      actorUserId: auth.id,
       ip: clientIp(req),
       detail: { key },
     });

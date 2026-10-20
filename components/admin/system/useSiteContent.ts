@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   fetchSiteContent,
+  fetchSiteContentMeta,
   resetSiteSection as sdkReset,
   saveSiteSection as sdkSave,
   type SiteContentDraft,
@@ -26,8 +27,13 @@ import type {
 } from "@/lib/contracts";
 
 export type UseSiteContentOptions = {
-  /** 首次拉取条件 —— 通常是登录成功后。 */
+  /** 首次拉取条件 —— 通常是登录成功后。
+   * 拉两个端点：
+   *   - /api/site/content（公开）拿 sections：登录即可
+   *   - /api/site/content/meta（admin）拿 meta：仅 admin */
   enabled: boolean;
+  /** 是否是 admin（决定要不要拉 meta） */
+  isAdmin: boolean;
 };
 
 export type UseSiteContentResult = {
@@ -64,15 +70,25 @@ export function useSiteContent(
     setLoading(true);
     setLoadErr(null);
     try {
-      const r = await fetchSiteContent();
-      setData(r.sections);
-      setMeta(r.meta);
+      /* sections 公开拉；meta 仅 admin 拉（meta 失败不阻塞 sections） */
+      const sec = await fetchSiteContent();
+      setData(sec.sections);
+      if (opts.isAdmin) {
+        try {
+          const m = await fetchSiteContentMeta();
+          setMeta(m.meta);
+        } catch {
+          /* meta 失败不报错：viewer 走非 admin 路径直接 ignore */
+        }
+      } else {
+        setMeta([]);
+      }
     } catch (e) {
       setLoadErr((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [opts.isAdmin]);
 
   useEffect(() => {
     if (opts.enabled) void reload();

@@ -68,7 +68,8 @@ export default function AdminApp({ initialMe = null }: AdminAppProps = {}) {
   const manifest = useManifest({ enabled: session.status === "authed" });
   const cover = useCoverModal();
   const siteContent = useSiteContent({
-    enabled: session.status === "authed" && session.me?.role === "admin",
+    enabled: session.status === "authed",
+    isAdmin: session.me?.role === "admin",
   });
 
   const [tab, setTab] = useState<AdminTab>("home");
