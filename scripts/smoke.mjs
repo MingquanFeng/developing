@@ -439,7 +439,7 @@ try {
     }
   });
 
-  await step("GET /api/site/content（无需登录）返回 4 个 section + meta", async () => {
+  await step("GET /api/site/content（无需登录）返回 4 个 section", async () => {
     c.cookieJar.clear();
     const r = await c.json(`/api/site/content`);
     assert.status(r, 200, "HTTP");
@@ -447,7 +447,6 @@ try {
     for (const key of ["hero", "about", "subscribe", "footer"]) {
       assert.truthy(r.body.sections[key], `sections.${key}`);
     }
-    assert.truthy(Array.isArray(r.body.meta), "meta 是数组");
     /* 默认值 hero.titleLines[0] 应是 "至静" */
     assert.field(
       r.body.sections.hero,
@@ -544,6 +543,83 @@ try {
       "至静",
       "DELETE 后回落默认",
     );
+  });
+
+  await step("GET /api/site/content 公开响应不再含 meta（userId 不泄露）", async () => {
+    c.cookieJar.clear();
+    const r = await c.json(`/api/site/content`);
+    assert.status(r, 200, "HTTP");
+    assert.truthy(r.body.sections, "sections 字段");
+    /* meta 字段已拆到独立端点 —— 不在公开 GET 响应里 */
+    assert.truthy(
+      r.body.meta === undefined,
+      `meta 字段不应在公开 GET 出现（实际=${JSON.stringify(r.body.meta)}）`,
+    );
+  });
+
+  await step("GET /api/site/content/meta 无登录 → 401", async () => {
+    c.cookieJar.clear();
+    const r = await c.json(`/api/site/content/meta`);
+    assert.status(r, 401, "HTTP");
+  });
+
+  await step("viewer GET /api/site/content/meta → 403", async () => {
+    const tmpViewer = `smoke_meta_${stamp}`;
+    const tmpPass = `SmokeMeta${stamp}!1`;
+    cliUserAdd(tmpViewer, tmpPass);
+    try {
+      c.cookieJar.clear();
+      await c.login(tmpViewer, tmpPass);
+      const r = await c.json(`/api/site/content/meta`);
+      assert.status(r, 403, "HTTP");
+    } finally {
+      cliUserRm(tmpViewer);
+    }
+  });
+
+  await step("admin GET /api/site/content/meta → 200 + meta[]", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/meta`);
+    assert.status(r, 200, "HTTP");
+    assert.truthy(Array.isArray(r.body.meta), "meta 是数组");
+  });
+
+  await step("security_log.site_content_* 行用 actor_user_id 列存 userId", async () => {
+    const dbPath =
+      process.env.USERS_DB_PATH || path.join(root, "data", "users.db");
+    /* 跑一次写入以确保有最新一行 */
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/site/content`);
+    const next = {
+      ...cur.body.sections.hero,
+      titleLines: ["元数据审计", "smoke-test"],
+    };
+    await c.json(`/api/site/content/hero`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    /* 查最新一行 site_content_write：user_ref 应为 NULL，actor_user_id 应为 admin id */
+    const adminMe = await c.json(`/api/session`);
+    const myId = adminMe.body.user.id;
+    const out = execFileSync("sqlite3", [
+      dbPath,
+      `SELECT user_ref, actor_user_id FROM security_log
+         WHERE kind = 'site_content_write'
+         ORDER BY created_at DESC LIMIT 1;`,
+    ]).toString();
+    const row = out.trim().split("|");
+    if (row[0] !== "") {
+      throw new Error(`user_ref 应为 NULL（实际="${row[0]}"）`);
+    }
+    if (row[1] !== myId) {
+      throw new Error(
+        `actor_user_id 应等于 admin userId（实际="${row[1]}" vs "${myId}"）`,
+      );
+    }
+    /* 还原 hero，避免污染 */
+    await c.json(`/api/site/content/hero`, { method: "DELETE" });
   });
 
   await step("admin 删 user → 200 + 联动清资源 (photos/albums/objects)", async () => {

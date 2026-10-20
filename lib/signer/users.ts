@@ -63,9 +63,9 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS security_log (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     kind        TEXT NOT NULL,            -- 'login_fail' | 'login_success' | 'register_attempt' | 'register_fail' | 'register_ok' | 'session_invalid' | 'password_changed' | 'password_reset' | 'session_revoked' | 'site_content_write' | 'site_content_reset'
-    user_ref    TEXT,                      -- 尝试的用户名（注册时可能为 NULL）
+    user_ref    TEXT,                     -- 尝试的用户名（注册时可能为 NULL）；site_content_* 事件请改用 actor_user_id 列
     ip          TEXT NOT NULL,
-    detail      TEXT,                      -- JSON
+    detail      TEXT,                     -- JSON
     created_at  TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_security_ip        ON security_log(ip, created_at);
@@ -129,6 +129,22 @@ function migrateAddLastLoginIp(): void {
   db.exec("ALTER TABLE users ADD COLUMN last_login_ip TEXT");
 }
 migrateAddLastLoginIp();
+
+/* security_log 加 actor_user_id 列 + 索引：site_content_* 事件专用。
+   旧部署 CREATE TABLE IF NOT EXISTS 不会重跑，需要单独 ALTER。
+   CREATE INDEX 也在此包内：先加列再建索引，避免老 DB 上找不到列。 */
+function migrateAddSecurityActorUserId(): void {
+  const cols = db.prepare("PRAGMA table_info(security_log)").all() as {
+    name: string;
+  }[];
+  if (!cols.some((c) => c.name === "actor_user_id")) {
+    db.exec("ALTER TABLE security_log ADD COLUMN actor_user_id TEXT");
+  }
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_security_actor ON security_log(actor_user_id, created_at)",
+  );
+}
+migrateAddSecurityActorUserId();
 
 /* ------------------------------------------------------------
    首次启动把 lib/data 静态默认值喂进 site_content。
@@ -494,8 +510,8 @@ export function consumeResetToken(token: string): ResetRecord {
 
 const QLog = {
   insert: db.prepare(
-    `INSERT INTO security_log (kind, user_ref, ip, detail, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO security_log (kind, user_ref, actor_user_id, ip, detail, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
   ),
   countLoginFail: db.prepare(
     `SELECT COUNT(*) AS n FROM security_log
@@ -524,12 +540,15 @@ export type SecurityLogKind =
 export function recordSecurityEvent(input: {
   kind: SecurityLogKind;
   userRef?: string | null;
+  /** site_content_* 事件专用：操作用户 userId。其他事件传 NULL。 */
+  actorUserId?: string | null;
   ip: string;
   detail?: unknown;
 }): void {
   QLog.insert.run(
     input.kind,
     input.userRef ?? null,
+    input.actorUserId ?? null,
     input.ip,
     input.detail === undefined ? null : JSON.stringify(input.detail),
     new Date().toISOString(),
