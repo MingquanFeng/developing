@@ -12,6 +12,7 @@ import FooterSection from "@/components/home/FooterSection";
 import { ImageFallbackProvider } from "@/components/Works";
 import { series as seriesData } from "@/lib/data/home";
 import { enrichSeriesWithCovers } from "@/lib/series-covers";
+import { listHomeContent } from "@/lib/data/site-content";
 
 /**
  * 视觉节奏（严格遵循「影像—留白—文字—影像」）：
@@ -25,6 +26,14 @@ import { enrichSeriesWithCovers } from "@/lib/series-covers";
  *  08 SUBSCRIBE 浅纸色
  *  09 FOOTER    最深冷黑
  */
+
+/* 动态渲染：页面包含 Nav（读 cookies），cookies() 强制整个 page 走
+   dynamic，ISR/force-static 与之互斥。后台保存 → PUT 路径调
+   revalidatePath('/') 让下次请求立刻重渲（lib/admin-api/site-content.ts）。
+   revalidate 在 force-dynamic 下是 no-op，保留仅为语义明确。 */
+export const dynamic = "force-dynamic";
+export const revalidate = 60;
+
 export default async function Home() {
   /**
    * 作品集 5 组的封面：只从主管理员上传的照片里挑。
@@ -42,6 +51,10 @@ export default async function Home() {
    */
   const series = await enrichSeriesWithCovers(seriesData);
 
+  /* 首期 4 section（hero/about/subscribe/footer）走 DB；其他 section
+     仍用同步常量。后续会推广。 */
+  const home = await listHomeContent();
+
   return (
     <>
       <ImageFallbackProvider />
@@ -49,17 +62,17 @@ export default async function Home() {
       <MetaBar />
 
       <main>
-        <HeroSection />
+        <HeroSection data={home.hero} />
         <JournalSection />
         <WorksSection series={series} />
         <CoordsSection />
         <StorySection />
         <Interlude03Section />
-        <AboutSection />
-        <SubscribeSection />
+        <AboutSection data={home.about} />
+        <SubscribeSection data={home.subscribe} />
       </main>
 
-      <FooterSection />
+      <FooterSection data={home.footer} />
     </>
   );
 }
