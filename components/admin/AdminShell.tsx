@@ -24,6 +24,7 @@ import type {
   Manifest,
   Photo,
   PublicUser,
+  SiteSectionKey,
 } from "@/lib/contracts";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -32,6 +33,8 @@ import DropZone from "./DropZone";
 import AdminPhotoGrid from "./AdminPhotoGrid";
 import UsersTab from "./tabs/UsersTab";
 import AlbumsTab from "./tabs/AlbumsTab";
+import SystemTab from "./system/SystemTab";
+import type { SiteContentDraft } from "@/lib/admin-api/site-content";
 
 import { type QueueItem } from "./upload-queue";
 import { fetchPhotoUrl } from "@/lib/album-client";
@@ -97,6 +100,14 @@ export type AdminShellProps = {
   myAlbums: readonly Album[];
   fallbackAlbum: Album | null;
   onChangeTargetAlbum: (id: string | null) => void;
+
+  /* 首页内容编辑（SystemTab 用） */
+  siteContent: SiteContentDraft;
+  siteContentBusy: SiteSectionKey | null;
+  siteContentLoading: boolean;
+  siteContentLoadErr: string | null;
+  onSaveSection: (key: SiteSectionKey, content: unknown) => Promise<void>;
+  onResetSection: (key: SiteSectionKey) => Promise<void>;
 };
 
 export default function AdminShell(props: AdminShellProps) {
@@ -134,6 +145,12 @@ export default function AdminShell(props: AdminShellProps) {
     myAlbums,
     fallbackAlbum,
     onChangeTargetAlbum,
+    siteContent,
+    siteContentBusy,
+    siteContentLoading,
+    siteContentLoadErr,
+    onSaveSection,
+    onResetSection,
   } = props;
 
   /* 严格权限隔离：admin 与 viewer 同权 —— 都只看到自己 ownerId 的相册 + 照片。
@@ -824,68 +841,35 @@ export default function AdminShell(props: AdminShellProps) {
         {/* ---------- system tab (admin-only) ---------- */}
         {tab === "system" && me.role === "admin" ? (
           <section className={styles.content}>
-            <CoversPanel
+            <SystemTab
               data={data}
               onOpenCover={onOpenCover}
+              siteContent={siteContent}
+              busy={siteContentBusy}
+              onSaveSection={onSaveSection}
+              onResetSection={onResetSection}
+              onRequestConfirm={
+                onRequestConfirm ?? (() => Promise.resolve(true))
+              }
             />
+            {siteContentLoadErr ? (
+              <p
+                className={styles.err}
+                style={{ marginTop: 12 }}
+                role="alert"
+              >
+                首页内容加载失败：{siteContentLoadErr}（表单可能显示陈旧数据）
+              </p>
+            ) : null}
+            {siteContentLoading ? (
+              <p className={styles.pageSub} style={{ marginTop: 12 }}>
+                加载中…
+              </p>
+            ) : null}
           </section>
         ) : null}
       </div>
     </div>
-  );
-}
-
-/* ============================================================
-   CoversPanel —— 封面 tab 的内容（admin-only）
-   内联在 AdminShell：只有 ~30 行，搬成独立文件收益不大。
-   ============================================================ */
-function CoversPanel({
-  data,
-  onOpenCover,
-}: {
-  data: Manifest;
-  onOpenCover: (a: Album) => void;
-}) {
-  return (
-    <section className={styles.content}>
-      {/* 批 3.5: pageHeader + section + card 模式, 与 Albums/Users/Photos tab 视觉一致 */}
-      <header className={styles.pageHeader}>
-        <h2 className={styles.pageTitle}>系统设置</h2>
-        <span className={styles.pageSub}>首页作品集封面</span>
-      </header>
-
-      <section className={styles.section} aria-label="首页作品集封面">
-        <header className={styles.sectionHeader}>
-          <h3 className={styles.sectionTitle}>封面管理</h3>
-        </header>
-        <div className={styles.coversList}>
-          {data.albums.map((a) => (
-            <article
-              key={a.id}
-              className={`${styles.card} ${styles.coversRow}`}
-            >
-              <div className={styles.coversMeta}>
-                <span className={styles.coversName}>{a.name}</span>
-                <span className={styles.coversSlug}>/{a.slug}</span>
-                <span className={styles.coversCoverText}>
-                  {a.coverKey
-                    ? data.photos.find((p) => p.key === a.coverKey)?.title ??
-                      a.coverKey
-                    : "（未设封面）"}
-                </span>
-              </div>
-              <button
-                type="button"
-                className={`${styles.btn} ${styles.btnGhost}`}
-                onClick={() => onOpenCover(a)}
-              >
-                {a.coverKey ? "改封面" : "设封面"}
-              </button>
-            </article>
-          ))}
-        </div>
-      </section>
-    </section>
   );
 }
 

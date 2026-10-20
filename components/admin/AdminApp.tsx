@@ -33,10 +33,12 @@ import { useUploadQueue } from "./hooks/useUploadQueue";
 import { useCoverModal } from "./hooks/useCoverModal";
 import { useAlbumsPanel } from "./hooks/useAlbumsPanel";
 import { useGlobalFileDrop } from "./hooks/useGlobalFileDrop";
+import { useSiteContent } from "./system/useSiteContent";
 import { defaultAlbum } from "./hooks/useManifest";
 
 import { patchPhoto, purgePhoto, restorePhoto, trashPhoto } from "@/lib/admin-api";
 import type { Album, Manifest, Photo, PublicUser } from "@/lib/contracts";
+import type { SiteSectionKey } from "@/lib/contracts";
 import { type SessionStatus } from "./hooks/useAdminSession";
 
 /**
@@ -65,6 +67,9 @@ export default function AdminApp({ initialMe = null }: AdminAppProps = {}) {
   const session = useAdminSession({ initialMe });
   const manifest = useManifest({ enabled: session.status === "authed" });
   const cover = useCoverModal();
+  const siteContent = useSiteContent({
+    enabled: session.status === "authed" && session.me?.role === "admin",
+  });
 
   const [tab, setTab] = useState<AdminTab>("home");
   const [photoFilter, setPhotoFilter] = useState<"all" | "trash">("all");
@@ -310,6 +315,42 @@ export default function AdminApp({ initialMe = null }: AdminAppProps = {}) {
     [cover],
   );
 
+  /* 首页内容编辑 —— useSiteContent 的 thin wrapper。
+     把错误透给顶部 shellNotice，200 成功时 reload() 一次拿最新 meta。 */
+  const onSaveSection = useCallback(
+    async (key: SiteSectionKey, content: unknown) => {
+      try {
+        await siteContent.save(key, content);
+        await siteContent.reload();
+        setShellNotice({
+          kind: "ok",
+          text: `已保存 ${key}，首页将自动更新`,
+        });
+      } catch (e) {
+        setShellNotice({ kind: "err", text: (e as Error).message });
+        throw e;
+      }
+    },
+    [siteContent],
+  );
+
+  const onResetSection = useCallback(
+    async (key: SiteSectionKey) => {
+      try {
+        await siteContent.reset(key);
+        await siteContent.reload();
+        setShellNotice({
+          kind: "ok",
+          text: `已重置 ${key} 为默认`,
+        });
+      } catch (e) {
+        setShellNotice({ kind: "err", text: (e as Error).message });
+        throw e;
+      }
+    },
+    [siteContent],
+  );
+
   const onLogout = useCallback(async () => {
     await session.logout();
     setShellNotice(null);
@@ -484,6 +525,12 @@ export default function AdminApp({ initialMe = null }: AdminAppProps = {}) {
         albumsBusy={albumPanel.busy}
         albumsMsg={albumPanel.msg}
         onRequestConfirm={requestConfirm}
+        siteContent={siteContent.data}
+        siteContentBusy={siteContent.busy}
+        siteContentLoading={siteContent.loading}
+        siteContentLoadErr={siteContent.loadErr}
+        onSaveSection={onSaveSection}
+        onResetSection={onResetSection}
       />
 
       {cover.coverAlbum ? (
