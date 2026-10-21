@@ -444,7 +444,7 @@ try {
     const r = await c.json(`/api/site/content`);
     assert.status(r, 200, "HTTP");
     assert.truthy(r.body.sections, "sections 字段");
-    for (const key of ["hero", "about", "subscribe", "footer", "story"]) {
+    for (const key of ["hero", "about", "subscribe", "footer", "story", "nav"]) {
       assert.truthy(r.body.sections[key], `sections.${key}`);
     }
     /* 默认值 hero.titleLines[0] 应是 "至静" */
@@ -595,6 +595,84 @@ try {
       after.body.sections.story,
       "titleMain",
       "静蓝",
+      "DELETE 后回落默认",
+    );
+  });
+
+  await step("admin PUT nav 改文案 → 首页导航反映", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/site/content`);
+    const next = cur.body.sections.nav.map((it, i) =>
+      i === 0 ? { ...it, label: "作品集" } : it,
+    );
+    const put = await c.json(`/api/site/content/nav`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    assert.status(put, 200, "HTTP");
+    assert.field(put.body, "key", "nav", "key");
+
+    const homeR = await c.fetch(`/`, { headers: { Accept: "text/html" } });
+    if (homeR.status !== 200) throw new Error(`首页 HTTP ${homeR.status}`);
+    const html = await homeR.text();
+    if (!html.includes("作品集")) {
+      throw new Error("首页 HTML 没反映 PUT nav 后文案");
+    }
+    if (!html.includes('href="#works"')) {
+      throw new Error("首页 HTML 缺 nav href");
+    }
+  });
+
+  await step("admin PUT nav 用 javascript: href → 400 invalid_section_shape", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/nav`, {
+      method: "PUT",
+      body: JSON.stringify({
+        content: [{ label: "恶意", href: "javascript:alert(1)" }],
+      }),
+    });
+    assert.status(r, 400, "HTTP");
+    assert.field(r.body, "error", "invalid_section_shape", "error");
+  });
+
+  await step("admin PUT nav 用 //外站 href → 400 invalid_section_shape", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/nav`, {
+      method: "PUT",
+      body: JSON.stringify({
+        content: [{ label: "外站", href: "//evil.example.com" }],
+      }),
+    });
+    assert.status(r, 400, "HTTP");
+    assert.field(r.body, "error", "invalid_section_shape", "error");
+  });
+
+  await step("admin PUT nav 用未知锚点 → 400 invalid_section_shape", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/nav`, {
+      method: "PUT",
+      body: JSON.stringify({
+        content: [{ label: "坏锚点", href: "#not-a-section" }],
+      }),
+    });
+    assert.status(r, 400, "HTTP");
+    assert.field(r.body, "error", "invalid_section_shape", "error");
+  });
+
+  await step("admin DELETE /api/site/content/nav → 回落到默认", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/nav`, { method: "DELETE" });
+    assert.status(r, 200, "HTTP");
+    const after = await c.json(`/api/site/content`);
+    assert.field(
+      after.body.sections.nav[0],
+      "label",
+      "作品",
       "DELETE 后回落默认",
     );
   });

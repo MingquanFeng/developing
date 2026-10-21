@@ -13,6 +13,7 @@
  * import，模块顶层 prepare 会因表不存在抛错。
  */
 import { db } from "./_db";
+import { NAV_ANCHORS } from "@/lib/data/nav";
 import type { SiteSectionKey } from "@/lib/contracts";
 
 export type { SiteSectionKey } from "@/lib/contracts";
@@ -251,6 +252,37 @@ function isFooter(v: unknown): boolean {
   );
 }
 
+/**
+ * Nav：items[{label, href}] 数组。
+ *
+ * ⚠️ href 必须过安全白名单 —— React 的 href 属性**不阻止**
+ * `javascript:` URL（admin 写进去，访客一点就执行）。允许两种：
+ *   - `#anchor`：页内锚点，anchor 必须在已知 section id 里
+ *   - `/path`  ：站内绝对路径（单斜杠）
+ *
+ * `//evil.com` 是协议相对 URL（指向外站），显式排除。
+ */
+function isNav(v: unknown): boolean {
+  if (!isArr(v)) return false;
+  return v.every((it) => {
+    if (!isObj(it)) return false;
+    if (!isStr(it.label) || it.label.length === 0) return false;
+    if (!isStr(it.href)) return false;
+    return isSafeNavHref(it.href);
+  });
+}
+
+/** href 安全白名单校验 —— 与 lib/data/nav.ts 的 NAV_ANCHORS 对齐 */
+function isSafeNavHref(href: string): boolean {
+  if (href.startsWith("//")) return false; // 协议相对 URL → 外站
+  if (href.startsWith("#")) {
+    const anchor = href.slice(1);
+    return (NAV_ANCHORS as readonly string[]).includes(anchor);
+  }
+  if (href.startsWith("/")) return true; // 站内绝对路径
+  return false; // 其余（相对路径 / javascript: / data:）一律拒绝
+}
+
 /** 总入口：按 key 路由到对应守卫 */
 export function isValidSection(
   key: SiteSectionKey,
@@ -267,5 +299,7 @@ export function isValidSection(
       return isFooter(v);
     case "story":
       return isStory(v);
+    case "nav":
+      return isNav(v);
   }
 }

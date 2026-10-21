@@ -15,6 +15,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { site, SECTION_IDS } from "@/lib/data";
+import type { nav } from "@/lib/data/nav";
 import type { PublicUser } from "@/lib/album-client";
 import { logoutSession } from "@/lib/admin-api";
 import styles from "./Nav.module.css";
@@ -22,11 +23,17 @@ import styles from "./Nav.module.css";
 /* 移动端断点与 .module.css @media 对齐 */
 const MOBILE_BREAKPOINT = 1100;
 
+/** 导航项的运行时形状（DB 覆盖值可变宽） */
+export type NavItem = { label: string; href: string };
+
 export type NavShellProps = {
   me: PublicUser | null;
+  /** 顶导航内容项。来源：server 端 Nav 查 DB 覆盖值（回落 lib/data/nav
+   *  静态默认）。账户入口（登录/注册）不在这里 —— 按登录态程序渲染。 */
+  items: readonly NavItem[];
 };
 
-export default function NavShell({ me }: NavShellProps) {
+export default function NavShell({ me, items }: NavShellProps) {
   const [shrunk, setShrunk] = useState(false);
   const [index, setIndex] = useState(1);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -78,13 +85,13 @@ export default function NavShell({ me }: NavShellProps) {
 
       {/* desktop 中部菜单 —— < 1100px 时 CSS 隐藏 */}
       <nav className={styles.nav__menu}>
-        {/* 作品 / 故事 / 手记 / 关于 / 相册 / 联系 —— 永远在 */}
-        <a href="#works">作品</a>
-        <a href="#story">故事</a>
-        <a href="#journal">手记</a>
-        <a href="#about">关于</a>
-        <a href="/album/">相册</a>
-        <a href="#contact">联系</a>
+        {/* 内容项（作品 / 故事 / 手记 / 关于 / 相册 / 联系 …）—— 来自
+            props，后台可改文案与链接；账户入口按登录态程序渲染。 */}
+        {items.map((it) => (
+          <a key={`${it.label}-${it.href}`} href={it.href}>
+            {it.label}
+          </a>
+        ))}
 
         {me ? (
           <UserMenu me={me} />
@@ -130,12 +137,13 @@ export default function NavShell({ me }: NavShellProps) {
           }}
         >
           <ul className={styles.nav__drawerList}>
-            <li><a href="#works" onClick={closeDrawer}>作品</a></li>
-            <li><a href="#story" onClick={closeDrawer}>故事</a></li>
-            <li><a href="#journal" onClick={closeDrawer}>手记</a></li>
-            <li><a href="#about" onClick={closeDrawer}>关于</a></li>
-            <li><a href="/album/" onClick={closeDrawer}>相册</a></li>
-            <li><a href="#contact" onClick={closeDrawer}>联系</a></li>
+            {items.map((it) => (
+              <li key={`${it.label}-${it.href}`}>
+                <a href={it.href} onClick={closeDrawer}>
+                  {it.label}
+                </a>
+              </li>
+            ))}
             <li className={styles.nav__drawerSep} />
             {me ? (
               <>

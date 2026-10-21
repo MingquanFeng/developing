@@ -18,6 +18,7 @@ import { about } from "./about";
 import { subscribe } from "./subscribe";
 import { footer } from "./footer";
 import { story } from "./story";
+import { nav } from "./nav";
 import {
   getSiteSection,
   seedSiteContentIfEmpty,
@@ -30,6 +31,7 @@ export type SiteContent = {
   subscribe: typeof subscribe;
   footer: typeof footer;
   story: typeof story;
+  nav: typeof nav;
 };
 
 /** 首页 SSR：DB 有就用，没有回落静态 */
@@ -50,17 +52,21 @@ export async function getFooter(): Promise<typeof footer> {
 export async function getStory(): Promise<typeof story> {
   return (getSiteSection<typeof story>("story") ?? story) as typeof story;
 }
+export async function getNav(): Promise<typeof nav> {
+  return (getSiteSection<typeof nav>("nav") ?? nav) as typeof nav;
+}
 
-/** 一次拉齐 5 个 section（page.tsx 用） */
+/** 一次拉齐 6 个 section（page.tsx 用） */
 export async function listHomeContent(): Promise<SiteContent> {
-  const [h, a, s, f, st] = await Promise.all([
+  const [h, a, s, f, st, nv] = await Promise.all([
     getHero(),
     getAbout(),
     getSubscribe(),
     getFooter(),
     getStory(),
+    getNav(),
   ]);
-  return { hero: h, about: a, subscribe: s, footer: f, story: st };
+  return { hero: h, about: a, subscribe: s, footer: f, story: st, nav: nv };
 }
 
 /* ============================================================
@@ -70,7 +76,14 @@ export async function listHomeContent(): Promise<SiteContent> {
    为空时执行（不覆盖已有覆盖值）。
    ============================================================ */
 export function seedHomeContentFromDefaults(): void {
-  seedSiteContentIfEmpty({ hero, about, subscribe, footer, story });
+  seedSiteContentIfEmpty({
+    hero,
+    about,
+    subscribe,
+    footer,
+    story,
+    nav: [...nav],
+  });
 }
 
 /* ============================================================

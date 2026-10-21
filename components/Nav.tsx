@@ -6,10 +6,14 @@
  * 关键点：这是 server component（"use client" 没有），所以能直接 import
  * 来自 lib/signer/users 与 next/headers 的 cookies()。这与 NavShell 内部
  * 的所有 useState / useEffect 无关 —— server component 只负责读一次。
+ *
+ * 导航内容项同理：server 端查 SQLite 的 site_content 覆盖值（回落
+ * lib/data/nav 静态默认），后台改了立刻反映。
  */
 import { cookies } from "next/headers";
 import { readCookie, verifySession, sessionCookieName } from "@/lib/signer/auth";
 import { findById, toPublic } from "@/lib/signer/users";
+import { getNav } from "@/lib/data/site-content";
 import NavShell from "./NavShell";
 import type { PublicUser } from "@/lib/contracts";
 
@@ -35,5 +39,8 @@ export default async function Nav() {
     }
   }
 
-  return <NavShell me={me} />;
+  /* 导航内容项：DB 覆盖值优先，回落 lib/data/nav 静态默认 */
+  const items = await getNav();
+
+  return <NavShell me={me} items={items} />;
 }
