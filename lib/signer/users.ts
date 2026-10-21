@@ -31,13 +31,44 @@ export type User = UserContract;
 export type PublicUser = PublicUserContract;
 
 /**
+ * 执行一条 DDL，SQLITE_BUSY（database is locked）时退避重试。
+ *
+ * build 时 N 个 worker 并发加载本模块 → 每个都跑 DDL/迁移 →
+ * `PRAGMA journal_mode = WAL` 与 ALTER TABLE 要写锁，后到的会撞
+ * SQLITE_BUSY。先到的 worker 建完表，后到的 CREATE TABLE IF NOT
+ * EXISTS / PRAGMA table_info 检测直接跳过。
+ */
+function execWithRetry(sql: string): void {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      db.exec(sql);
+      return;
+    } catch (e) {
+      const msg = String((e as { message?: string }).message ?? e);
+      const locked = msg.includes("locked") || msg.includes("busy");
+      if (!locked || attempt === 4) throw e;
+      /* 同步退避：模块顶层不能 await。Atomics.wait 阻塞当前线程，
+         但这里进程还没起事件循环，等价于 sleep。 */
+      const waitMs = 50 * 2 ** attempt;
+      Atomics.wait(
+        new Int32Array(new SharedArrayBuffer(4)),
+        0,
+        0,
+        waitMs,
+      );
+    }
+  }
+}
+
+/**
  * 创建表时一气呵成把 schema 写齐 —— `role` / `session_version` 都是后加的，
  * 由下面的 migrate 函数通过 `PRAGMA table_info` 检测再加列。
  *
  * 安全日志（失败登录、注册尝试、提权失败等）和重置令牌
  * 是同一份用户管理的\"账本\"，都放这张库。
  */
-db.exec(`
+function execSchemaWithRetry(): void {
+  const SCHEMA = `
   PRAGMA journal_mode = WAL;
   PRAGMA foreign_keys = ON;
 
@@ -73,13 +104,17 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_security_kind_time ON security_log(kind, created_at);
 
   CREATE TABLE IF NOT EXISTS site_content (
-    section_key TEXT PRIMARY KEY,           -- 'hero' | 'about' | 'subscribe' | 'footer'
+    section_key TEXT PRIMARY KEY,           -- 'hero' | 'about' | 'subscribe' | 'footer' | 'story' | 'nav' | 'interlude01' | 'interlude03' | 'coords' | 'worksIntro'
     content     TEXT NOT NULL,              -- JSON.stringify(content)
     updated_at  TEXT NOT NULL,
     updated_by  TEXT                        -- userId，审计
   );
   CREATE INDEX IF NOT EXISTS idx_site_content_updated ON site_content(updated_at);
-`);
+`;
+
+  execWithRetry(SCHEMA);
+}
+execSchemaWithRetry();
 
 /**
  * 一次性迁移：加 role 列。
@@ -94,8 +129,8 @@ function migrateAddRole(): void {
   }[];
   if (cols.some((c) => c.name === "role")) return;
 
-  db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'");
-  db.exec("UPDATE users SET role = 'admin' WHERE role IS NULL OR role = ''");
+  execWithRetry("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'");
+  execWithRetry("UPDATE users SET role = 'admin' WHERE role IS NULL OR role = ''");
 }
 migrateAddRole();
 
@@ -111,7 +146,7 @@ function migrateAddSessionVersion(): void {
     name: string;
   }[];
   if (cols.some((c) => c.name === "session_version")) return;
-  db.exec(
+  execWithRetry(
     "ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 1",
   );
 }
@@ -126,7 +161,7 @@ function migrateAddLastLoginIp(): void {
     name: string;
   }[];
   if (cols.some((c) => c.name === "last_login_ip")) return;
-  db.exec("ALTER TABLE users ADD COLUMN last_login_ip TEXT");
+  execWithRetry("ALTER TABLE users ADD COLUMN last_login_ip TEXT");
 }
 migrateAddLastLoginIp();
 
@@ -138,9 +173,9 @@ function migrateAddSecurityActorUserId(): void {
     name: string;
   }[];
   if (!cols.some((c) => c.name === "actor_user_id")) {
-    db.exec("ALTER TABLE security_log ADD COLUMN actor_user_id TEXT");
+    execWithRetry("ALTER TABLE security_log ADD COLUMN actor_user_id TEXT");
   }
-  db.exec(
+  execWithRetry(
     "CREATE INDEX IF NOT EXISTS idx_security_actor ON security_log(actor_user_id, created_at)",
   );
 }
