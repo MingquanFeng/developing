@@ -895,9 +895,10 @@ try {
       method: "PUT",
       body: JSON.stringify({ content: next }),
     });
-    /* locale 是额外字段 —— 守卫按已知字段校验，多余字段被忽略，
-       所以这里应该 200（locale 不生效）而不是 400 */
-    assert.status(r, 200, "HTTP（多余字段被忽略）");
+    /* 守卫严格校验键集合 —— locale 是刻意排除的字段，admin 传它
+       直接 400，而不是静默存成死值 */
+    assert.status(r, 400, "HTTP");
+    assert.field(r.body, "error", "invalid_section_shape", "error");
   });
 
   await step("admin PUT site 形状不符（缺 name）→ 400", async () => {

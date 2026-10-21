@@ -12,11 +12,34 @@
  * users.ts 的 db.exec 建；如果 site-content.ts 在 users.ts 之前被
  * import，模块顶层 prepare 会因表不存在抛错。
  */
-import { db } from "./_db";
+import { db, execWithRetry } from "./_db";
 import { NAV_ANCHORS } from "@/lib/data/nav";
 import type { SiteSectionKey } from "@/lib/contracts";
 
 export type { SiteSectionKey } from "@/lib/contracts";
+
+/**
+ * 建 site_content 表。
+ *
+ * 本模块自己建自己的表（不靠 users.ts 代劳）—— 这样单测只 import
+ * 本模块就能拿到可用表，不必连带加载 users.ts 的 config 依赖
+ * （config 在 import 时校验 COS_* / SESSION_SECRET 等 env）。
+ *
+ * 幂等：CREATE TABLE IF NOT EXISTS + 每次启动都跑一遍。老部署首次跑
+ * 即建表，不需要单独迁移。
+ */
+function ensureSiteContentTable(): void {
+  execWithRetry(`
+    CREATE TABLE IF NOT EXISTS site_content (
+      section_key TEXT PRIMARY KEY,           -- 'hero' | 'about' | 'subscribe' | 'footer' | 'story' | 'nav' | 'interlude01' | 'interlude03' | 'coords' | 'worksIntro' | 'site'
+      content     TEXT NOT NULL,              -- JSON.stringify(content)
+      updated_at  TEXT NOT NULL,
+      updated_by  TEXT                        -- userId，审计
+    );
+    CREATE INDEX IF NOT EXISTS idx_site_content_updated ON site_content(updated_at);
+  `);
+}
+ensureSiteContentTable();
 
 /**
  * 一节内容的元信息（审计/列表用）。
@@ -310,9 +333,31 @@ function isWorksIntro(v: unknown): boolean {
  * locale 被排除 —— 它用于 `<html lang>`，写在 app/layout.tsx 的
  * RootLayout 组件体里；那处读 DB 会让 layout 变 dynamic，把 /album
  * 的 force-static 一起传染。见 lib/contracts.ts 的 SiteContentData。
+ *
+ * ⚠️ 键集合**严格相等**（不多不少）—— 只校验必需字段的话，admin 传
+ * 额外的 `locale` 会被静默存进 DB 并原样返回：类型上说不含 locale、
+ * 运行时却有，是个死值（`<html lang>` 仍读静态值）+ 误导。严格校验
+ * 让 admin 传 locale 直接收到 400，边界清楚。
  */
+const SITE_KEYS = [
+  "name",
+  "nameEn",
+  "title",
+  "description",
+  "projectName",
+  "edition",
+  "foundedYear",
+  "cities",
+  "marquee",
+] as const;
+
 function isSite(v: unknown): boolean {
   if (!isObj(v)) return false;
+  const keys = Object.keys(v);
+  if (keys.length !== SITE_KEYS.length) return false;
+  if (!keys.every((k) => (SITE_KEYS as readonly string[]).includes(k))) {
+    return false;
+  }
   return (
     isStr(v.name) &&
     v.name.length > 0 &&

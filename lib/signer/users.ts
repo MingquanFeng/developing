@@ -11,7 +11,7 @@
  *    重启后文件系统会清空，用户会全部消失 —— 那种环境不能用 SQLite。
  */
 import { createHmac } from "node:crypto";
-import { db, DB_PATH } from "./_db";
+import { db, DB_PATH, execWithRetry } from "./_db";
 import bcrypt from "bcryptjs";
 import { config } from "./config";
 import type {
@@ -31,41 +31,15 @@ export type User = UserContract;
 export type PublicUser = PublicUserContract;
 
 /**
- * 执行一条 DDL，SQLITE_BUSY（database is locked）时退避重试。
- *
- * build 时 N 个 worker 并发加载本模块 → 每个都跑 DDL/迁移 →
- * `PRAGMA journal_mode = WAL` 与 ALTER TABLE 要写锁，后到的会撞
- * SQLITE_BUSY。先到的 worker 建完表，后到的 CREATE TABLE IF NOT
- * EXISTS / PRAGMA table_info 检测直接跳过。
- */
-function execWithRetry(sql: string): void {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      db.exec(sql);
-      return;
-    } catch (e) {
-      const msg = String((e as { message?: string }).message ?? e);
-      const locked = msg.includes("locked") || msg.includes("busy");
-      if (!locked || attempt === 4) throw e;
-      /* 同步退避：模块顶层不能 await。Atomics.wait 阻塞当前线程，
-         但这里进程还没起事件循环，等价于 sleep。 */
-      const waitMs = 50 * 2 ** attempt;
-      Atomics.wait(
-        new Int32Array(new SharedArrayBuffer(4)),
-        0,
-        0,
-        waitMs,
-      );
-    }
-  }
-}
-
-/**
- * 创建表时一气呵成把 schema 写齐 —— `role` / `session_version` 都是后加的，
+ * 创建表时一气呵气把 schema 写齐 —— `role` / `session_version` 都是后加的，
  * 由下面的 migrate 函数通过 `PRAGMA table_info` 检测再加列。
  *
  * 安全日志（失败登录、注册尝试、提权失败等）和重置令牌
  * 是同一份用户管理的\"账本\"，都放这张库。
+ *
+ * 注：site_content 表由 lib/signer/site-content.ts 自己建（它该管自己
+ * 的表）—— 这样单测只 import site-content.ts 就能拿到可用的表，不必
+ * 连带加载本模块的 config 依赖。
  */
 function execSchemaWithRetry(): void {
   const SCHEMA = `
@@ -102,14 +76,6 @@ function execSchemaWithRetry(): void {
   CREATE INDEX IF NOT EXISTS idx_security_ip        ON security_log(ip, created_at);
   CREATE INDEX IF NOT EXISTS idx_security_user      ON security_log(user_ref, created_at);
   CREATE INDEX IF NOT EXISTS idx_security_kind_time ON security_log(kind, created_at);
-
-  CREATE TABLE IF NOT EXISTS site_content (
-    section_key TEXT PRIMARY KEY,           -- 'hero' | 'about' | 'subscribe' | 'footer' | 'story' | 'nav' | 'interlude01' | 'interlude03' | 'coords' | 'worksIntro' | 'site'
-    content     TEXT NOT NULL,              -- JSON.stringify(content)
-    updated_at  TEXT NOT NULL,
-    updated_by  TEXT                        -- userId，审计
-  );
-  CREATE INDEX IF NOT EXISTS idx_site_content_updated ON site_content(updated_at);
 `;
 
   execWithRetry(SCHEMA);
