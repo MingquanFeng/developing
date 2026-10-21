@@ -20,3 +20,33 @@ export const DB_PATH = process.env.USERS_DB_PATH
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 export const db = new DatabaseSync(DB_PATH);
+
+/**
+ * 执行一条 DDL，SQLITE_BUSY（database is locked）时退避重试。
+ *
+ * build 时 N 个 worker 并发加载本模块 → 每个都跑 DDL/迁移 →
+ * `PRAGMA journal_mode = WAL` 与 ALTER TABLE 要写锁，后到的会撞
+ * SQLITE_BUSY。先到的 worker 建完表，后到的 CREATE TABLE IF NOT
+ * EXISTS / PRAGMA table_info 检测直接跳过。
+ */
+export function execWithRetry(sql: string): void {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      db.exec(sql);
+      return;
+    } catch (e) {
+      const msg = String((e as { message?: string }).message ?? e);
+      const locked = msg.includes("locked") || msg.includes("busy");
+      if (!locked || attempt === 4) throw e;
+      /* 同步退避：模块顶层不能 await。Atomics.wait 阻塞当前线程，
+         但这里进程还没起事件循环，等价于 sleep。 */
+      const waitMs = 50 * 2 ** attempt;
+      Atomics.wait(
+        new Int32Array(new SharedArrayBuffer(4)),
+        0,
+        0,
+        waitMs,
+      );
+    }
+  }
+}

@@ -34,6 +34,10 @@ jobs:
         run: npm run typecheck
 
       - name: Test (vitest)
+        # node:sqlite 在 Node 22 仍是实验模块, 需 --experimental-sqlite flag
+        # (跟 build step 一致)。测 site-content 持久层时会 import node:sqlite。
+        env:
+          NODE_OPTIONS: --experimental-sqlite
         run: npx vitest run
 
       - name: Build

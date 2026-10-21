@@ -20,6 +20,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "smoke": "node scripts/smoke.mjs",
     "user": "node scripts/user.js",
     "lint:api-paths": "node scripts/lint-api-paths.mjs",
