@@ -28,6 +28,7 @@ export type SiteContentDraft = {
   about: unknown;
   subscribe: unknown;
   footer: unknown;
+  story: unknown;
 };
 
 /** 公开 GET 响应：只 sections，不含 meta（meta 在 admin-only 端点）。 */

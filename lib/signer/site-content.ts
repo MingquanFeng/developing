@@ -214,6 +214,24 @@ function isSubscribe(v: unknown): boolean {
   );
 }
 
+/** Story：tag + titleMain + titleSub + image + imageAlt + copy + cta + caption + meta[4] */
+function isStory(v: unknown): boolean {
+  if (!isObj(v)) return false;
+  return (
+    isStr(v.tag) &&
+    isStr(v.titleMain) &&
+    isStr(v.titleSub) &&
+    isStr(v.image) &&
+    isStr(v.imageAlt) &&
+    isStr(v.copy) &&
+    isCta(v.cta) &&
+    isStr(v.caption) &&
+    isArr(v.meta) &&
+    v.meta.length === 4 &&
+    v.meta.every(isMetaRow)
+  );
+}
+
 /** Footer：line + columns[{kicker, lines:(string|{text,href})[]}] + bottom[] */
 function isFooter(v: unknown): boolean {
   if (!isObj(v)) return false;
@@ -247,5 +265,7 @@ export function isValidSection(
       return isSubscribe(v);
     case "footer":
       return isFooter(v);
+    case "story":
+      return isStory(v);
   }
 }

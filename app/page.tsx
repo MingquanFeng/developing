@@ -66,7 +66,7 @@ export default async function Home() {
         <JournalSection />
         <WorksSection series={series} />
         <CoordsSection />
-        <StorySection />
+        <StorySection data={home.story} />
         <Interlude03Section />
         <AboutSection data={home.about} />
         <SubscribeSection data={home.subscribe} />

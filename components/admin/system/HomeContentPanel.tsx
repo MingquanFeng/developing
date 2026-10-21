@@ -12,12 +12,14 @@ import { hero as heroStatic } from "@/lib/data/home";
 import { about as aboutStatic } from "@/lib/data/about";
 import { subscribe as subscribeStatic } from "@/lib/data/subscribe";
 import { footer as footerStatic } from "@/lib/data/footer";
+import { story as storyStatic } from "@/lib/data/story";
 import type { SiteContentDraft } from "@/lib/admin-api/site-content";
 import type { Writable } from "./editors/_writable";
 import HeroEditor from "./editors/HeroEditor";
 import AboutEditor from "./editors/AboutEditor";
 import SubscribeEditor from "./editors/SubscribeEditor";
 import FooterEditor from "./editors/FooterEditor";
+import StoryEditor from "./editors/StoryEditor";
 import styles from "../admin.module.css";
 import editorStyles from "./editors/editors.module.css";
 
@@ -52,6 +54,7 @@ const SECTIONS: ReadonlyArray<{
     hint: "newsletter 表单",
   },
   { key: "footer", label: "第九幕 · 页脚", hint: "三栏 + 底栏" },
+  { key: "story", label: "第五幕 · 主推故事", hint: "满屏肖像 + 副标 + 阅读入口" },
 ];
 
 export default function HomeContentPanel({
@@ -70,6 +73,7 @@ export default function HomeContentPanel({
       about: aboutStatic as unknown as Writable<typeof aboutStatic>,
       subscribe: subscribeStatic as unknown as Writable<typeof subscribeStatic>,
       footer: footerStatic as unknown as Writable<typeof footerStatic>,
+      story: storyStatic as unknown as Writable<typeof storyStatic>,
     }),
     [],
   );
@@ -156,8 +160,10 @@ export default function HomeContentPanel({
                   <AboutEditor {...editorProps} />
                 ) : key === "subscribe" ? (
                   <SubscribeEditor {...editorProps} />
-                ) : (
+                ) : key === "footer" ? (
                   <FooterEditor {...editorProps} />
+                ) : (
+                  <StoryEditor {...editorProps} />
                 )}
               </div>
             </details>

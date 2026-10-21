@@ -439,12 +439,12 @@ try {
     }
   });
 
-  await step("GET /api/site/content（无需登录）返回 4 个 section", async () => {
+  await step("GET /api/site/content（无需登录）返回 5 个 section", async () => {
     c.cookieJar.clear();
     const r = await c.json(`/api/site/content`);
     assert.status(r, 200, "HTTP");
     assert.truthy(r.body.sections, "sections 字段");
-    for (const key of ["hero", "about", "subscribe", "footer"]) {
+    for (const key of ["hero", "about", "subscribe", "footer", "story"]) {
       assert.truthy(r.body.sections[key], `sections.${key}`);
     }
     /* 默认值 hero.titleLines[0] 应是 "至静" */
@@ -453,6 +453,13 @@ try {
       "titleLines.0",
       "至静",
       "默认 hero 第 1 行",
+    );
+    /* 默认值 story.titleMain 应是 "静蓝" */
+    assert.field(
+      r.body.sections.story,
+      "titleMain",
+      "静蓝",
+      "默认 story titleMain",
     );
   });
 
@@ -541,6 +548,53 @@ try {
       after.body.sections.hero,
       "titleLines.0",
       "至静",
+      "DELETE 后回落默认",
+    );
+  });
+
+  await step("admin PUT /api/site/content/story 写新 titleMain → 首页反映", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/site/content`);
+    const next = { ...cur.body.sections.story, titleMain: "动态主推" };
+    const put = await c.json(`/api/site/content/story`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    assert.status(put, 200, "HTTP");
+    assert.field(put.body, "key", "story", "key");
+
+    const homeR = await c.fetch(`/`, {
+      headers: { Accept: "text/html" },
+    });
+    if (homeR.status !== 200) throw new Error(`首页 HTTP ${homeR.status}`);
+    const html = await homeR.text();
+    if (!html.includes("动态主推")) {
+      throw new Error("首页 HTML 没反映 PUT story 后内容");
+    }
+  });
+
+  await step("admin PUT story 形状不符（缺 titleMain）→ 400 invalid_section_shape", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/story`, {
+      method: "PUT",
+      body: JSON.stringify({ content: { tag: "x" } }),
+    });
+    assert.status(r, 400, "HTTP");
+    assert.field(r.body, "error", "invalid_section_shape", "error");
+  });
+
+  await step("admin DELETE /api/site/content/story → 回落到默认「静蓝」", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/story`, { method: "DELETE" });
+    assert.status(r, 200, "HTTP");
+    const after = await c.json(`/api/site/content`);
+    assert.field(
+      after.body.sections.story,
+      "titleMain",
+      "静蓝",
       "DELETE 后回落默认",
     );
   });

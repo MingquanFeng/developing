@@ -55,6 +55,7 @@ const EMPTY: SiteContentDraft = {
   about: {},
   subscribe: {},
   footer: {},
+  story: {},
 };
 
 export function useSiteContent(
