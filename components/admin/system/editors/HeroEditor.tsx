@@ -98,6 +98,7 @@ export default function HeroEditor({
         <span className={styles.label}>标签（逗号分隔）</span>
         <input
           className={styles.input}
+          aria-label="标签（逗号分隔）"
           value={tagsText}
           onChange={(e) =>
             update(
@@ -116,6 +117,7 @@ export default function HeroEditor({
           <span className={styles.label}>主标题第 1 行</span>
           <input
             className={styles.input}
+            aria-label="主标题第 1 行"
             value={draft.titleLines[0]}
             onChange={(e) =>
               update("titleLines", [e.target.value, draft.titleLines[1]])
@@ -126,6 +128,7 @@ export default function HeroEditor({
           <span className={styles.label}>主标题第 2 行</span>
           <input
             className={styles.input}
+            aria-label="主标题第 2 行"
             value={draft.titleLines[1]}
             onChange={(e) =>
               update("titleLines", [draft.titleLines[0], e.target.value])
@@ -156,6 +159,7 @@ export default function HeroEditor({
         <span className={styles.label}>副标文案</span>
         <textarea
           className={styles.textarea}
+          aria-label="副标文案"
           value={draft.sub}
           onChange={(e) => update("sub", e.target.value)}
         />

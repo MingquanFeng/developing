@@ -92,6 +92,7 @@ export default function NavEditor({
             <div key={i} className={styles.listItem}>
               <input
                 className={styles.input}
+                aria-label={`导航项 ${i + 1} 文案`}
                 placeholder="文案（如：作品）"
                 value={it.label}
                 onChange={(e) => {
@@ -102,6 +103,7 @@ export default function NavEditor({
               />
               <input
                 className={styles.input}
+                aria-label={`导航项 ${i + 1} 链接`}
                 placeholder="#works 或 /album/"
                 value={it.href}
                 onChange={(e) => {

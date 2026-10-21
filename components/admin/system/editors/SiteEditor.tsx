@@ -96,6 +96,7 @@ export default function SiteEditor({
           <span className={styles.label}>站点名（中文）</span>
           <input
             className={styles.input}
+            aria-label="站点名（中文）"
             value={draft.name}
             onChange={(e) => update("name", e.target.value)}
           />
@@ -115,6 +116,7 @@ export default function SiteEditor({
         <span className={styles.label}>页面标题（metadata title）</span>
         <input
           className={styles.input}
+          aria-label="页面标题（metadata title）"
           value={draft.title}
           onChange={(e) => update("title", e.target.value)}
         />
