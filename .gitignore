@@ -16,6 +16,11 @@ services/signer/dist/
 
 # testing
 /coverage
+# Playwright E2E 产物（截图 / trace / html report）
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # next.js
 /.next/

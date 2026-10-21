@@ -55,3 +55,49 @@ jobs:
         # 维护脚本: 检查 /api/* 路径是否在 client bundle 里被硬编码
         # 失败通常代表有未走 admin-api SDK 的裸 fetch
         run: npm run lint:api-paths
+
+  e2e:
+    name: e2e (playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # node:sqlite 是 Node 22+ 实验模块, 需 --experimental-sqlite flag
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        # E2E 用 next start (生产模式) 跑 —— dev server 编译慢且行为不同
+        env:
+          COS_BUCKET: test
+          COS_REGION: test
+          COS_SECRET_ID: test
+          COS_SECRET_KEY: test
+          SESSION_SECRET: $(node -e "console.log('test'.repeat(12))")
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm run build
+
+      - name: E2E (playwright)
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npx playwright test
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
