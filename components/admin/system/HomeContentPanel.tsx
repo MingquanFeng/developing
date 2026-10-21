@@ -14,6 +14,8 @@ import { subscribe as subscribeStatic } from "@/lib/data/subscribe";
 import { footer as footerStatic } from "@/lib/data/footer";
 import { story as storyStatic } from "@/lib/data/story";
 import { nav as navStatic } from "@/lib/data/nav";
+import { site as siteStatic } from "@/lib/data/site";
+import type { SiteContentData } from "@/lib/contracts";
 import {
   interlude01 as interlude01Static,
   interlude03 as interlude03Static,
@@ -31,6 +33,7 @@ import NavEditor from "./editors/NavEditor";
 import InterludeEditor from "./editors/InterludeEditor";
 import CoordsEditor from "./editors/CoordsEditor";
 import WorksIntroEditor from "./editors/WorksIntroEditor";
+import SiteEditor from "./editors/SiteEditor";
 import styles from "../admin.module.css";
 import editorStyles from "./editors/editors.module.css";
 
@@ -87,6 +90,11 @@ const SECTIONS: ReadonlyArray<{
     label: "第三幕 · 人像志介绍",
     hint: "WORKS 顶部标题与文案",
   },
+  {
+    key: "site",
+    label: "站点 meta",
+    hint: "标题 / 描述 / 品牌名 / 跑马灯（影响 SEO）",
+  },
 ];
 
 export default function HomeContentPanel({
@@ -114,6 +122,17 @@ export default function HomeContentPanel({
       coords: coordsStatic as unknown as Writable<typeof coordsStatic>,
       worksIntro:
         worksIntroStatic as unknown as Writable<typeof worksIntroStatic>,
+      site: {
+        name: siteStatic.name,
+        nameEn: siteStatic.nameEn,
+        title: siteStatic.title,
+        description: siteStatic.description,
+        projectName: siteStatic.projectName,
+        edition: siteStatic.edition,
+        foundedYear: siteStatic.foundedYear,
+        cities: [...siteStatic.cities],
+        marquee: [...siteStatic.marquee],
+      } as unknown as Writable<SiteContentData>,
     }),
     [],
   );
@@ -212,8 +231,10 @@ export default function HomeContentPanel({
                   <InterludeEditor {...editorProps} showEmphasis={false} />
                 ) : key === "coords" ? (
                   <CoordsEditor {...editorProps} />
-                ) : (
+                ) : key === "worksIntro" ? (
                   <WorksIntroEditor {...editorProps} />
+                ) : (
+                  <SiteEditor {...editorProps} />
                 )}
               </div>
             </details>

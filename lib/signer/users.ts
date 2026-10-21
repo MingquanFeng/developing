@@ -104,7 +104,7 @@ function execSchemaWithRetry(): void {
   CREATE INDEX IF NOT EXISTS idx_security_kind_time ON security_log(kind, created_at);
 
   CREATE TABLE IF NOT EXISTS site_content (
-    section_key TEXT PRIMARY KEY,           -- 'hero' | 'about' | 'subscribe' | 'footer' | 'story' | 'nav' | 'interlude01' | 'interlude03' | 'coords' | 'worksIntro'
+    section_key TEXT PRIMARY KEY,           -- 'hero' | 'about' | 'subscribe' | 'footer' | 'story' | 'nav' | 'interlude01' | 'interlude03' | 'coords' | 'worksIntro' | 'site'
     content     TEXT NOT NULL,              -- JSON.stringify(content)
     updated_at  TEXT NOT NULL,
     updated_by  TEXT                        -- userId，审计

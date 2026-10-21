@@ -10,6 +10,13 @@
 import Footer from "@/components/Footer";
 import type { footer } from "@/lib/data/footer";
 
-export default function FooterSection({ data }: { data: typeof footer }) {
-  return <Footer data={data} />;
+export default function FooterSection({
+  data,
+  siteName,
+}: {
+  data: typeof footer;
+  /** 站点名（brand） */
+  siteName?: string;
+}) {
+  return <Footer data={data} siteName={siteName} />;
 }

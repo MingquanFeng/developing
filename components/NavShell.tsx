@@ -14,7 +14,7 @@
  * 3. 切换到 server-rendered 之后，me 跟 cookie 永远一致；无需再探活
  */
 import { useEffect, useRef, useState } from "react";
-import { site, SECTION_IDS } from "@/lib/data";
+import { SECTION_IDS } from "@/lib/data";
 import type { nav } from "@/lib/data/nav";
 import type { PublicUser } from "@/lib/album-client";
 import { logoutSession } from "@/lib/admin-api";
@@ -26,14 +26,19 @@ const MOBILE_BREAKPOINT = 1100;
 /** 导航项的运行时形状（DB 覆盖值可变宽） */
 export type NavItem = { label: string; href: string };
 
+/** Nav brand 用的站点名（DB 覆盖或静态兜底） */
+export type NavSite = { name: string };
+
 export type NavShellProps = {
   me: PublicUser | null;
   /** 顶导航内容项。来源：server 端 Nav 查 DB 覆盖值（回落 lib/data/nav
    *  静态默认）。账户入口（登录/注册）不在这里 —— 按登录态程序渲染。 */
   items: readonly NavItem[];
+  /** 站点名 —— 顶栏 brand */
+  site: NavSite;
 };
 
-export default function NavShell({ me, items }: NavShellProps) {
+export default function NavShell({ me, items, site }: NavShellProps) {
   const [shrunk, setShrunk] = useState(false);
   const [index, setIndex] = useState(1);
   const [drawerOpen, setDrawerOpen] = useState(false);

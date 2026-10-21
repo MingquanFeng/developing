@@ -61,6 +61,7 @@ const EMPTY: SiteContentDraft = {
   interlude03: {},
   coords: {},
   worksIntro: {},
+  site: {},
 };
 
 export function useSiteContent(

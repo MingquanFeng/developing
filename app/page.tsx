@@ -58,7 +58,7 @@ export default async function Home() {
     <>
       <ImageFallbackProvider />
       <Nav />
-      <MetaBar />
+      <MetaBar marquee={home.site.marquee} />
 
       <main>
         <HeroSection data={home.hero} />
@@ -71,7 +71,7 @@ export default async function Home() {
         <SubscribeSection data={home.subscribe} />
       </main>
 
-      <FooterSection data={home.footer} />
+      <FooterSection data={home.footer} siteName={home.site.name} />
     </>
   );
 }

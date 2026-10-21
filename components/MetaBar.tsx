@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { site } from "@/lib/data";
 import styles from "./MetaBar.module.css";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -14,7 +13,16 @@ function beijingNow() {
   return `${pad(bj.getHours())}:${pad(bj.getMinutes())}:${pad(bj.getSeconds())} 北京`;
 }
 
-export default function MetaBar() {
+/**
+ * 顶部跑马灯：站点 marquee 两行 + 实时钟。
+ *
+ * 数据来源：page.tsx 透传 site.marquee（DB 覆盖或静态兜底）。
+ */
+export default function MetaBar({
+  marquee = ["塞上空许工作室 — 上海 ↔ 北京 ↔ 大理", "人像志 · 卷 47"],
+}: {
+  marquee?: readonly string[];
+}) {
   const [clock, setClock] = useState("--:--:-- 北京");
 
   useEffect(() => {
@@ -27,9 +35,9 @@ export default function MetaBar() {
   return (
     <div className={styles.meta}>
       <span className={styles.meta__dot} />
-      <span className={styles.meta__txt}>{site.marquee[0]}</span>
+      <span className={styles.meta__txt}>{marquee[0]}</span>
       <span className={styles.meta__sep}>—</span>
-      <span className={styles.meta__txt}>{site.marquee[1]}</span>
+      <span className={styles.meta__txt}>{marquee[1]}</span>
       <span className={styles.meta__sep}>—</span>
       <span className={styles.meta__txt}>{clock}</span>
     </div>

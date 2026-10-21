@@ -25,6 +25,7 @@ import { subscribe } from "./subscribe";
 import { footer } from "./footer";
 import { story } from "./story";
 import { nav } from "./nav";
+import { site } from "./site";
 import {
   getSiteSection,
   seedSiteContentIfEmpty,
@@ -42,6 +43,8 @@ export type SiteContent = {
   interlude03: typeof interlude03;
   coords: typeof coords;
   worksIntro: typeof worksIntro;
+  /** 站点 meta 的可编辑部分（不含 locale） */
+  site: Omit<typeof site, "locale">;
 };
 
 /** 首页 SSR：DB 有就用，没有回落静态 */
@@ -84,7 +87,28 @@ export async function getWorksIntro(): Promise<typeof worksIntro> {
   ) as typeof worksIntro;
 }
 
-/** 一次拉齐 10 个 section（page.tsx 用） */
+/**
+ * 站点 meta（可编辑部分，不含 locale）。
+ * locale 保持静态 —— 见 lib/contracts.ts 的 SiteContentData 注释。
+ */
+export async function getSiteMeta(): Promise<Omit<typeof site, "locale">> {
+  const fallback: Omit<typeof site, "locale"> = {
+    name: site.name,
+    nameEn: site.nameEn,
+    title: site.title,
+    description: site.description,
+    projectName: site.projectName,
+    edition: site.edition,
+    foundedYear: site.foundedYear,
+    cities: [...site.cities],
+    marquee: [...site.marquee],
+  };
+  return (
+    getSiteSection<Omit<typeof site, "locale">>("site") ?? fallback
+  ) as Omit<typeof site, "locale">;
+}
+
+/** 一次拉齐 11 个 section（page.tsx 用） */
 export async function listHomeContent(): Promise<SiteContent> {
   const [
     h,
@@ -97,6 +121,7 @@ export async function listHomeContent(): Promise<SiteContent> {
     i03,
     co,
     wi,
+    sm,
   ] = await Promise.all([
     getHero(),
     getAbout(),
@@ -108,6 +133,7 @@ export async function listHomeContent(): Promise<SiteContent> {
     getInterlude03(),
     getCoords(),
     getWorksIntro(),
+    getSiteMeta(),
   ]);
   return {
     hero: h,
@@ -120,6 +146,7 @@ export async function listHomeContent(): Promise<SiteContent> {
     interlude03: i03,
     coords: co,
     worksIntro: wi,
+    site: sm,
   };
 }
 
@@ -141,6 +168,18 @@ export function seedHomeContentFromDefaults(): void {
     interlude03,
     coords,
     worksIntro,
+    /* locale 刻意不种 —— 它不进 DB */
+    site: {
+      name: site.name,
+      nameEn: site.nameEn,
+      title: site.title,
+      description: site.description,
+      projectName: site.projectName,
+      edition: site.edition,
+      foundedYear: site.foundedYear,
+      cities: [...site.cities],
+      marquee: [...site.marquee],
+    },
   });
 }
 

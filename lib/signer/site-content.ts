@@ -305,6 +305,30 @@ function isWorksIntro(v: unknown): boolean {
 }
 
 /**
+ * Site：站点 meta 的可编辑部分（**不含 locale**）。
+ *
+ * locale 被排除 —— 它用于 `<html lang>`，写在 app/layout.tsx 的
+ * RootLayout 组件体里；那处读 DB 会让 layout 变 dynamic，把 /album
+ * 的 force-static 一起传染。见 lib/contracts.ts 的 SiteContentData。
+ */
+function isSite(v: unknown): boolean {
+  if (!isObj(v)) return false;
+  return (
+    isStr(v.name) &&
+    v.name.length > 0 &&
+    isStr(v.nameEn) &&
+    isStr(v.title) &&
+    isStr(v.description) &&
+    isStr(v.projectName) &&
+    isNum(v.edition) &&
+    isNum(v.foundedYear) &&
+    isStrArr(v.cities) &&
+    isStrArr(v.marquee) &&
+    v.marquee.length === 2
+  );
+}
+
+/**
  * Nav：items[{label, href}] 数组。
  *
  * ⚠️ href 必须过安全白名单 —— React 的 href 属性**不阻止**
@@ -361,5 +385,7 @@ export function isValidSection(
       return isCoords(v);
     case "worksIntro":
       return isWorksIntro(v);
+    case "site":
+      return isSite(v);
   }
 }

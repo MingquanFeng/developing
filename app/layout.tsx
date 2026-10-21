@@ -9,6 +9,7 @@ import {
 } from "next/font/google";
 import "./globals.css";
 import { site } from "@/lib/data";
+import { getSiteMeta } from "@/lib/data/site-content";
 
 /* ---------- 字体 ---------- */
 const bodoni = Bodoni_Moda({
@@ -47,43 +48,54 @@ const sansSC = Noto_Sans_SC({
   display: "swap",
 });
 
-/* ---------- SEO ---------- */
-export const metadata: Metadata = {
-  metadataBase: new URL("https://v4ntwd7b2tylv.space.mcode.cn"),
-  title: {
-    default: site.title,
-    template: `%s — ${site.name}`,
-  },
-  description: site.description,
-  keywords: [
-    "人像摄影",
-    "肖像摄影",
-    "先锋摄影",
-    "银盐",
-    "上海摄影师",
-    "北京摄影师",
-    "大理摄影师",
-    "塞上空许",
-  ],
-  authors: [{ name: site.name }],
-  creator: site.name,
-  openGraph: {
-    type: "website",
-    locale: "zh_CN",
-    siteName: site.name,
-    title: site.title,
-    description: site.description,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: site.title,
-    description: site.description,
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+/* ---------- SEO ----------
+   metadata 走 async generateMetadata()，从 SQLite 读 site 覆盖值
+   （admin 后台可改 title / description / name）。回落 lib/data/site 静态
+   默认。
+
+   ⚠️ 只把 metadata 做成动态，RootLayout 组件体**不读 DB** ——
+   那会让 layout 变 dynamic，把 /album 的 force-static（构建期烘
+   manifest）一起传染。`<html lang>` 因此仍用静态 site.locale
+   （locale 刻意不进 DB，见 lib/contracts.ts 的 SiteContentData）。 */
+export async function generateMetadata(): Promise<Metadata> {
+  const s = await getSiteMeta();
+  return {
+    metadataBase: new URL("https://v4ntwd7b2tylv.space.mcode.cn"),
+    title: {
+      default: s.title,
+      template: `%s — ${s.name}`,
+    },
+    description: s.description,
+    keywords: [
+      "人像摄影",
+      "肖像摄影",
+      "先锋摄影",
+      "银盐",
+      "上海摄影师",
+      "北京摄影师",
+      "大理摄影师",
+      "塞上空许",
+    ],
+    authors: [{ name: s.name }],
+    creator: s.name,
+    openGraph: {
+      type: "website",
+      locale: "zh_CN",
+      siteName: s.name,
+      title: s.title,
+      description: s.description,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: s.title,
+      description: s.description,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#1C1E22",

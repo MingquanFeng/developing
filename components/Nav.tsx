@@ -13,7 +13,7 @@
 import { cookies } from "next/headers";
 import { readCookie, verifySession, sessionCookieName } from "@/lib/signer/auth";
 import { findById, toPublic } from "@/lib/signer/users";
-import { getNav } from "@/lib/data/site-content";
+import { getNav, getSiteMeta } from "@/lib/data/site-content";
 import NavShell from "./NavShell";
 import type { PublicUser } from "@/lib/contracts";
 
@@ -39,8 +39,8 @@ export default async function Nav() {
     }
   }
 
-  /* 导航内容项：DB 覆盖值优先，回落 lib/data/nav 静态默认 */
-  const items = await getNav();
+  /* 导航内容项 + 站点名：DB 覆盖值优先，回落 lib/data 静态默认 */
+  const [items, siteMeta] = await Promise.all([getNav(), getSiteMeta()]);
 
-  return <NavShell me={me} items={items} />;
+  return <NavShell me={me} items={items} site={siteMeta} />;
 }

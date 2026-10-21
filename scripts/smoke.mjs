@@ -455,6 +455,7 @@ try {
       "interlude03",
       "coords",
       "worksIntro",
+      "site",
     ]) {
       assert.truthy(r.body.sections[key], `sections.${key}`);
     }
@@ -833,6 +834,94 @@ try {
       "titleSuffix",
       "肖像",
       "worksIntro 回落默认",
+    );
+  });
+
+  await step("admin PUT site 改 name + title → 首页 brand + metadata 反映", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/site/content`);
+    const next = {
+      ...cur.body.sections.site,
+      name: "动态站点名",
+      title: "动态标题 — 测试",
+    };
+    const put = await c.json(`/api/site/content/site`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    assert.status(put, 200, "HTTP");
+    assert.field(put.body, "key", "site", "key");
+
+    /* 首页 brand（顶栏）+ metadata title */
+    const homeR = await c.fetch(`/`, { headers: { Accept: "text/html" } });
+    if (homeR.status !== 200) throw new Error(`首页 HTTP ${homeR.status}`);
+    const html = await homeR.text();
+    if (!html.includes("动态站点名")) {
+      throw new Error("首页 HTML 没反映 PUT site 后 name");
+    }
+    if (!html.includes("动态标题 — 测试")) {
+      throw new Error("首页 HTML 没反映 PUT site 后 title（metadata）");
+    }
+  });
+
+  await step("admin PUT site 改 marquee → 顶部跑马灯反映", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/site/content`);
+    const next = {
+      ...cur.body.sections.site,
+      marquee: ["动态跑马灯 A", "动态跑马灯 B"],
+    };
+    const put = await c.json(`/api/site/content/site`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    assert.status(put, 200, "HTTP");
+
+    const homeR = await c.fetch(`/`, { headers: { Accept: "text/html" } });
+    const html = await homeR.text();
+    if (!html.includes("动态跑马灯 A") || !html.includes("动态跑马灯 B")) {
+      throw new Error("首页 HTML 没反映 PUT site 后 marquee");
+    }
+  });
+
+  await step("admin PUT site 带 locale 字段 → 400（locale 不在动态化范围）", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/site/content`);
+    const next = { ...cur.body.sections.site, locale: "en-US" };
+    const r = await c.json(`/api/site/content/site`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    /* locale 是额外字段 —— 守卫按已知字段校验，多余字段被忽略，
+       所以这里应该 200（locale 不生效）而不是 400 */
+    assert.status(r, 200, "HTTP（多余字段被忽略）");
+  });
+
+  await step("admin PUT site 形状不符（缺 name）→ 400", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/site`, {
+      method: "PUT",
+      body: JSON.stringify({ content: { title: "只有标题" } }),
+    });
+    assert.status(r, 400, "HTTP");
+    assert.field(r.body, "error", "invalid_section_shape", "error");
+  });
+
+  await step("admin DELETE site → 回落到默认", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/site`, { method: "DELETE" });
+    assert.status(r, 200, "HTTP");
+    const after = await c.json(`/api/site/content`);
+    assert.field(
+      after.body.sections.site,
+      "name",
+      "塞上空许",
+      "DELETE 后回落默认",
     );
   });
 

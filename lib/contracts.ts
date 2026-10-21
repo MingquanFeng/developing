@@ -121,10 +121,9 @@ export type ResetLinkResponse = {
    ============================================================ */
 
 /**
- * 首页后台可编辑的 section key。已支持 10 节：
+ * 首页后台可编辑的 section key。已支持 11 节：
  * - hero / about / subscribe / footer / story / nav
- * - interlude01 / interlude03 / coords / worksIntro
- * 后续 site（站点 meta）会在下一期加入。
+ * - interlude01 / interlude03 / coords / worksIntro / site
  */
 export type SiteSectionKey =
   | "hero"
@@ -136,7 +135,8 @@ export type SiteSectionKey =
   | "interlude01"
   | "interlude03"
   | "coords"
-  | "worksIntro";
+  | "worksIntro"
+  | "site";
 
 /** 一节内容的元信息（updatedAt + 改 userId） */
 export type SiteContentMeta = {
@@ -163,6 +163,17 @@ import type { subscribe } from "./data/subscribe";
 import type { footer } from "./data/footer";
 import type { story } from "./data/story";
 import type { nav } from "./data/nav";
+import type { site } from "./data/site";
+
+/**
+ * 站点 meta 的可编辑部分。
+ *
+ * ⚠️ **locale 被刻意排除** —— 它用于 `<html lang>`，写在 app/layout.tsx
+ * 的 RootLayout 组件体里。若那处读 DB，整个 layout 变 dynamic，会把
+ * /album 的 `force-static`（构建期烘 manifest）一起传染成动态。
+ * locale 极少变动，动态化它收益低、代价高 —— 保持静态 import。
+ */
+export type SiteContentData = Omit<typeof site, "locale">;
 
 export type SectionContent<K extends SiteSectionKey> = K extends "hero"
   ? typeof hero
@@ -184,7 +195,9 @@ export type SectionContent<K extends SiteSectionKey> = K extends "hero"
                   ? typeof coords
                   : K extends "worksIntro"
                     ? typeof worksIntro
-                    : never;
+                    : K extends "site"
+                      ? SiteContentData
+                      : never;
 
 /* ============================================================
    错误契约
