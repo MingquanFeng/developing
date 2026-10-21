@@ -13,7 +13,13 @@
  * 老 `import { hero } from "@/lib/data"` 仍可用（向后兼容）；新代码请走
  * `import { getHero, listHomeContent } from "@/lib/data/site-content"`。
  */
-import { hero } from "./home";
+import {
+  hero,
+  interlude01,
+  interlude03,
+  coords,
+  worksIntro,
+} from "./home";
 import { about } from "./about";
 import { subscribe } from "./subscribe";
 import { footer } from "./footer";
@@ -32,6 +38,10 @@ export type SiteContent = {
   footer: typeof footer;
   story: typeof story;
   nav: typeof nav;
+  interlude01: typeof interlude01;
+  interlude03: typeof interlude03;
+  coords: typeof coords;
+  worksIntro: typeof worksIntro;
 };
 
 /** 首页 SSR：DB 有就用，没有回落静态 */
@@ -55,18 +65,62 @@ export async function getStory(): Promise<typeof story> {
 export async function getNav(): Promise<typeof nav> {
   return (getSiteSection<typeof nav>("nav") ?? nav) as typeof nav;
 }
+export async function getInterlude01(): Promise<typeof interlude01> {
+  return (
+    getSiteSection<typeof interlude01>("interlude01") ?? interlude01
+  ) as typeof interlude01;
+}
+export async function getInterlude03(): Promise<typeof interlude03> {
+  return (
+    getSiteSection<typeof interlude03>("interlude03") ?? interlude03
+  ) as typeof interlude03;
+}
+export async function getCoords(): Promise<typeof coords> {
+  return (getSiteSection<typeof coords>("coords") ?? coords) as typeof coords;
+}
+export async function getWorksIntro(): Promise<typeof worksIntro> {
+  return (
+    getSiteSection<typeof worksIntro>("worksIntro") ?? worksIntro
+  ) as typeof worksIntro;
+}
 
-/** 一次拉齐 6 个 section（page.tsx 用） */
+/** 一次拉齐 10 个 section（page.tsx 用） */
 export async function listHomeContent(): Promise<SiteContent> {
-  const [h, a, s, f, st, nv] = await Promise.all([
+  const [
+    h,
+    a,
+    s,
+    f,
+    st,
+    nv,
+    i01,
+    i03,
+    co,
+    wi,
+  ] = await Promise.all([
     getHero(),
     getAbout(),
     getSubscribe(),
     getFooter(),
     getStory(),
     getNav(),
+    getInterlude01(),
+    getInterlude03(),
+    getCoords(),
+    getWorksIntro(),
   ]);
-  return { hero: h, about: a, subscribe: s, footer: f, story: st, nav: nv };
+  return {
+    hero: h,
+    about: a,
+    subscribe: s,
+    footer: f,
+    story: st,
+    nav: nv,
+    interlude01: i01,
+    interlude03: i03,
+    coords: co,
+    worksIntro: wi,
+  };
 }
 
 /* ============================================================
@@ -83,6 +137,10 @@ export function seedHomeContentFromDefaults(): void {
     footer,
     story,
     nav: [...nav],
+    interlude01,
+    interlude03,
+    coords,
+    worksIntro,
   });
 }
 

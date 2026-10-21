@@ -57,6 +57,10 @@ const EMPTY: SiteContentDraft = {
   footer: {},
   story: {},
   nav: [],
+  interlude01: {},
+  interlude03: {},
+  coords: {},
+  worksIntro: {},
 };
 
 export function useSiteContent(

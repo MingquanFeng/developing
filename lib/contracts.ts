@@ -121,10 +121,10 @@ export type ResetLinkResponse = {
    ============================================================ */
 
 /**
- * 首页后台可编辑的 section key。已支持 6 节：
+ * 首页后台可编辑的 section key。已支持 10 节：
  * - hero / about / subscribe / footer / story / nav
- * 后续 interlude01 / interlude03 / coords / worksIntro / site
- * 会在下一期加入。
+ * - interlude01 / interlude03 / coords / worksIntro
+ * 后续 site（站点 meta）会在下一期加入。
  */
 export type SiteSectionKey =
   | "hero"
@@ -132,7 +132,11 @@ export type SiteSectionKey =
   | "subscribe"
   | "footer"
   | "story"
-  | "nav";
+  | "nav"
+  | "interlude01"
+  | "interlude03"
+  | "coords"
+  | "worksIntro";
 
 /** 一节内容的元信息（updatedAt + 改 userId） */
 export type SiteContentMeta = {
@@ -147,7 +151,13 @@ export type SiteContentMeta = {
  *
  * 与 lib/data/*.ts 的字面类型同步：lib/data 改 schema 必须同步改这里。
  */
-import type { hero } from "./data/home";
+import type {
+  hero,
+  interlude01,
+  interlude03,
+  coords,
+  worksIntro,
+} from "./data/home";
 import type { about } from "./data/about";
 import type { subscribe } from "./data/subscribe";
 import type { footer } from "./data/footer";
@@ -166,7 +176,15 @@ export type SectionContent<K extends SiteSectionKey> = K extends "hero"
           ? typeof story
           : K extends "nav"
             ? typeof nav
-            : never;
+            : K extends "interlude01"
+              ? typeof interlude01
+              : K extends "interlude03"
+                ? typeof interlude03
+                : K extends "coords"
+                  ? typeof coords
+                  : K extends "worksIntro"
+                    ? typeof worksIntro
+                    : never;
 
 /* ============================================================
    错误契约

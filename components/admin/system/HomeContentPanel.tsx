@@ -14,6 +14,12 @@ import { subscribe as subscribeStatic } from "@/lib/data/subscribe";
 import { footer as footerStatic } from "@/lib/data/footer";
 import { story as storyStatic } from "@/lib/data/story";
 import { nav as navStatic } from "@/lib/data/nav";
+import {
+  interlude01 as interlude01Static,
+  interlude03 as interlude03Static,
+  coords as coordsStatic,
+  worksIntro as worksIntroStatic,
+} from "@/lib/data/home";
 import type { SiteContentDraft } from "@/lib/admin-api/site-content";
 import type { Writable } from "./editors/_writable";
 import HeroEditor from "./editors/HeroEditor";
@@ -22,6 +28,9 @@ import SubscribeEditor from "./editors/SubscribeEditor";
 import FooterEditor from "./editors/FooterEditor";
 import StoryEditor from "./editors/StoryEditor";
 import NavEditor from "./editors/NavEditor";
+import InterludeEditor from "./editors/InterludeEditor";
+import CoordsEditor from "./editors/CoordsEditor";
+import WorksIntroEditor from "./editors/WorksIntroEditor";
 import styles from "../admin.module.css";
 import editorStyles from "./editors/editors.module.css";
 
@@ -58,6 +67,26 @@ const SECTIONS: ReadonlyArray<{
   { key: "footer", label: "第九幕 · 页脚", hint: "三栏 + 底栏" },
   { key: "story", label: "第五幕 · 主推故事", hint: "满屏肖像 + 副标 + 阅读入口" },
   { key: "nav", label: "顶导航", hint: "内容项文案与链接" },
+  {
+    key: "interlude01",
+    label: "第二幕 · 手记 01",
+    hint: "关于面孔 · 引文 + 强调行",
+  },
+  {
+    key: "interlude03",
+    label: "第六幕 · 手记 03",
+    hint: "工作方法 · 引文",
+  },
+  {
+    key: "coords",
+    label: "第四幕 · 手记 02",
+    hint: "对象与坐标表（可增删行）",
+  },
+  {
+    key: "worksIntro",
+    label: "第三幕 · 人像志介绍",
+    hint: "WORKS 顶部标题与文案",
+  },
 ];
 
 export default function HomeContentPanel({
@@ -78,6 +107,13 @@ export default function HomeContentPanel({
       footer: footerStatic as unknown as Writable<typeof footerStatic>,
       story: storyStatic as unknown as Writable<typeof storyStatic>,
       nav: [...navStatic] as unknown as Writable<typeof navStatic>,
+      interlude01:
+        interlude01Static as unknown as Writable<typeof interlude01Static>,
+      interlude03:
+        interlude03Static as unknown as Writable<typeof interlude03Static>,
+      coords: coordsStatic as unknown as Writable<typeof coordsStatic>,
+      worksIntro:
+        worksIntroStatic as unknown as Writable<typeof worksIntroStatic>,
     }),
     [],
   );
@@ -168,8 +204,16 @@ export default function HomeContentPanel({
                   <FooterEditor {...editorProps} />
                 ) : key === "story" ? (
                   <StoryEditor {...editorProps} />
-                ) : (
+                ) : key === "nav" ? (
                   <NavEditor {...editorProps} />
+                ) : key === "interlude01" ? (
+                  <InterludeEditor {...editorProps} showEmphasis />
+                ) : key === "interlude03" ? (
+                  <InterludeEditor {...editorProps} showEmphasis={false} />
+                ) : key === "coords" ? (
+                  <CoordsEditor {...editorProps} />
+                ) : (
+                  <WorksIntroEditor {...editorProps} />
                 )}
               </div>
             </details>

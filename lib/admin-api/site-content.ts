@@ -30,6 +30,10 @@ export type SiteContentDraft = {
   footer: unknown;
   story: unknown;
   nav: unknown;
+  interlude01: unknown;
+  interlude03: unknown;
+  coords: unknown;
+  worksIntro: unknown;
 };
 
 /** 公开 GET 响应：只 sections，不含 meta（meta 在 admin-only 端点）。 */

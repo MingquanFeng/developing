@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { series as defaultSeries, worksIntro, FALLBACK_IMAGES } from "@/lib/data";
+import {
+  series as defaultSeries,
+  worksIntro as worksIntroDefault,
+  FALLBACK_IMAGES,
+} from "@/lib/data";
 import Reveal from "./Reveal";
 import styles from "./Works.module.css";
 import frameStyles from "./Frame.module.css";
@@ -18,11 +22,13 @@ function Frame({
   leavingKey,
   entering,
   series,
+  frameHint,
 }: {
   activeKey: string;
   leavingKey: string | null;
   entering: boolean;
   series: readonly SeriesItem[];
+  frameHint: string;
 }) {
   const activeIndex = Math.max(series.findIndex((s) => s.key === activeKey), 0);
 
@@ -66,7 +72,7 @@ function Frame({
           {String(series.length).padStart(2, "0")}
         </span>
         <span className={frameStyles.railSep} />
-        <span>{worksIntro.frameHint}</span>
+        <span>{frameHint}</span>
       </div>
     </div>
   );
@@ -78,8 +84,11 @@ function Frame({
    ============================================================ */
 export default function Works({
   series = defaultSeries,
+  intro = worksIntroDefault,
 }: {
   series?: readonly SeriesItem[];
+  /** WORKS 节顶部介绍文案。来源：WorksSection 透传（DB 覆盖或静态兜底）。 */
+  intro?: typeof worksIntroDefault;
 } = {}) {
   const [activeKey, setActiveKey] = useState<string>(series[0].key);
   const [leavingKey, setLeavingKey] = useState<string | null>(null);
@@ -124,14 +133,14 @@ export default function Works({
       <Reveal>
         <div className={styles.head}>
           <h2 className={styles.title}>
-            {worksIntro.titleLines.map((l) => (
+            {intro.titleLines.map((l) => (
               <em key={l}>{l}</em>
             ))}
-            <span className={styles.titleSuffix}>{worksIntro.titleSuffix}</span>
+            <span className={styles.titleSuffix}>{intro.titleSuffix}</span>
           </h2>
           <div className={styles.side}>
-            <span className="kicker">{worksIntro.kicker}</span>
-            <p>{worksIntro.intro}</p>
+            <span className="kicker">{intro.kicker}</span>
+            <p>{intro.intro}</p>
           </div>
         </div>
       </Reveal>
@@ -171,6 +180,7 @@ export default function Works({
           activeKey={activeKey}
           leavingKey={leavingKey}
           entering={entering}
+          frameHint={intro.frameHint}
         />
       </div>
     </section>

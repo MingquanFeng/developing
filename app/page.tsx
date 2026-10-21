@@ -51,8 +51,7 @@ export default async function Home() {
    */
   const series = await enrichSeriesWithCovers(seriesData);
 
-  /* 首期 4 section（hero/about/subscribe/footer）走 DB；其他 section
-     仍用同步常量。后续会推广。 */
+  /* 首期 10 section 走 DB；其他 section 仍用同步常量。后续会推广。 */
   const home = await listHomeContent();
 
   return (
@@ -63,11 +62,11 @@ export default async function Home() {
 
       <main>
         <HeroSection data={home.hero} />
-        <JournalSection />
-        <WorksSection series={series} />
-        <CoordsSection />
+        <JournalSection data={home.interlude01} />
+        <WorksSection series={series} intro={home.worksIntro} />
+        <CoordsSection data={home.coords} />
         <StorySection data={home.story} />
-        <Interlude03Section />
+        <Interlude03Section data={home.interlude03} />
         <AboutSection data={home.about} />
         <SubscribeSection data={home.subscribe} />
       </main>

@@ -103,6 +103,14 @@
   grid-template-columns: 80px 1fr 100px auto;
 }
 
+/* 坐标表行：编号 / 地点 / A / B / 时间 / 删 */
+.coordRow {
+  display: grid;
+  grid-template-columns: 90px 1.4fr 1fr 1fr 90px auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .addRow {
   align-self: flex-start;
   margin-top: 4px;

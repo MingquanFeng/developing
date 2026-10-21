@@ -444,7 +444,18 @@ try {
     const r = await c.json(`/api/site/content`);
     assert.status(r, 200, "HTTP");
     assert.truthy(r.body.sections, "sections 字段");
-    for (const key of ["hero", "about", "subscribe", "footer", "story", "nav"]) {
+    for (const key of [
+      "hero",
+      "about",
+      "subscribe",
+      "footer",
+      "story",
+      "nav",
+      "interlude01",
+      "interlude03",
+      "coords",
+      "worksIntro",
+    ]) {
       assert.truthy(r.body.sections[key], `sections.${key}`);
     }
     /* 默认值 hero.titleLines[0] 应是 "至静" */
@@ -674,6 +685,154 @@ try {
       "label",
       "作品",
       "DELETE 后回落默认",
+    );
+  });
+
+  await step("admin PUT interlude01 改 kicker → 首页反映", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/site/content`);
+    const next = {
+      ...cur.body.sections.interlude01,
+      kicker: "— 手记 01 / 动态",
+    };
+    const put = await c.json(`/api/site/content/interlude01`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    assert.status(put, 200, "HTTP");
+    assert.field(put.body, "key", "interlude01", "key");
+
+    const homeR = await c.fetch(`/`, { headers: { Accept: "text/html" } });
+    if (homeR.status !== 200) throw new Error(`首页 HTTP ${homeR.status}`);
+    const html = await homeR.text();
+    if (!html.includes("手记 01 / 动态")) {
+      throw new Error("首页 HTML 没反映 PUT interlude01 后内容");
+    }
+  });
+
+  await step("admin PUT interlude03 改 kicker → 首页反映", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/site/content`);
+    const next = {
+      ...cur.body.sections.interlude03,
+      kicker: "— 手记 03 / 动态",
+    };
+    const put = await c.json(`/api/site/content/interlude03`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    assert.status(put, 200, "HTTP");
+
+    const homeR = await c.fetch(`/`, { headers: { Accept: "text/html" } });
+    const html = await homeR.text();
+    if (!html.includes("手记 03 / 动态")) {
+      throw new Error("首页 HTML 没反映 PUT interlude03 后内容");
+    }
+  });
+
+  await step("admin PUT coords 改 sig → 首页反映", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/site/content`);
+    const next = {
+      ...cur.body.sections.coords,
+      sig: "动态落款 — smoke",
+    };
+    const put = await c.json(`/api/site/content/coords`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    assert.status(put, 200, "HTTP");
+
+    const homeR = await c.fetch(`/`, { headers: { Accept: "text/html" } });
+    const html = await homeR.text();
+    if (!html.includes("动态落款 — smoke")) {
+      throw new Error("首页 HTML 没反映 PUT coords 后内容");
+    }
+  });
+
+  await step("admin PUT coords rows 减一行 → 首页行数减少", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/site/content`);
+    const rows = cur.body.sections.coords.rows;
+    const next = { ...cur.body.sections.coords, rows: rows.slice(0, -1) };
+    const put = await c.json(`/api/site/content/coords`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    assert.status(put, 200, "HTTP");
+
+    const after = await c.json(`/api/site/content`);
+    assert.field(
+      after.body.sections.coords,
+      "rows.length",
+      rows.length - 1,
+      "rows 减一行",
+    );
+  });
+
+  await step("admin PUT worksIntro 改 titleSuffix → 首页反映", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/site/content`);
+    const next = {
+      ...cur.body.sections.worksIntro,
+      titleSuffix: "动态肖像",
+    };
+    const put = await c.json(`/api/site/content/worksIntro`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    assert.status(put, 200, "HTTP");
+
+    const homeR = await c.fetch(`/`, { headers: { Accept: "text/html" } });
+    const html = await homeR.text();
+    if (!html.includes("动态肖像")) {
+      throw new Error("首页 HTML 没反映 PUT worksIntro 后内容");
+    }
+  });
+
+  await step("admin PUT coords 形状不符（rows 缺字段）→ 400", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/coords`, {
+      method: "PUT",
+      body: JSON.stringify({
+        content: { kicker: "x", rows: [{ no: "1" }], sig: "y" },
+      }),
+    });
+    assert.status(r, 400, "HTTP");
+    assert.field(r.body, "error", "invalid_section_shape", "error");
+  });
+
+  await step("admin DELETE 4 节 → 全部回落默认", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    for (const key of ["interlude01", "interlude03", "coords", "worksIntro"]) {
+      const r = await c.json(`/api/site/content/${key}`, { method: "DELETE" });
+      assert.status(r, 200, `DELETE ${key}`);
+    }
+    const after = await c.json(`/api/site/content`);
+    assert.field(
+      after.body.sections.interlude01,
+      "kicker",
+      "— 手记 01 / 关于面孔",
+      "interlude01 回落默认",
+    );
+    assert.field(
+      after.body.sections.coords,
+      "rows.length",
+      5,
+      "coords 回落默认 5 行",
+    );
+    assert.field(
+      after.body.sections.worksIntro,
+      "titleSuffix",
+      "肖像",
+      "worksIntro 回落默认",
     );
   });
 

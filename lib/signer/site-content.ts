@@ -252,6 +252,58 @@ function isFooter(v: unknown): boolean {
   );
 }
 
+/** Interlude01：kicker + quote[] + emphasisIndex + sig */
+function isInterlude01(v: unknown): boolean {
+  if (!isObj(v)) return false;
+  return (
+    isStr(v.kicker) &&
+    isStrArr(v.quote) &&
+    v.quote.length > 0 &&
+    isNum(v.emphasisIndex) &&
+    isStr(v.sig)
+  );
+}
+
+/** Interlude03：kicker + quote[] + sig（无 emphasisIndex） */
+function isInterlude03(v: unknown): boolean {
+  if (!isObj(v)) return false;
+  return (
+    isStr(v.kicker) && isStrArr(v.quote) && v.quote.length > 0 && isStr(v.sig)
+  );
+}
+
+/** Coords：kicker + rows[{no, place, a, b, time}] + sig */
+function isCoords(v: unknown): boolean {
+  if (!isObj(v)) return false;
+  const isRow = (x: unknown) =>
+    isObj(x) &&
+    isStr(x.no) &&
+    isStr(x.place) &&
+    isStr(x.a) &&
+    isStr(x.b) &&
+    isStr(x.time);
+  return (
+    isStr(v.kicker) &&
+    isArr(v.rows) &&
+    v.rows.length > 0 &&
+    v.rows.every(isRow) &&
+    isStr(v.sig)
+  );
+}
+
+/** WorksIntro：kicker + titleLines[] + titleSuffix + intro + frameHint */
+function isWorksIntro(v: unknown): boolean {
+  if (!isObj(v)) return false;
+  return (
+    isStr(v.kicker) &&
+    isStrArr(v.titleLines) &&
+    v.titleLines.length > 0 &&
+    isStr(v.titleSuffix) &&
+    isStr(v.intro) &&
+    isStr(v.frameHint)
+  );
+}
+
 /**
  * Nav：items[{label, href}] 数组。
  *
@@ -301,5 +353,13 @@ export function isValidSection(
       return isStory(v);
     case "nav":
       return isNav(v);
+    case "interlude01":
+      return isInterlude01(v);
+    case "interlude03":
+      return isInterlude03(v);
+    case "coords":
+      return isCoords(v);
+    case "worksIntro":
+      return isWorksIntro(v);
   }
 }
