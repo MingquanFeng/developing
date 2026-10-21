@@ -104,7 +104,7 @@ describe("async helper 的回落语义", () => {
 });
 
 describe("listHomeContent", () => {
-  it("一次拉齐 11 节", async () => {
+  it("一次拉齐 12 节", async () => {
     const all = await listHomeContent();
     const keys = Object.keys(all).sort();
     expect(keys).toEqual(
@@ -116,6 +116,7 @@ describe("listHomeContent", () => {
         "interlude01",
         "interlude03",
         "nav",
+        "series",
         "site",
         "story",
         "subscribe",

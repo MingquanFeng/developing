@@ -62,6 +62,7 @@ const EMPTY: SiteContentDraft = {
   coords: {},
   worksIntro: {},
   site: {},
+  series: [],
 };
 
 export function useSiteContent(

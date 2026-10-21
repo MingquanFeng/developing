@@ -121,9 +121,9 @@ export type ResetLinkResponse = {
    ============================================================ */
 
 /**
- * 首页后台可编辑的 section key。已支持 11 节：
+ * 首页后台可编辑的 section key。已支持 12 节：
  * - hero / about / subscribe / footer / story / nav
- * - interlude01 / interlude03 / coords / worksIntro / site
+ * - interlude01 / interlude03 / coords / worksIntro / site / series
  */
 export type SiteSectionKey =
   | "hero"
@@ -136,7 +136,8 @@ export type SiteSectionKey =
   | "interlude03"
   | "coords"
   | "worksIntro"
-  | "site";
+  | "site"
+  | "series";
 
 /** 一节内容的元信息（updatedAt + 改 userId） */
 export type SiteContentMeta = {
@@ -157,6 +158,7 @@ import type {
   interlude03,
   coords,
   worksIntro,
+  series,
 } from "./data/home";
 import type { about } from "./data/about";
 import type { subscribe } from "./data/subscribe";
@@ -197,7 +199,9 @@ export type SectionContent<K extends SiteSectionKey> = K extends "hero"
                     ? typeof worksIntro
                     : K extends "site"
                       ? SiteContentData
-                      : never;
+                      : K extends "series"
+                        ? typeof series
+                        : never;
 
 /* ============================================================
    错误契约

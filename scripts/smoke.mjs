@@ -456,6 +456,7 @@ try {
       "coords",
       "worksIntro",
       "site",
+      "series",
     ]) {
       assert.truthy(r.body.sections[key], `sections.${key}`);
     }
@@ -922,6 +923,52 @@ try {
       after.body.sections.site,
       "name",
       "塞上空许",
+      "DELETE 后回落默认",
+    );
+  });
+
+  await step("admin PUT series 改第 1 组 name → 首页 WORKS 目录反映", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const cur = await c.json(`/api/site/content`);
+    const list = cur.body.sections.series;
+    const next = list.map((it, i) => (i === 0 ? { ...it, name: "动态系列名" } : it));
+    const put = await c.json(`/api/site/content/series`, {
+      method: "PUT",
+      body: JSON.stringify({ content: next }),
+    });
+    assert.status(put, 200, "HTTP");
+    assert.field(put.body, "key", "series", "key");
+
+    const homeR = await c.fetch(`/`, { headers: { Accept: "text/html" } });
+    if (homeR.status !== 200) throw new Error(`首页 HTTP ${homeR.status}`);
+    const html = await homeR.text();
+    if (!html.includes("动态系列名")) {
+      throw new Error("首页 HTML 没反映 PUT series 后 name");
+    }
+  });
+
+  await step("admin PUT series 形状不符（缺 albumSlug）→ 400", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/series`, {
+      method: "PUT",
+      body: JSON.stringify({ content: [{ key: "x" }] }),
+    });
+    assert.status(r, 400, "HTTP");
+    assert.field(r.body, "error", "invalid_section_shape", "error");
+  });
+
+  await step("admin DELETE series → 回落到默认「上海 03:17」", async () => {
+    c.cookieJar.clear();
+    await c.login(ADMIN_USER, ADMIN_PASS);
+    const r = await c.json(`/api/site/content/series`, { method: "DELETE" });
+    assert.status(r, 200, "HTTP");
+    const after = await c.json(`/api/site/content`);
+    assert.field(
+      after.body.sections.series[0],
+      "name",
+      "上海 03:17",
       "DELETE 后回落默认",
     );
   });

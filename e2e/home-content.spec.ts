@@ -82,6 +82,7 @@ const ALL_SECTION_KEYS = [
   "coords",
   "worksIntro",
   "site",
+  "series",
 ] as const;
 
 /**
@@ -120,13 +121,20 @@ test.describe("首页内容后台动态化", () => {
     await expect(page.getByRole("heading", { name: /至静/ })).toBeVisible();
   });
 
-  test("admin 登录后能进系统设置，看到 11 个 section 折叠卡", async ({
+  test("admin 登录后能进系统设置，看到 12 个 section 折叠卡", async ({
     page,
   }) => {
     await login(page);
     await openSystemTab(page);
 
-    await expect(page.locator("details")).toHaveCount(11);
+    /* 顶层 section 卡 —— HomeContentPanel 结构是
+       section > div > details。系列卡内还有 5 个子 details，
+       所以不能直接数 page.locator("details")。 */
+    await expect(
+      page.locator(
+        'section[aria-label="首页内容编辑"] > div > details',
+      ),
+    ).toHaveCount(12);
     for (const label of [
       "首屏 HERO",
       "第七幕 · 关于",
@@ -139,6 +147,7 @@ test.describe("首页内容后台动态化", () => {
       "第四幕 · 手记 02",
       "第三幕 · 人像志介绍",
       "站点 meta",
+      "第三幕 · 作品系列",
     ]) {
       await expect(
         page.locator("details summary").filter({ hasText: label }),
@@ -258,5 +267,35 @@ test.describe("首页内容后台动态化", () => {
       .getByRole("button", { name: "重置为默认" })
       .click();
     await page.getByRole("button", { name: "重置", exact: true }).last().click();
+  });
+
+  test("改作品系列名 → 保存 → 首页 WORKS 目录反映", async ({ page }) => {
+    await login(page);
+    await openSystemTab(page);
+    await openSection(page, "第三幕 · 作品系列");
+
+    /* 5 组系列各一个子折叠；改第 1 组的系列名 */
+    const group = page
+      .locator("details")
+      .filter({ hasText: "第三幕 · 作品系列" })
+      .locator("details")
+      .first();
+    await group.evaluate((el) => {
+      (el as HTMLDetailsElement).open = true;
+    });
+
+    const nameInput = page.getByLabel("第 1 组 系列名");
+    await expect(nameInput).toHaveValue("上海 03:17");
+    await nameInput.fill("E2E 系列名");
+
+    await page
+      .locator("details")
+      .filter({ hasText: "第三幕 · 作品系列" })
+      .getByRole("button", { name: "保存" })
+      .click();
+    await expectSaved(page, "第三幕 · 作品系列");
+
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "E2E 系列名" })).toBeVisible();
   });
 });

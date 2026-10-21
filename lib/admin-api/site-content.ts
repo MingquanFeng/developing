@@ -35,6 +35,7 @@ export type SiteContentDraft = {
   coords: unknown;
   worksIntro: unknown;
   site: unknown;
+  series: unknown;
 };
 
 /** 公开 GET 响应：只 sections，不含 meta（meta 在 admin-only 端点）。 */

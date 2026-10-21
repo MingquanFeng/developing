@@ -38,6 +38,7 @@ const VALID_KEYS: ReadonlySet<SiteSectionKey> = new Set([
   "coords",
   "worksIntro",
   "site",
+  "series",
 ]);
 
 function isValidKey(s: string): s is SiteSectionKey {

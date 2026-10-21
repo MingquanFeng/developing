@@ -10,7 +10,6 @@ import AboutSection from "@/components/home/AboutSection";
 import SubscribeSection from "@/components/home/SubscribeSection";
 import FooterSection from "@/components/home/FooterSection";
 import { ImageFallbackProvider } from "@/components/Works";
-import { series as seriesData } from "@/lib/data/home";
 import { enrichSeriesWithCovers } from "@/lib/series-covers";
 import { listHomeContent } from "@/lib/data/site-content";
 
@@ -35,6 +34,9 @@ export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 export default async function Home() {
+  /* 首期 12 section 走 DB；其他 section 仍用同步常量。后续会推广。 */
+  const home = await listHomeContent();
+
   /**
    * 作品集 5 组的封面：只从主管理员上传的照片里挑。
    *
@@ -48,11 +50,11 @@ export default async function Home() {
    *
    * 任一步失败（manifest 读不出 / 找不到 admin / 找不到 album / 找不
    * 到 photo / COS 签失败）都静默用原 image 兜底，首屏永远不白。
+   *
+   * series 本身可后台编辑（name/meta/note 等）；image 是兜底图 ——
+   * 签名成功时被替换，取不到时用这里的值。
    */
-  const series = await enrichSeriesWithCovers(seriesData);
-
-  /* 首期 10 section 走 DB；其他 section 仍用同步常量。后续会推广。 */
-  const home = await listHomeContent();
+  const series = await enrichSeriesWithCovers(home.series);
 
   return (
     <>

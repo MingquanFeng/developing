@@ -111,6 +111,50 @@
   align-items: center;
 }
 
+/* 作品系列：5 组各一个子折叠 */
+.seriesGroup {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.seriesSummary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.92);
+  user-select: none;
+}
+
+.seriesSummary::-webkit-details-marker {
+  display: none;
+}
+
+.seriesNo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  min-width: 24px;
+}
+
+.seriesMeta {
+  margin-left: auto;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.seriesBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 14px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .addRow {
   align-self: flex-start;
   margin-top: 4px;

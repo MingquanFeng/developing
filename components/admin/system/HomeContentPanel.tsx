@@ -21,6 +21,7 @@ import {
   interlude03 as interlude03Static,
   coords as coordsStatic,
   worksIntro as worksIntroStatic,
+  series as seriesStatic,
 } from "@/lib/data/home";
 import type { SiteContentDraft } from "@/lib/admin-api/site-content";
 import type { Writable } from "./editors/_writable";
@@ -34,6 +35,7 @@ import InterludeEditor from "./editors/InterludeEditor";
 import CoordsEditor from "./editors/CoordsEditor";
 import WorksIntroEditor from "./editors/WorksIntroEditor";
 import SiteEditor from "./editors/SiteEditor";
+import SeriesEditor from "./editors/SeriesEditor";
 import styles from "../admin.module.css";
 import editorStyles from "./editors/editors.module.css";
 
@@ -95,6 +97,11 @@ const SECTIONS: ReadonlyArray<{
     label: "站点 meta",
     hint: "标题 / 描述 / 品牌名 / 跑马灯（影响 SEO）",
   },
+  {
+    key: "series",
+    label: "第三幕 · 作品系列",
+    hint: "5 组系列的文案（封面图另在「封面管理」设）",
+  },
 ];
 
 export default function HomeContentPanel({
@@ -133,6 +140,9 @@ export default function HomeContentPanel({
         cities: [...siteStatic.cities],
         marquee: [...siteStatic.marquee],
       } as unknown as Writable<SiteContentData>,
+      series: seriesStatic.map(
+        (s) => ({ ...s }),
+      ) as unknown as Writable<typeof seriesStatic>,
     }),
     [],
   );
@@ -233,8 +243,10 @@ export default function HomeContentPanel({
                   <CoordsEditor {...editorProps} />
                 ) : key === "worksIntro" ? (
                   <WorksIntroEditor {...editorProps} />
-                ) : (
+                ) : key === "site" ? (
                   <SiteEditor {...editorProps} />
+                ) : (
+                  <SeriesEditor {...editorProps} />
                 )}
               </div>
             </details>

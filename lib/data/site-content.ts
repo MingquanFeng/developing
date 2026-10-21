@@ -19,6 +19,7 @@ import {
   interlude03,
   coords,
   worksIntro,
+  series,
 } from "./home";
 import { about } from "./about";
 import { subscribe } from "./subscribe";
@@ -45,6 +46,8 @@ export type SiteContent = {
   worksIntro: typeof worksIntro;
   /** 站点 meta 的可编辑部分（不含 locale） */
   site: Omit<typeof site, "locale">;
+  /** 5 组作品系列（image 是兜底图，server 层会被 COS 封面替换） */
+  series: typeof series;
 };
 
 /** 首页 SSR：DB 有就用，没有回落静态 */
@@ -108,21 +111,23 @@ export async function getSiteMeta(): Promise<Omit<typeof site, "locale">> {
   ) as Omit<typeof site, "locale">;
 }
 
-/** 一次拉齐 11 个 section（page.tsx 用） */
+/**
+ * 5 组作品系列。
+ *
+ * image/imageAlt 是**兜底值** —— app/page.tsx 里的
+ * enrichSeriesWithCovers 会在 server 层把它们替换成 COS 签名 URL
+ * （当对应 album 有公开封面时）。admin 改 image 只影响"COS 封面取不到"
+ * 的场景。
+ */
+export async function getSeries(): Promise<typeof series> {
+  return (
+    getSiteSection<typeof series>("series") ?? series
+  ) as typeof series;
+}
+
+/** 一次拉齐 12 个 section（page.tsx 用） */
 export async function listHomeContent(): Promise<SiteContent> {
-  const [
-    h,
-    a,
-    s,
-    f,
-    st,
-    nv,
-    i01,
-    i03,
-    co,
-    wi,
-    sm,
-  ] = await Promise.all([
+  const [h, a, s, f, st, nv, i01, i03, co, wi, sm, se] = await Promise.all([
     getHero(),
     getAbout(),
     getSubscribe(),
@@ -134,6 +139,7 @@ export async function listHomeContent(): Promise<SiteContent> {
     getCoords(),
     getWorksIntro(),
     getSiteMeta(),
+    getSeries(),
   ]);
   return {
     hero: h,
@@ -147,6 +153,7 @@ export async function listHomeContent(): Promise<SiteContent> {
     coords: co,
     worksIntro: wi,
     site: sm,
+    series: se,
   };
 }
 
@@ -180,6 +187,7 @@ export function seedHomeContentFromDefaults(): void {
       cities: [...site.cities],
       marquee: [...site.marquee],
     },
+    series: series.map((s) => ({ ...s })),
   });
 }
 

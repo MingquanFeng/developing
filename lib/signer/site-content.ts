@@ -31,7 +31,7 @@ export type { SiteSectionKey } from "@/lib/contracts";
 function ensureSiteContentTable(): void {
   execWithRetry(`
     CREATE TABLE IF NOT EXISTS site_content (
-      section_key TEXT PRIMARY KEY,           -- 'hero' | 'about' | 'subscribe' | 'footer' | 'story' | 'nav' | 'interlude01' | 'interlude03' | 'coords' | 'worksIntro' | 'site'
+      section_key TEXT PRIMARY KEY,           -- 'hero' | 'about' | 'subscribe' | 'footer' | 'story' | 'nav' | 'interlude01' | 'interlude03' | 'coords' | 'worksIntro' | 'site' | 'series'
       content     TEXT NOT NULL,              -- JSON.stringify(content)
       updated_at  TEXT NOT NULL,
       updated_by  TEXT                        -- userId，审计
@@ -328,6 +328,34 @@ function isWorksIntro(v: unknown): boolean {
 }
 
 /**
+ * Series：作品系列数组（5 组）。
+ *
+ * 每项 10 字段。`image` 的语义是**兜底图** —— lib/series-covers 在
+ * server 层会把 image/imageAlt 替换成 COS 签名 URL（当对应 album 有
+ * 公开封面时）；取不到才用这里的值。所以 admin 改 image 只影响"COS
+ * 封面取不到"的兜底场景。
+ */
+function isSeries(v: unknown): boolean {
+  if (!isArr(v) || v.length === 0) return false;
+  return v.every((it) => {
+    if (!isObj(it)) return false;
+    return (
+      isStr(it.key) &&
+      it.key.length > 0 &&
+      isStr(it.albumSlug) &&
+      isStr(it.no) &&
+      isStr(it.name) &&
+      isStr(it.meta) &&
+      isStr(it.note) &&
+      isStr(it.image) &&
+      isStr(it.imageAlt) &&
+      isStr(it.figLabel) &&
+      isStr(it.figCaption)
+    );
+  });
+}
+
+/**
  * Site：站点 meta 的可编辑部分（**不含 locale**）。
  *
  * locale 被排除 —— 它用于 `<html lang>`，写在 app/layout.tsx 的
@@ -432,5 +460,7 @@ export function isValidSection(
       return isWorksIntro(v);
     case "site":
       return isSite(v);
+    case "series":
+      return isSeries(v);
   }
 }
