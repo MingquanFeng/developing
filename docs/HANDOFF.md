@@ -11,11 +11,13 @@
 
 ```bash
 cp .env.example .env       # 填 COS_* 与 SESSION_SECRET
-npx next dev --webpack     # → 3000，--webpack 必须带（本机 Turbopack 失败）
+npm run dev                # → 3000（脚本里已固定 --webpack，见下）
 ```
 
 `http://localhost:3000/album/` 浏览，`/admin/` 上传后台。
 账号 `photog`，密码是测试用的（**部署前必须改**）。
+
+生产模式：`npm run build && npm start`（`next start`，不能 `next export`）。
 
 ## 已验证 / 未验证
 
@@ -45,9 +47,17 @@ npx next dev --webpack     # → 3000，--webpack 必须带（本机 Turbopack �
 
 ## 会立刻咬人的四件事
 
-**1. `--webpack` 不能省。** 本机 Turbopack 构建会失败：
+**1. `--webpack` 不能省 —— 已经写进 `npm run dev` 脚本了。** 本机 Turbopack 必失败：
 `Can't resolve '@vercel/turbopack-next/internal/font/google/font'` ——
-那个包 node_modules 里不存在，lockfile 里也没有。是环境问题，与代码无关。
+`app/layout.tsx` 用了 `next/font/google`，而 Turbopack 的 font 加载器在
+`@vercel/turbopack-next` 里：**这个包 node_modules 里没有、lockfile 里没有、
+`next@16.3.7` 的 package.json 里也没声明**（实测 2026-10-22）。
+所以 `npm run dev` 已固定成 `next dev --webpack`；想试 Turbopack 用 `npm run dev:turbo`
+（会 500，别用）。是环境问题，与代码无关。
+
+⚠️ 同一目录下**只能有一个 dev server**：第二个 `npm run dev` 会报
+`⨯ Another next dev server is already running.`（Next 16 的 dev 锁），
+看到这条先停掉旧的那个（`lsof -ti:3000 -sTCP:LISTEN | xargs kill -9`）。
 
 **2. `npm run typecheck` 会失败，是既有问题。** `LayoutProps<"/">` 报约束错误，
 源于 `.next/dev/types` 与 `.next/types` 两份全局路由类型冲突

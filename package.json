@@ -16,7 +16,8 @@
     "photography"
   ],
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
+    "dev:turbo": "next dev",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
