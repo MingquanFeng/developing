@@ -88,7 +88,19 @@ jobs:
         run: npm run build
 
       - name: E2E (playwright)
+        # ⚠️ 占位 ENV 跟 Build 步骤一样是**必须**的：next start 启动时
+        # lib/signer/config.ts 会校验 COS_* / SESSION_SECRET，缺一个就直接
+        # 抛「缺少必需的环境变量」退出 —— playwright 的 webServer 起不来，
+        # 报的是「Timed out waiting 120000ms from config.webServer」，
+        # 真正原因藏在那之前的日志里。
+        # E2E 用的确实是假凭证：E2E 不碰真实照片，首页的 COS 封面
+        # enrichment 读不到就静默回落到兜底图（lib/series-covers 的容错）。
         env:
+          COS_BUCKET: test
+          COS_REGION: test
+          COS_SECRET_ID: test
+          COS_SECRET_KEY: test
+          SESSION_SECRET: $(node -e "console.log('test'.repeat(12))")
           NODE_OPTIONS: --experimental-sqlite
         run: npx playwright test
 
