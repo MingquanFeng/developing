@@ -115,3 +115,78 @@ PR-4 限制在后台范围。当时跑 lint-api-paths 找出 6 处访客侧裸 `
 1. 新建 `lib/account-api/`（session / logout / register / register-status），与 admin-api 风格一致
 2. 新建 `lib/public-api/`，处理公开访客侧读 manifest / 签名 URL（如果还要新加 IO）
 3. 三个白名单文件改 import 后，从 lint ALLOWLIST 删除
+
+## ADR-0006：首页内容走追加写的版本流
+
+**状态**：采纳
+
+**背景**
+
+`site_content` 表每个 section key 只存**一份**当前值。admin 改错一次，旧内容就找不回来了 ——
+"改回以前那版" 只能靠人手把原文重新敲一遍。随着内容块从 4 个涨到 12 个，
+这个缺口越来越难受。
+
+**决策**
+
+- 新表 `site_content_versions`：**追加写**，每次发布/重置都插一条完整快照，旧版本永不删。
+- `site_content` 保留，语义收窄为「当前生效的那一份」—— 页面仍然读它，读取路径零改动。
+- 发布 = 一个事务里三件事：旧版本卸任（`is_current` 1→0）→ 插新版本 → upsert `site_content`。
+  必须同生共死：留下「两个 current」或「current 版本的内容与 `site_content` 不一致」，
+  历史就在撒谎（说生效的是 A，页面显示的是 B）。
+- 「重置为默认」= 删掉 `site_content` 的覆盖行 + 追加一条默认内容的版本。
+  **不**把默认值写回 `site_content`：有行就意味着"这份内容来自 DB"，
+  会盖住静态默认值的后续改动。
+- 恢复历史版本 = 用那一版的 content 原样再发一版（`based_on_id` 指回它自己）。
+  历史永远不被覆盖 —— 恢复动作本身也是一条新版本。
+- 迁移回填：老部署的 `site_content` 行补一条基线版本（幂等），否则升级后
+  历史页第一次打开是空的，看起来像"从没改过"。
+
+**返回窗口**
+
+`listSiteContentVersions` 每块最多返回最近 200 条。版本的 content 是完整快照
+（每条 1~3 KB），全量返回是"发布次数 × 块数 × 快照大小"—— 攒够几百条就是几十 MB 的 JSON，
+后台一打开就卡死。历史本身永远在 DB 里，截断只发生在返回层。
+
+**未采纳的方案**
+
+- **原地覆盖 + 手动备份**：没有版本链，改错就是改错。
+- **Git 式版本（父子树）**：只有线性一条链，够用；真要分支再上。
+
+**回滚条件**
+
+若将来历史量级需要分页，把 `MAX_VERSIONS_PER_KEY` 换成游标分页即可，
+表结构不用动。
+
+## ADR-0007：内容里的图片存 photoId，不存 URL
+
+**状态**：采纳
+
+**背景**
+
+hero / story / about / series 的图片字段原本是手填的 URL 文本框，填的是 Unsplash 外链。
+管理员想用站点自己的照片（腾讯云 COS），唯一的办法是把 COS 的签名 URL 贴进去 ——
+而签名 URL **900 秒就过期**（`lib/signer/config.ts` 的 `readExpires`）。
+存进 DB 等于存了个定时炸弹：过一刻首页的图就全裂。
+
+**决策**
+
+- 新增可选字段 `photoId: string | null`（hero / story / about / series 各一项）。
+  null = 用原来的兜底 URL。
+- 存的是 photoId，**渲染时现签**：`lib/site-images.ts` 在服务端按 photoId
+  查 manifest（必须是 `isPublic` 且不在回收站）→ `presignGet` 签出临时 URL。
+- 解析失败（找不到 / 签不了）→ **静默保留原值**，绝不抛错、绝不让首页白屏
+  （与 `lib/series-covers` 的容错原则一致）。
+- 优先级：`photoId` > 相册封面（series）> 兜底 URL。
+
+**取舍**
+
+- 图片字段多了一个语义（`image` 是兜底、`photoId` 是显式选择）。换来的是
+  存进 DB 的东西永远有效，不需要任何"到期重签"的维护。
+- alt 文本的填充规则刻意不对称：hero/story/about 是"已填的不动、空的才补"，
+  series 是"照片标题优先"—— series 的 image/imageAlt 归相册封面 enrichment 管，
+  不这样定的话 alt 描述的是封面那张图、页面上显示的却是 admin 选的那张。
+
+**回滚条件**
+
+若将来要支持"从站外 URL 选图"，给 photoId 之外再加一个显式的 `imageUrl` 字段，
+不要复用 `image` —— 复用会让"这是兜底还是显式"重新变得不可判别。

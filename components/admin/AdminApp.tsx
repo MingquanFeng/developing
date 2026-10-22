@@ -38,7 +38,7 @@ import { defaultAlbum } from "./hooks/useManifest";
 
 import { patchPhoto, purgePhoto, restorePhoto, trashPhoto } from "@/lib/admin-api";
 import type { Album, Manifest, Photo, PublicUser } from "@/lib/contracts";
-import type { SiteSectionKey } from "@/lib/contracts";
+import type { SiteContentVersion, SiteSectionKey } from "@/lib/contracts";
 import { type SessionStatus } from "./hooks/useAdminSession";
 
 /**
@@ -317,16 +317,22 @@ export default function AdminApp({ initialMe = null }: AdminAppProps = {}) {
   );
 
   /* 首页内容编辑 —— useSiteContent 的 thin wrapper。
-     把错误透给顶部 shellNotice，200 成功时 reload() 一次拿最新 meta。 */
+     把错误透给顶部 shellNotice，200 成功时 reload() 一次拿最新 meta。
+     basedOnId 决定新版本是基于哪一版改的（版本链）。 */
   const onSaveSection = useCallback(
-    async (key: SiteSectionKey, content: unknown) => {
+    async (
+      key: SiteSectionKey,
+      content: unknown,
+      basedOnId?: number | null,
+    ): Promise<{ versionId: number }> => {
       try {
-        await siteContent.save(key, content);
+        const r = await siteContent.save(key, content, basedOnId);
         await siteContent.reload();
         setShellNotice({
           kind: "ok",
           text: `已保存 ${key}，首页将自动更新`,
         });
+        return { versionId: r.versionId };
       } catch (e) {
         setShellNotice({ kind: "err", text: (e as Error).message });
         throw e;
@@ -336,14 +342,15 @@ export default function AdminApp({ initialMe = null }: AdminAppProps = {}) {
   );
 
   const onResetSection = useCallback(
-    async (key: SiteSectionKey) => {
+    async (key: SiteSectionKey): Promise<{ versionId: number }> => {
       try {
-        await siteContent.reset(key);
+        const r = await siteContent.reset(key);
         await siteContent.reload();
         setShellNotice({
           kind: "ok",
           text: `已重置 ${key} 为默认`,
         });
+        return { versionId: r.versionId };
       } catch (e) {
         setShellNotice({ kind: "err", text: (e as Error).message });
         throw e;
@@ -351,6 +358,32 @@ export default function AdminApp({ initialMe = null }: AdminAppProps = {}) {
     },
     [siteContent],
   );
+
+  /* 恢复历史版本 —— 把那一版的内容原样再发一版（旧的仍在历史里）。 */
+  const onRestoreSection = useCallback(
+    async (
+      version: SiteContentVersion,
+    ): Promise<{ versionId: number }> => {
+      try {
+        const r = await siteContent.restore(version);
+        await siteContent.reload();
+        setShellNotice({
+          kind: "ok",
+          text: `已恢复 ${version.key} 的版本 #${version.id}`,
+        });
+        return { versionId: r.versionId };
+      } catch (e) {
+        setShellNotice({ kind: "err", text: (e as Error).message });
+        throw e;
+      }
+    },
+    [siteContent],
+  );
+
+  /* 版本历史拉失败时的重试（只刷版本流，不动内容本身）。 */
+  const onReloadVersions = useCallback(() => {
+    void siteContent.loadVersions();
+  }, [siteContent]);
 
   const onLogout = useCallback(async () => {
     await session.logout();
@@ -530,8 +563,13 @@ export default function AdminApp({ initialMe = null }: AdminAppProps = {}) {
         siteContentBusy={siteContent.busy}
         siteContentLoading={siteContent.loading}
         siteContentLoadErr={siteContent.loadErr}
+        siteContentVersions={siteContent.versions}
+        siteContentVersionsLoading={siteContent.versionsLoading}
+        siteContentVersionsErr={siteContent.versionsErr}
         onSaveSection={onSaveSection}
         onResetSection={onResetSection}
+        onRestoreSection={onRestoreSection}
+        onReloadVersions={onReloadVersions}
       />
 
       {cover.coverAlbum ? (

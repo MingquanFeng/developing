@@ -14,6 +14,8 @@ export const about = {
     "《新周刊》《GQ 智族》《周末画报》《ID 中国》《时尚芭莎》《嘉人》等刊物拍摄人物肖像",
   portrait:
     "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=1200&q=80&auto=format&fit=crop",
+  /** 公开相册里选中的照片 id（null = 用上面的 portrait 兜底图） */
+  photoId: null as string | null,
   portraitAlt: "塞上空许肖像",
   portraitCap: "塞上空许，对象 00，大理扎染工坊，2024 年八月。",
   exhibitions: [

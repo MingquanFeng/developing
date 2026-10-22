@@ -147,6 +147,36 @@ export type SiteContentMeta = {
 };
 
 /**
+ * 一条内容版本（历史记录）。
+ * ------------------------------------------------------------------
+ * site_content 表只存「当前生效」的那一份；本类型是**追加写**的版本流：
+ * 每次发布（PUT）或重置为默认（DELETE）都追加一条，旧版本永远留着。
+ *
+ * `content` 是完整快照 —— 后台拿任意一条都能直接进编辑器改，改完再发布
+ * 就是新的一条版本（历史不会被覆盖）。
+ */
+export type SiteContentVersion = {
+  /** 版本号（自增；同 key 内越大越新） */
+  id: number;
+  key: SiteSectionKey;
+  /** 该版本的完整内容（JSON） */
+  content: unknown;
+  /** ISO 时间戳 */
+  createdAt: string;
+  /** 发布者 userId。null = 首次 seed / 迁移回填（非人工发布） */
+  createdBy: string | null;
+  /** 是否是当前生效的版本 */
+  isCurrent: boolean;
+  /** 基于哪个版本改的。null = 从当前版本直接改 */
+  basedOnId: number | null;
+};
+
+/** GET /api/site/content/versions 的响应体 */
+export type SiteContentVersionsResponse = {
+  versions: SiteContentVersion[];
+};
+
+/**
  * 按 key 索引对应 section 的精确内容类型。
  * SDK / 后台编辑器都用它做端到端类型校验（不光是 DB 表层 isHero）。
  *

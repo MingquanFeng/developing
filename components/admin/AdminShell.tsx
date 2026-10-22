@@ -24,6 +24,7 @@ import type {
   Manifest,
   Photo,
   PublicUser,
+  SiteContentVersion,
   SiteSectionKey,
 } from "@/lib/contracts";
 
@@ -106,8 +107,20 @@ export type AdminShellProps = {
   siteContentBusy: SiteSectionKey | null;
   siteContentLoading: boolean;
   siteContentLoadErr: string | null;
-  onSaveSection: (key: SiteSectionKey, content: unknown) => Promise<void>;
-  onResetSection: (key: SiteSectionKey) => Promise<void>;
+  /* 内容版本流（SystemTab 的版本管理用） */
+  siteContentVersions: SiteContentVersion[];
+  siteContentVersionsLoading: boolean;
+  siteContentVersionsErr: string | null;
+  onSaveSection: (
+    key: SiteSectionKey,
+    content: unknown,
+    basedOnId?: number | null,
+  ) => Promise<{ versionId: number }>;
+  onResetSection: (key: SiteSectionKey) => Promise<{ versionId: number }>;
+  onRestoreSection: (
+    version: SiteContentVersion,
+  ) => Promise<{ versionId: number }>;
+  onReloadVersions: () => void;
 };
 
 export default function AdminShell(props: AdminShellProps) {
@@ -149,8 +162,13 @@ export default function AdminShell(props: AdminShellProps) {
     siteContentBusy,
     siteContentLoading,
     siteContentLoadErr,
+    siteContentVersions,
+    siteContentVersionsLoading,
+    siteContentVersionsErr,
     onSaveSection,
     onResetSection,
+    onRestoreSection,
+    onReloadVersions,
   } = props;
 
   /* 严格权限隔离：admin 与 viewer 同权 —— 都只看到自己 ownerId 的相册 + 照片。
@@ -846,8 +864,13 @@ export default function AdminShell(props: AdminShellProps) {
               onOpenCover={onOpenCover}
               siteContent={siteContent}
               busy={siteContentBusy}
+              siteContentVersions={siteContentVersions}
+              siteContentVersionsLoading={siteContentVersionsLoading}
+              siteContentVersionsErr={siteContentVersionsErr}
               onSaveSection={onSaveSection}
               onResetSection={onResetSection}
+              onRestoreSection={onRestoreSection}
+              onReloadVersions={onReloadVersions}
               onRequestConfirm={
                 onRequestConfirm ?? (() => Promise.resolve(true))
               }

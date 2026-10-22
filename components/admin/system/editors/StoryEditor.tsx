@@ -6,6 +6,7 @@
  * 字段（lib/data/story）：
  *   - tag / titleMain / titleSub
  *   - image / imageAlt
+ *   - photoId     — 公开相册里选中的照片 id（命中时覆盖 image）
  *   - copy
  *   - cta {label, href}
  *   - caption
@@ -14,6 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { story } from "@/lib/data/story";
 import type { Writable } from "./_writable";
+import PhotoField from "./PhotoField";
 import styles from "./editors.module.css";
 import adminStyles from "../../admin.module.css";
 
@@ -121,7 +123,17 @@ export default function StoryEditor({
           value={draft.image}
           onChange={(e) => update("image", e.target.value)}
         />
+        <span className={styles.hint}>兜底图 —— 下面没选公开照片时才用它</span>
       </div>
+
+      <PhotoField
+        photoId={draft.photoId ?? null}
+        alt={draft.imageAlt}
+        onAltChange={(v) => update("imageAlt", v)}
+        onChange={(p) => update("photoId", p?.id ?? null)}
+        label="主图（公开相册）"
+        context="主推故事主图"
+      />
 
       <div className={styles.row}>
         <span className={styles.label}>主图 alt 文本</span>

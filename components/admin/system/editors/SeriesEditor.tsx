@@ -10,15 +10,18 @@
  *   - `image` 是**兜底图** —— server 层 lib/series-covers 会把
  *     image/imageAlt 替换成 COS 签名 URL（当对应 album 有公开封面时）。
  *     改它只影响"COS 封面取不到"的场景。
+ *   - `photoId` 是**后台显式选中的公开相册照片** —— server 层
+ *     lib/site-images 按它现签，优先级**高于**相册封面。
  *   - `key` 是 React key + 数据关联主键，**不暴露编辑**（改了会让
  *     封面 enrichment 找不到对应关系）。
  *   - `albumSlug` 关联 COS album，**不暴露编辑**（改了会串封面）。
  *
  * 5 组各 40+ 输入框会撑爆页面 —— 每组一个子 <details> 折叠。
  */
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { series } from "@/lib/data/home";
 import type { Writable } from "./_writable";
+import PhotoField from "./PhotoField";
 import styles from "./editors.module.css";
 import adminStyles from "../../admin.module.css";
 
@@ -46,6 +49,8 @@ type Item = {
   imageAlt: string;
   figLabel: string;
   figCaption: string;
+  /** 公开相册里选中的照片 id（null = 走相册封面 / 兜底图） */
+  photoId: string | null;
 };
 
 /** 可编辑的字段（key / albumSlug 不在其中） */
@@ -101,6 +106,13 @@ export default function SeriesEditor({
     setItems(next);
   };
 
+  /** 选中的公开相册照片（photoId）—— 单独一个 setter，值不是字符串 */
+  const patchPhoto = (idx: number, photoId: string | null) => {
+    const next = [...items];
+    next[idx] = { ...next[idx], photoId };
+    setItems(next);
+  };
+
   const save = async () => {
     setHint(null);
     try {
@@ -134,7 +146,8 @@ export default function SeriesEditor({
     <div className={styles.editor}>
       <span className={styles.hint}>
         5 组作品系列。「兜底图 URL」只在 COS 封面取不到时生效 —— 正常
-        情况下首页显示的是后台「设封面」指定的那张。
+        情况下首页显示的是后台「设封面」指定的那张；在「封面（公开相册）」
+        里选过照片的话，显示的是你选的那张（优先级最高）。
       </span>
 
       {items.map((it, i) => (
@@ -147,24 +160,37 @@ export default function SeriesEditor({
 
           <div className={styles.seriesBody}>
             {EDITABLE.map((f) => (
-              <div key={f} className={styles.row}>
-                <span className={styles.label}>{FIELD_LABEL[f]}</span>
-                {f === "note" || f === "image" ? (
-                  <textarea
-                    className={styles.textarea}
-                    aria-label={`第 ${i + 1} 组 ${FIELD_LABEL[f]}`}
-                    value={it[f]}
-                    onChange={(e) => patchItem(i, f, e.target.value)}
+              <Fragment key={f}>
+                <div className={styles.row}>
+                  <span className={styles.label}>{FIELD_LABEL[f]}</span>
+                  {f === "note" || f === "image" ? (
+                    <textarea
+                      className={styles.textarea}
+                      aria-label={`第 ${i + 1} 组 ${FIELD_LABEL[f]}`}
+                      value={it[f]}
+                      onChange={(e) => patchItem(i, f, e.target.value)}
+                    />
+                  ) : (
+                    <input
+                      className={styles.input}
+                      aria-label={`第 ${i + 1} 组 ${FIELD_LABEL[f]}`}
+                      value={it[f]}
+                      onChange={(e) => patchItem(i, f, e.target.value)}
+                    />
+                  )}
+                </div>
+                {/* 选中的公开相册照片 —— 优先级高于相册封面 */}
+                {f === "image" ? (
+                  <PhotoField
+                    photoId={it.photoId ?? null}
+                    alt={it.imageAlt}
+                    onAltChange={(v) => patchItem(i, "imageAlt", v)}
+                    onChange={(p) => patchPhoto(i, p?.id ?? null)}
+                    label="封面（公开相册）"
+                    context={`第 ${i + 1} 组封面`}
                   />
-                ) : (
-                  <input
-                    className={styles.input}
-                    aria-label={`第 ${i + 1} 组 ${FIELD_LABEL[f]}`}
-                    value={it[f]}
-                    onChange={(e) => patchItem(i, f, e.target.value)}
-                  />
-                )}
-              </div>
+                ) : null}
+              </Fragment>
             ))}
           </div>
         </details>

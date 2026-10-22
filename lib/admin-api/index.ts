@@ -73,9 +73,11 @@ export {
 export {
   fetchSiteContent,
   fetchSiteContentMeta,
+  fetchSiteContentVersions,
   saveSiteSection,
   resetSiteSection,
   type SiteContentDraft,
   type SiteContentResponse,
   type SiteContentMetaResponse,
+  type SiteContentVersionsResponse,
 } from "./site-content";

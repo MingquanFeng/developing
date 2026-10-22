@@ -7,12 +7,14 @@
  *   - kicker / titleLines[] / titleEmphasisIndex
  *   - ledeTop / ledeHighlight
  *   - portrait / portraitAlt / portraitCap
+ *   - photoId     — 公开相册里选中的照片 id（命中时覆盖 portrait）
  *   - exhibitions[] / press[]  （{year, text} 列表，可增删改）
  *   - cta {label, href} / ctaSecondary
  */
 import { useEffect, useRef, useState } from "react";
 import type { about } from "@/lib/data/about";
 import type { Writable } from "./_writable";
+import PhotoField from "./PhotoField";
 import styles from "./editors.module.css";
 import adminStyles from "../../admin.module.css";
 
@@ -151,7 +153,17 @@ export default function AboutEditor({
           value={draft.portrait}
           onChange={(e) => update("portrait", e.target.value)}
         />
+        <span className={styles.hint}>兜底图 —— 下面没选公开照片时才用它</span>
       </div>
+
+      <PhotoField
+        photoId={draft.photoId ?? null}
+        alt={draft.portraitAlt}
+        onAltChange={(v) => update("portraitAlt", v)}
+        onChange={(p) => update("photoId", p?.id ?? null)}
+        label="肖像（公开相册）"
+        context="摄影师肖像"
+      />
 
       <div className={styles.rowSplit}>
         <div className={styles.row}>

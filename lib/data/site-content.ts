@@ -4,6 +4,7 @@
  * 提供：
  *   - 5 个 section 的 async helper（getHero/getAbout/getSubscribe/getFooter/getStory）
  *   - 一次性聚合 listHomeContent() —— 给 app/page.tsx 一次拉齐
+ *   - DEFAULT_SECTIONS —— 静态默认值（seed 与「重置为默认」的共同依据）
  *   - seed 函数（首次启动把 lib/data 静态值喂给 SQLite）
  *
  * 与 lib/data/*.ts 同步常量的关系：
@@ -158,37 +159,57 @@ export async function listHomeContent(): Promise<SiteContent> {
 }
 
 /* ============================================================
+   静态默认值 —— 「重置为默认」的依据
+   ------------------------------------------------------------
+   后台的「重置」要把 section 退回静态默认：版本流追加一条默认内容
+   的版本，同时删掉 site_content 里的运行时覆盖行（读取时自然回落到
+   这里的静态值）。
+   ============================================================ */
+
+/**
+ * 全部 section 的静态默认值。
+ *
+ * 与 seedHomeContentFromDefaults 用的是同一份数据（seed 直接复用这个
+ * 对象）—— 两处各写一份的话，改了一处另一处就悄悄漂移：seed 里的
+ * 是新文案，重置时退回去的却是旧的。
+ *
+ * site 刻意不含 locale —— locale 不进 DB（见 lib/contracts.ts 的
+ * SiteContentData 注释）。
+ */
+export const DEFAULT_SECTIONS: Record<SiteSectionKey, unknown> = {
+  hero,
+  about,
+  subscribe,
+  footer,
+  story,
+  nav: [...nav],
+  interlude01,
+  interlude03,
+  coords,
+  worksIntro,
+  /* locale 刻意不种 —— 它不进 DB */
+  site: {
+    name: site.name,
+    nameEn: site.nameEn,
+    title: site.title,
+    description: site.description,
+    projectName: site.projectName,
+    edition: site.edition,
+    foundedYear: site.foundedYear,
+    cities: [...site.cities],
+    marquee: [...site.marquee],
+  },
+  series: series.map((s) => ({ ...s })),
+};
+
+/* ============================================================
    首次启动 seed —— 把 lib/data 静态值写入 SQLite
    ------------------------------------------------------------
    被 lib/signer/users.ts 的 migrate 末尾调用，仅当 site_content 表
    为空时执行（不覆盖已有覆盖值）。
    ============================================================ */
 export function seedHomeContentFromDefaults(): void {
-  seedSiteContentIfEmpty({
-    hero,
-    about,
-    subscribe,
-    footer,
-    story,
-    nav: [...nav],
-    interlude01,
-    interlude03,
-    coords,
-    worksIntro,
-    /* locale 刻意不种 —— 它不进 DB */
-    site: {
-      name: site.name,
-      nameEn: site.nameEn,
-      title: site.title,
-      description: site.description,
-      projectName: site.projectName,
-      edition: site.edition,
-      foundedYear: site.foundedYear,
-      cities: [...site.cities],
-      marquee: [...site.marquee],
-    },
-    series: series.map((s) => ({ ...s })),
-  });
+  seedSiteContentIfEmpty(DEFAULT_SECTIONS);
 }
 
 /* ============================================================

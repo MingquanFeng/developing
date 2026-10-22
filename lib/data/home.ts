@@ -17,6 +17,14 @@ export const hero = {
   titleLines: ["至静", "之极"],
   image:
     "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=2400&q=80&auto=format&fit=crop",
+  /**
+   * 公开相册里选中的照片 id（后台「从公开相册选择」写入）。
+   * null = 用上面的 image 兜底图。
+   *
+   * ⚠️ 存的是 photoId 不是签名 URL —— 签名 URL 900 秒就过期，
+   *    存进 DB 等于存了个定时炸弹。服务端渲染时按 photoId 现签。
+   */
+  photoId: null as string | null,
   imageAlt: "对象 01 · 上海弄堂 · 凌晨",
   sub: "一份关于面孔、凝视与沉默的视觉志——2022 至 2024 年间，对十一位对象的长期肖像拍摄。",
   cta: { label: "查看作品", href: "#works" },
@@ -69,6 +77,8 @@ export const series = [
     image:
       "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=1600&q=80&auto=format&fit=crop",
     imageAlt: "上海 03:17 — 对象 01",
+    /** 公开相册选中的照片 id（null = 走 albumSlug 对应相册的封面） */
+    photoId: null as string | null,
     figLabel: "001 / 上海 03:17",
     figCaption: "对象 01 · 弄堂 · 凌晨",
   },
@@ -82,6 +92,8 @@ export const series = [
     image:
       "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=1600&q=80&auto=format&fit=crop",
     imageAlt: "北京素描 — 对象 02",
+    /** 公开相册选中的照片 id（null = 走 albumSlug 对应相册的封面） */
+    photoId: null as string | null,
     figLabel: "002 / 北京素描",
     figCaption: "对象 02 · 胡同 · 上午",
   },
@@ -95,6 +107,8 @@ export const series = [
     image:
       "https://images.unsplash.com/photo-1488161628813-04466f872be2?w=1600&q=80&auto=format&fit=crop",
     imageAlt: "莫干之雾 — 对象 03",
+    /** 公开相册选中的照片 id（null = 走 albumSlug 对应相册的封面） */
+    photoId: null as string | null,
     figLabel: "003 / 莫干之雾",
     figCaption: "对象 03 · 雾林 · 午后",
   },
@@ -108,6 +122,8 @@ export const series = [
     image:
       "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=1600&q=80&auto=format&fit=crop",
     imageAlt: "拉萨白墙 — 对象 04",
+    /** 公开相册选中的照片 id（null = 走 albumSlug 对应相册的封面） */
+    photoId: null as string | null,
     figLabel: "004 / 拉萨白墙",
     figCaption: "对象 04 · 高原 · 上午",
   },
@@ -121,6 +137,8 @@ export const series = [
     image:
       "https://images.unsplash.com/photo-1492288991661-058aa541ff43?w=1600&q=80&auto=format&fit=crop",
     imageAlt: "大理静蓝 — 唯一对象",
+    /** 公开相册选中的照片 id（null = 走 albumSlug 对应相册的封面） */
+    photoId: null as string | null,
     figLabel: "005 / 大理静蓝",
     figCaption: "对象 唯一 · 扎染工坊",
   },

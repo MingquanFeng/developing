@@ -6,7 +6,8 @@
  * 字段（继承 lib/data/home 的 hero 结构）：
  *   - tags[]      — 字符串数组，逗号分隔输入
  *   - titleLines  — 必为 2 行
- *   - image       — 主图 URL
+ *   - image       — 主图 URL（兜底图）
+ *   - photoId     — 公开相册里选中的照片 id（命中时覆盖 image）
  *   - imageAlt    — alt 文本
  *   - sub         — 副标（一段）
  *   - cta         — { label, href }
@@ -16,6 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { hero } from "@/lib/data/home";
 import type { Writable } from "./_writable";
+import PhotoField from "./PhotoField";
 import styles from "./editors.module.css";
 import adminStyles from "../../admin.module.css";
 
@@ -144,7 +146,17 @@ export default function HeroEditor({
           value={draft.image}
           onChange={(e) => update("image", e.target.value)}
         />
+        <span className={styles.hint}>兜底图 —— 下面没选公开照片时才用它</span>
       </div>
+
+      <PhotoField
+        photoId={draft.photoId ?? null}
+        alt={draft.imageAlt}
+        onAltChange={(v) => update("imageAlt", v)}
+        onChange={(p) => update("photoId", p?.id ?? null)}
+        label="主图（公开相册）"
+        context="首屏主图"
+      />
 
       <div className={styles.row}>
         <span className={styles.label}>主图 alt 文本</span>

@@ -5,12 +5,13 @@
  * ------------------------------------------------------------------
  * 两大块：
  *   1. CoversPanel —— 5 个 series 封面（沿用旧功能，从 AdminShell 拆出）
- *   2. HomeContentPanel —— 首期 4 个 section 的后台编辑
+ *   2. HomeContentPanel —— 12 个 section 的「内容版本管理」
+ *      （左栏选块 / 右栏看历史版本 + 编辑）
  *
  * 不持有业务 state —— 一切来自 props（useSiteContent / useManifest）。
  */
 import type { Album, Manifest } from "@/lib/contracts";
-import type { SiteSectionKey } from "@/lib/contracts";
+import type { SiteSectionKey, SiteContentVersion } from "@/lib/contracts";
 import type { SiteContentDraft } from "@/lib/admin-api/site-content";
 import CoversPanel from "./CoversPanel";
 import HomeContentPanel from "./HomeContentPanel";
@@ -24,8 +25,22 @@ export type SystemTabProps = {
   /* HomeContentPanel */
   siteContent: SiteContentDraft;
   busy: SiteSectionKey | null;
-  onSaveSection: (key: SiteSectionKey, content: unknown) => Promise<void>;
-  onResetSection: (key: SiteSectionKey) => Promise<void>;
+  /** 版本流（全部 key） */
+  siteContentVersions: SiteContentVersion[];
+  siteContentVersionsLoading: boolean;
+  siteContentVersionsErr: string | null;
+  onSaveSection: (
+    key: SiteSectionKey,
+    content: unknown,
+    basedOnId?: number | null,
+  ) => Promise<{ versionId: number }>;
+  onResetSection: (key: SiteSectionKey) => Promise<{ versionId: number }>;
+  /** 恢复历史版本 —— 把它原样发布为当前生效版本 */
+  onRestoreSection: (
+    version: SiteContentVersion,
+  ) => Promise<{ versionId: number }>;
+  /** 版本历史拉失败时的重试 */
+  onReloadVersions: () => void;
 
   onRequestConfirm: (opts: {
     title: string;
@@ -41,8 +56,13 @@ export default function SystemTab({
   onOpenCover,
   siteContent,
   busy,
+  siteContentVersions,
+  siteContentVersionsLoading,
+  siteContentVersionsErr,
   onSaveSection,
   onResetSection,
+  onRestoreSection,
+  onReloadVersions,
   onRequestConfirm,
 }: SystemTabProps) {
   return (
@@ -50,7 +70,7 @@ export default function SystemTab({
       <header className={styles.pageHeader}>
         <h2 className={styles.pageTitle}>系统设置</h2>
         <span className={styles.pageSub}>
-          封面管理 + 首页内容编辑
+          封面管理 + 内容版本管理
         </span>
       </header>
 
@@ -59,8 +79,13 @@ export default function SystemTab({
       <HomeContentPanel
         data={siteContent}
         busy={busy}
+        versions={siteContentVersions}
+        versionsLoading={siteContentVersionsLoading}
+        versionsErr={siteContentVersionsErr}
         onSave={onSaveSection}
         onReset={onResetSection}
+        onRestore={onRestoreSection}
+        onReloadVersions={onReloadVersions}
         onRequestConfirm={onRequestConfirm}
       />
     </section>

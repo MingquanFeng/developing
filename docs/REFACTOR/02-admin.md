@@ -134,3 +134,56 @@ hooks 的返回值是 plain object，传 props 给子组件。Context 收益是�
 2. 必要时新 hook（如有复杂状态）；
 3. `AdminShell.tsx` 的 tab + render 分支加一项；
 4. `AdminTab` 类型联扩展（联合成员）。
+
+## 系统设置：从「表单」到「版本管理」（2026-10）
+
+系统设置 tab 现在有两块：**封面管理**（CoversPanel，选 series 相册封面）
++ **内容版本管理**（HomeContentPanel）。
+
+### 内容版本管理的主从布局
+
+```
+components/admin/system/
+├── HomeContentPanel.tsx   主从布局的组合器（左栏选块 / 右栏详情）
+├── version-list.module.css 两栏栅格 + 版本行样式（<1280px 堆叠）
+├── useSiteContent.ts       内容 + meta + 版本流 的 hook
+├── ImagePicker.tsx        公开相册选图弹层（自己拉 manifest）
+├── PhotoThumb.tsx         懒加载缩略图（IntersectionObserver）
+├── editors/
+│   ├── PhotoField.tsx     「预览 + 选择 + 清除」小块（4 个 editor 共用）
+│   └── …原有 12 个 editor，props 契约未变
+└── lib/site-content-summary.ts  版本摘要（纯函数，可单测）
+```
+
+左栏 12 个内容块（块名 / 说明 / 当前版本时间 / 版本条数），
+右栏是选中块的**版本历史列表** + 编辑器。
+
+### 版本流的交互约定
+
+| 动作 | 语义 | 服务端 |
+| --- | --- | --- |
+| 编辑器里保存 | 以当前正在编辑的那一版为基础，发布**新版本** | `PUT` 带 `basedOnId` |
+| 版本行的「编辑」 | 把那一版的 content 灌进编辑器当草稿 | 只改本地 |
+| 版本行的「恢复」 | 把那一版原样再发一版，成为当前生效版 | `PUT` 带 `basedOnId = 该版本 id` |
+| 「重置为默认」 | 回到静态默认值 | `DELETE`，记一条「重置」版本 |
+
+**旧版本永远不被覆盖** —— 恢复动作本身也是一条新版本，历史只增不减。
+
+### 编辑器怎么换草稿
+
+editor 内部用 `dirtyRef` 保护用户正在改的内容（`data` 变化时不同步覆盖）。
+所以切换块 / 切换版本时**不能**指望 `data` prop 生效，得用 `key` 强制重挂载。
+
+⚠️ 但 `key` 里**不能**拼 `draftVersionId`：保存成功后 `draftVersionId` 会指向
+新发布的版本，一并换 key 会重挂载编辑器，把 editor 内部的「已保存」提示冲掉
+（E2E 直接报 element not found）。所以另起一个 `editorEpoch` 计数 ——
+只有「用户显式换草稿」（切块 / 点编辑 / 恢复 / 重置）才 +1。
+
+### 公开相册选图
+
+- 弹层自己调 `lib/admin-api/manifest.ts` 的 `fetchManifest()`，只列
+  `isPublic && !trashedAt` 的照片，按相册分组。
+- 缩略图走 `/api/photo/[id]/url?v=thumb`（签名 URL，900 秒有效）。
+- 选中后存 **photoId**（不是 URL —— 签名 URL 会过期，见 ADR-0007），
+  服务端渲染时由 `lib/site-images.ts` 现签。
+- editor 的 props 契约不变：弹层状态由 editor 内部管，不往 AdminApp 冒泡。

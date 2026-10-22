@@ -155,6 +155,15 @@ migrateAddSecurityActorUserId();
 import { seedHomeContentFromDefaults } from "@/lib/data/site-content";
 seedHomeContentFromDefaults();
 
+/* ------------------------------------------------------------
+   版本流回填 —— 给老部署补基线版本。
+   版本表是后加的，老部署的 site_content 行没有任何版本记录：
+   不补的话，后台历史页第一次打开是空的，看起来像「从没改过」。
+   幂等：只补「一个版本都没有」的 key，重复启动不会多插。
+   ------------------------------------------------------------ */
+import { backfillSiteContentVersions } from "@/lib/signer/site-content";
+backfillSiteContentVersions();
+
 const newId = () =>
   `usr_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 

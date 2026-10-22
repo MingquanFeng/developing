@@ -11,6 +11,7 @@ import SubscribeSection from "@/components/home/SubscribeSection";
 import FooterSection from "@/components/home/FooterSection";
 import { ImageFallbackProvider } from "@/components/Works";
 import { enrichSeriesWithCovers } from "@/lib/series-covers";
+import { resolveHomeImages } from "@/lib/site-images";
 import { listHomeContent } from "@/lib/data/site-content";
 
 /**
@@ -56,6 +57,20 @@ export default async function Home() {
    */
   const series = await enrichSeriesWithCovers(home.series);
 
+  /**
+   * 后台显式选中的公开相册照片（hero / story / about / series[i]）。
+   *
+   * 存的是 photoId 不是 URL —— COS 签名读 URL 900 秒就过期，
+   * 存进 DB 等于存了个定时炸弹。这里按 photoId 现签（CI_PREVIEW）。
+   *
+   * ⚠️ 顺序：先 enrichSeriesWithCovers（相册封面），**再**套 photoId
+   * 覆盖 —— 显式选的照片优先于相册封面。
+   *
+   * 任一步失败（找不到 / 不公开 / 在回收站 / 签失败）都静默保留原值，
+   * 首屏永远不白。
+   */
+  const images = await resolveHomeImages({ ...home, series });
+
   return (
     <>
       <ImageFallbackProvider />
@@ -63,13 +78,13 @@ export default async function Home() {
       <MetaBar marquee={home.site.marquee} />
 
       <main>
-        <HeroSection data={home.hero} />
+        <HeroSection data={images.hero} />
         <JournalSection data={home.interlude01} />
-        <WorksSection series={series} intro={home.worksIntro} />
+        <WorksSection series={images.series} intro={home.worksIntro} />
         <CoordsSection data={home.coords} />
-        <StorySection data={home.story} />
+        <StorySection data={images.story} />
         <Interlude03Section data={home.interlude03} />
-        <AboutSection data={home.about} />
+        <AboutSection data={images.about} />
         <SubscribeSection data={home.subscribe} />
       </main>
 

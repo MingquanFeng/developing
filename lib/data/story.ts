@@ -10,6 +10,8 @@ export const story = {
   titleSub: "PORTRAIT",
   image:
     "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=2400&q=85&auto=format&fit=crop",
+  /** 公开相册里选中的照片 id（null = 用上面的 image 兜底图） */
+  photoId: null as string | null,
   imageAlt: "大理扎染师肖像",
   copy: "一位大理扎染师，六个月的凝视——在同一面染缸前，按下 47 次快门。把一个人的快门画成一年。",
   cta: { label: "阅读全文", href: "#" },
