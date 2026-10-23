@@ -9,7 +9,8 @@
  *
  * 后台「系统设置」现在是主从布局：
  *   左栏 = 12 个内容块（ul[aria-label="内容块列表"]）
- *   右栏 = 版本历史（ul[aria-label="版本历史"]）+ 编辑器
+ *   右栏 = 版本历史（ul[aria-label="版本历史"]）+「编辑内容」按钮
+ *   编辑器 = 弹框（点按钮才打开，不内联在右栏里）
  */
 import { expect, test, type Page } from "@playwright/test";
 import {
@@ -77,11 +78,41 @@ async function openSection(
     .click();
 }
 
+/** 编辑器（弹框里的表单） */
+function editor(page: Page) {
+  return page.locator('div[aria-label="内容编辑器"]');
+}
+
+/**
+ * 打开编辑器弹框
+ * ------------------------------------------------------------------
+ * 编辑器不再内联在右栏 —— 点「编辑内容」才开弹框。
+ */
+async function openEditor(page: Page): Promise<void> {
+  await panel(page).getByRole("button", { name: "编辑内容" }).click();
+  await expect(editor(page)).toBeVisible();
+}
+
+/**
+ * 关掉编辑器弹框
+ * ------------------------------------------------------------------
+ * - 刚保存过 → 直接关（弹层知道「没什么可丢的」）
+ * - 没保存过 → 走二次确认，要点「关闭并放弃」
+ */
+async function closeEditor(
+  page: Page,
+  opts?: { discard?: boolean },
+): Promise<void> {
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  if (opts?.discard) {
+    await page.getByRole("button", { name: "关闭并放弃" }).click();
+  }
+  await expect(editor(page)).toHaveCount(0);
+}
+
 /** 当前选中块的编辑器里的「保存」按钮 */
 function saveButton(page: Page) {
-  return panel(page)
-    .locator('div[aria-label="内容编辑器"]')
-    .getByRole("button", { name: "保存", exact: true });
+  return editor(page).getByRole("button", { name: "保存", exact: true });
 }
 
 /** 全部可编辑 section（清理覆盖值时用） */
@@ -169,6 +200,7 @@ test.describe("首页内容后台动态化", () => {
     await login(page);
     await openSystemTab(page);
     await openSection(page, "首屏 HERO");
+    await openEditor(page);
 
     const titleInput = page.getByLabel("主标题第 1 行");
     await expect(titleInput).toHaveValue("至静");
@@ -182,10 +214,38 @@ test.describe("首页内容后台动态化", () => {
     await expect(page.getByRole("heading", { name: /E2E 首屏/ })).toBeVisible();
   });
 
+  test("编辑器是弹框：关掉不保存的会二次确认", async ({ page }) => {
+    await login(page);
+    await openSystemTab(page);
+    await openSection(page, "首屏 HERO");
+    await openEditor(page);
+
+    /* 改了点东西但不保存 → 点关闭 → 弹确认 */
+    await page.getByLabel("主标题第 1 行").fill("没保存的改动");
+    await page.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(page.getByText("关闭编辑器")).toBeVisible();
+
+    /* 「继续编辑」→ 弹框还在，改动也还在 */
+    await page.getByRole("button", { name: "继续编辑" }).click();
+    await expect(editor(page)).toBeVisible();
+    await expect(page.getByLabel("主标题第 1 行")).toHaveValue("没保存的改动");
+
+    /* 再关 → 「关闭并放弃」→ 弹框没了 */
+    await page.getByRole("button", { name: "关闭", exact: true }).click();
+    await page.getByRole("button", { name: "关闭并放弃" }).click();
+    await expect(editor(page)).toHaveCount(0);
+
+    /* 放弃的改动没发布出去 */
+    const res = await page.request.get("/api/site/content");
+    const body = await res.json();
+    expect(JSON.stringify(body.sections.hero)).not.toContain("没保存的改动");
+  });
+
   test("重置为默认走二次确认，确认后回落静态默认", async ({ page }) => {
     await login(page);
     await openSystemTab(page);
     await openSection(page, "首屏 HERO");
+    await openEditor(page);
 
     /* 先改成非默认值 */
     await page.getByLabel("主标题第 1 行").fill("待重置的值");
@@ -193,8 +253,7 @@ test.describe("首页内容后台动态化", () => {
     await expectSaved(page);
 
     /* 点「重置为默认」→ 弹确认框 */
-    await panel(page)
-      .locator('div[aria-label="内容编辑器"]')
+    await editor(page)
       .getByRole("button", { name: "重置为默认" })
       .click();
     await expect(page.getByText("重置首屏为默认")).toBeVisible();
@@ -215,14 +274,13 @@ test.describe("首页内容后台动态化", () => {
     await login(page);
     await openSystemTab(page);
     await openSection(page, "顶导航");
+    await openEditor(page);
 
     await page.getByLabel("导航项 1 链接").fill("javascript:alert(1)");
     await saveButton(page).click();
 
     /* 服务端返回 400 → UI 显示形状不符 */
-    await expect(
-      panel(page).locator('div[aria-label="内容编辑器"]').getByText(/形状不符合/),
-    ).toBeVisible();
+    await expect(editor(page).getByText(/形状不符合/)).toBeVisible();
 
     /* DB 未被污染：nav 内容仍不含 javascript: */
     const res = await page.request.get("/api/site/content");
@@ -236,6 +294,7 @@ test.describe("首页内容后台动态化", () => {
     await login(page);
     await openSystemTab(page);
     await openSection(page, "站点 meta");
+    await openEditor(page);
 
     await page.getByLabel("站点名（中文）").fill("E2E 品牌");
     await page.getByLabel("页面标题（metadata title）").fill("E2E 标题");
@@ -250,8 +309,8 @@ test.describe("首页内容后台动态化", () => {
     await page.goto("/admin/");
     await openSystemTab(page);
     await openSection(page, "站点 meta");
-    await panel(page)
-      .locator('div[aria-label="内容编辑器"]')
+    await openEditor(page);
+    await editor(page)
       .getByRole("button", { name: "重置为默认" })
       .click();
     await page.getByRole("button", { name: "重置", exact: true }).last().click();
@@ -261,12 +320,10 @@ test.describe("首页内容后台动态化", () => {
     await login(page);
     await openSystemTab(page);
     await openSection(page, "第三幕 · 作品系列");
+    await openEditor(page);
 
     /* 5 组系列各一个子折叠；改第 1 组的系列名 */
-    const group = panel(page)
-      .locator('div[aria-label="内容编辑器"]')
-      .locator("details")
-      .first();
+    const group = editor(page).locator("details").first();
     await group.evaluate((el) => {
       (el as HTMLDetailsElement).open = true;
     });
@@ -292,9 +349,12 @@ test.describe("首页内容后台动态化", () => {
     const before = await versionList(page).count();
 
     /* 改一版保存 → 版本列表多一条，且新的一条是「当前生效」 */
+    await openEditor(page);
     await page.getByLabel("主标题第 1 行").fill("版本 A");
     await saveButton(page).click();
     await expectSaved(page);
+    /* 弹框挡住了版本列表 —— 先关掉（保存过，直接关不弹确认） */
+    await closeEditor(page);
 
     await expect(versionList(page)).toHaveCount(before + 1);
     await expect(
@@ -303,15 +363,19 @@ test.describe("首页内容后台动态化", () => {
     await expect(versionList(page).first()).toContainText("版本 A");
 
     /* 再改一版（基于刚发的版本 A） */
+    await openEditor(page);
     await page.getByLabel("主标题第 1 行").fill("版本 B");
     await saveButton(page).click();
     await expectSaved(page);
+    await closeEditor(page);
     await expect(versionList(page).first()).toContainText("版本 B");
 
-    /* 回到更早的版本 A：点它的「编辑」→ 草稿变成版本 A 的内容 */
+    /* 回到更早的版本 A：点它的「编辑」→ 弹框里草稿变成版本 A 的内容 */
     const versionA = versionList(page).filter({ hasText: "版本 A" }).first();
     await versionA.getByRole("button", { name: /^编辑版本/ }).click();
     await expect(page.getByLabel("主标题第 1 行")).toHaveValue("版本 A");
+    /* 没保存就关 → 二次确认 → 放弃 */
+    await closeEditor(page, { discard: true });
 
     /* 点「恢复」→ 二次确认 → 旧版本内容原样重新生效 */
     await versionA.getByRole("button", { name: /^恢复版本/ }).click();
@@ -321,6 +385,9 @@ test.describe("首页内容后台动态化", () => {
     /* 新的一条版本成为当前生效，内容回到版本 A */
     await expect(versionList(page).first().getByText("当前生效")).toBeVisible();
     await expect(versionList(page).first()).toContainText("版本 A");
+
+    /* 打开编辑器看当前生效的内容也回到了版本 A */
+    await openEditor(page);
     await expect(page.getByLabel("主标题第 1 行")).toHaveValue("版本 A");
 
     /* 首页也跟着回落 */

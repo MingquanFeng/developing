@@ -9,7 +9,7 @@
  *         版本条数徽章。点击切换右栏显示的块。
  *   右栏  选中块的详情：
  *           - 版本列表（该块历史上发布过的每一版）
- *           - 编辑器（复用 editors/* 的 12 个 editor）
+ *           - 「编辑内容」按钮 → 弹框里打开编辑器（不内联）
  *
  * 版本流的交互约定：
  *   - 「编辑」：把该版本的 content 作为草稿喂给编辑器；保存即**以该版本
@@ -17,6 +17,10 @@
  *   - 「恢复」：把该版本 content 原样再发一版，成为当前生效版本。
  *   - editor 内部的 dirtyRef 会保护用户正在改的内容，所以切换块 / 切换
  *     版本时用 key 强制重挂载编辑器来重置草稿 —— 不改 editors/* 的实现。
+ *
+ * 编辑器为什么是弹框：12 个块的表单都很长（hero 十几行、series 五组各
+ * 10 个字段），内联在右栏会把版本历史整个顶出屏幕。弹框里表单自己滚，
+ * 头部（标题 + 关闭）留在视口里。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
@@ -41,6 +45,7 @@ import {
 import type { SiteContentDraft } from "@/lib/admin-api/site-content";
 import { summarizeSection } from "@/lib/site-content-summary";
 import type { Writable } from "./editors/_writable";
+import ContentEditorModal from "./ContentEditorModal";
 import HeroEditor from "./editors/HeroEditor";
 import AboutEditor from "./editors/AboutEditor";
 import SubscribeEditor from "./editors/SubscribeEditor";
@@ -179,8 +184,11 @@ export default function HomeContentPanel({
   const [draftVersionId, setDraftVersionId] = useState<number | null>(null);
   /* 编辑器重挂载计数 —— 只在"用户显式换草稿"时 +1（见 editorKey 处的注释） */
   const [editorEpoch, setEditorEpoch] = useState(0);
+  /* 编辑器弹层开没开 —— 编辑器不再内联在右栏里 */
+  const [editorOpen, setEditorOpen] = useState(false);
+  /* 这一轮弹层里保存过没有 —— 保存过就直接关，没保存才问「要放弃修改吗」 */
+  const savedRef = useRef(false);
   const [actionErr, setActionErr] = useState<string | null>(null);
-  const editorRef = useRef<HTMLDivElement | null>(null);
 
   /* 防御：DB 拿到的 shape 在 setSiteSection 时已校验；这里 cast 是
      类型上让 editor 拿到精确 typeof，运行时不可能出错。
@@ -296,6 +304,8 @@ export default function HomeContentPanel({
         /* 新版本立刻成为编辑基（它就是当前生效版）。
            刻意不重挂载编辑器：内容没变，且要保住 editor 的「已保存」提示。 */
         setDraftVersionId(r.versionId);
+        /* 这一轮保存过了 —— 关弹层时不再问「要放弃修改吗」 */
+        savedRef.current = true;
       } catch (e) {
         setActionErr((e as Error).message);
         throw e;
@@ -309,6 +319,8 @@ export default function HomeContentPanel({
     try {
       const r = await onReset(activeKey);
       setDraftVersionId(r.versionId);
+      /* 重置也是一次发布（记一条「重置」版本）—— 没有未保存的改动可丢 */
+      savedRef.current = true;
       /* 重置后内容变了（回到静态默认）—— 重挂载一次，
          让编辑器确定地显示默认值（不依赖 editor 内部的 dirtyRef 时序）。 */
       setEditorEpoch((e) => e + 1);
@@ -346,9 +358,45 @@ export default function HomeContentPanel({
     /* 显式换草稿 → 重挂载（editor 内部 dirtyRef 会挡住 data 同步，
        只有重挂载才能干净地换成这一版的内容）。 */
     setEditorEpoch((e) => e + 1);
-    /* 把编辑器滚进视野 —— 版本列表可能很长 */
-    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    savedRef.current = false;
+    setEditorOpen(true);
   }, []);
+
+  /** 打开当前生效版本的编辑器（版本行之外的入口） */
+  const handleEditCurrent = useCallback(() => {
+    setActionErr(null);
+    setDraftVersionId(currentVersionIdOf(activeKey));
+    setEditorEpoch((e) => e + 1);
+    savedRef.current = false;
+    setEditorOpen(true);
+  }, [activeKey, currentVersionIdOf]);
+
+  /**
+   * 请求关闭编辑器弹层。
+   *
+   * 保存过 → 直接关（没什么可丢的）；没保存过 → 二次确认
+   * 「未保存的修改会丢失」—— 编辑器的草稿在它自己内部（dirtyRef），
+   * 父级看不见改没改，只能保守地问。
+   */
+  const handleRequestCloseEditor = useCallback(async () => {
+    if (savedRef.current) {
+      setEditorOpen(false);
+      /* 草稿基线回到「当前生效」那一版 —— 下次打开是干净的 */
+      setDraftVersionId(currentVersionIdOf(activeKey));
+      setEditorEpoch((e) => e + 1);
+      return;
+    }
+    const ok = await onRequestConfirm({
+      title: "关闭编辑器",
+      body: "这一版还没保存过，关闭会丢掉未保存的修改。",
+      confirmLabel: "关闭并放弃",
+      cancelLabel: "继续编辑",
+    });
+    if (!ok) return;
+    setEditorOpen(false);
+    setDraftVersionId(currentVersionIdOf(activeKey));
+    setEditorEpoch((e) => e + 1);
+  }, [activeKey, currentVersionIdOf, onRequestConfirm]);
 
   const activeSection = SECTIONS.find((s) => s.key === activeKey);
 
@@ -411,9 +459,18 @@ export default function HomeContentPanel({
                 {activeSection?.hint ?? ""}
               </p>
             </div>
-            <span className={styles.badge}>
-              {activeVersions.length} 个版本
-            </span>
+            <div className={vStyles.detailHeadActions}>
+              <span className={styles.badge}>
+                {activeVersions.length} 个版本
+              </span>
+              <button
+                type="button"
+                className={`${styles.btn} ${styles.btnPrimary}`}
+                onClick={handleEditCurrent}
+              >
+                编辑内容
+              </button>
+            </div>
           </header>
 
           {actionErr ? (
@@ -446,7 +503,7 @@ export default function HomeContentPanel({
             <div className={styles.emptyState}>
               <p className={styles.emptyStateTitle}>暂无版本历史</p>
               <p className={styles.emptyStateBody}>
-                这一块还没有发布过版本。下面的编辑器保存一次就会生成第一个版本，
+                这一块还没有发布过版本。点「编辑内容」保存一次就会生成第一个版本，
                 之后每次保存都会追加一条，历史不会被覆盖。
               </p>
             </div>
@@ -508,45 +565,52 @@ export default function HomeContentPanel({
             </ul>
           ) : null}
 
-          {/* ---- 编辑器 ---- */}
-          <p className={vStyles.sectionLabel}>编辑器</p>
-          <p className={styles.pageSub}>
-            {draftVersion
-              ? `正在编辑版本 #${draftVersion.id} 的内容。保存 = 以它为基础发布一个新版本（历史保留）。`
-              : "当前没有历史版本。保存 = 生成这一块的第一个版本。"}
-          </p>
-          <div
-            className={editorStyles.editor}
-            key={editorKey}
-            ref={editorRef}
-            aria-label="内容编辑器"
-          >
-            {activeKey === "hero" ? (
-              <HeroEditor {...editorProps} />
-            ) : activeKey === "about" ? (
-              <AboutEditor {...editorProps} />
-            ) : activeKey === "subscribe" ? (
-              <SubscribeEditor {...editorProps} />
-            ) : activeKey === "footer" ? (
-              <FooterEditor {...editorProps} />
-            ) : activeKey === "story" ? (
-              <StoryEditor {...editorProps} />
-            ) : activeKey === "nav" ? (
-              <NavEditor {...editorProps} />
-            ) : activeKey === "interlude01" ? (
-              <InterludeEditor {...editorProps} showEmphasis />
-            ) : activeKey === "interlude03" ? (
-              <InterludeEditor {...editorProps} showEmphasis={false} />
-            ) : activeKey === "coords" ? (
-              <CoordsEditor {...editorProps} />
-            ) : activeKey === "worksIntro" ? (
-              <WorksIntroEditor {...editorProps} />
-            ) : activeKey === "site" ? (
-              <SiteEditor {...editorProps} />
-            ) : (
-              <SeriesEditor {...editorProps} />
-            )}
-          </div>
+          {/* ---- 编辑器（弹框）----
+              编辑器不再内联在右栏：12 个块的表单都很长，内联会把
+              版本历史挤到屏幕外。点「编辑内容」或版本行的「编辑」打开。 */}
+          {editorOpen ? (
+            <ContentEditorModal
+              title={`编辑 · ${activeSection?.label ?? activeKey}`}
+              hint={
+                draftVersion
+                  ? `正在编辑版本 #${draftVersion.id} 的内容。保存 = 以它为基础发布一个新版本（历史保留）。`
+                  : "当前没有历史版本。保存 = 生成这一块的第一个版本。"
+              }
+              onRequestClose={() => void handleRequestCloseEditor()}
+            >
+              <div
+                className={editorStyles.editor}
+                key={editorKey}
+                aria-label="内容编辑器"
+              >
+                {activeKey === "hero" ? (
+                  <HeroEditor {...editorProps} />
+                ) : activeKey === "about" ? (
+                  <AboutEditor {...editorProps} />
+                ) : activeKey === "subscribe" ? (
+                  <SubscribeEditor {...editorProps} />
+                ) : activeKey === "footer" ? (
+                  <FooterEditor {...editorProps} />
+                ) : activeKey === "story" ? (
+                  <StoryEditor {...editorProps} />
+                ) : activeKey === "nav" ? (
+                  <NavEditor {...editorProps} />
+                ) : activeKey === "interlude01" ? (
+                  <InterludeEditor {...editorProps} showEmphasis />
+                ) : activeKey === "interlude03" ? (
+                  <InterludeEditor {...editorProps} showEmphasis={false} />
+                ) : activeKey === "coords" ? (
+                  <CoordsEditor {...editorProps} />
+                ) : activeKey === "worksIntro" ? (
+                  <WorksIntroEditor {...editorProps} />
+                ) : activeKey === "site" ? (
+                  <SiteEditor {...editorProps} />
+                ) : (
+                  <SeriesEditor {...editorProps} />
+                )}
+              </div>
+            </ContentEditorModal>
+          ) : null}
         </div>
       </div>
     </section>

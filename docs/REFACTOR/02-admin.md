@@ -148,6 +148,7 @@ components/admin/system/
 ├── version-list.module.css 两栏栅格 + 版本行样式（<1280px 堆叠）
 ├── useSiteContent.ts       内容 + meta + 版本流 的 hook
 ├── ImagePicker.tsx        公开相册选图弹层（自己拉 manifest）
+├── ContentEditorModal.tsx 内容编辑器弹层（点按钮才开，不内联）
 ├── PhotoThumb.tsx         懒加载缩略图（IntersectionObserver）
 ├── editors/
 │   ├── PhotoField.tsx     「预览 + 选择 + 清除」小块（4 个 editor 共用）
@@ -156,7 +157,7 @@ components/admin/system/
 ```
 
 左栏 12 个内容块（块名 / 说明 / 当前版本时间 / 版本条数），
-右栏是选中块的**版本历史列表** + 编辑器。
+右栏是选中块的**版本历史列表**（编辑器不在右栏，见下）。
 
 ### 版本流的交互约定
 
@@ -168,6 +169,21 @@ components/admin/system/
 | 「重置为默认」 | 回到静态默认值 | `DELETE`，记一条「重置」版本 |
 
 **旧版本永远不被覆盖** —— 恢复动作本身也是一条新版本，历史只增不减。
+
+### 编辑器为什么是弹框
+
+12 个块的表单都很长（hero 十几行，series 五组各 10 个字段）。内联在右栏会把
+版本历史整个顶出屏幕 —— 想看历史得先滚过一个长表单。
+
+所以：右栏只留版本历史 + 一个「编辑内容」按钮；点它（或版本行的「编辑」）
+弹出 `ContentEditorModal`，表单自己滚，头部（标题 + 关闭）留在视口里。
+
+- 弹层里还能再弹「从公开相册选择」的选图层 —— 两层都是 `position: fixed`，
+  同 z-index 时后渲染的盖在上面，选图层在 DOM 里更靠后 ✓
+- **关闭要走二次确认**：编辑器的草稿在它自己内部（`dirtyRef`），父级看不见
+  用户改没改，只能保守地问「未保存的修改会丢失」。
+  这一轮保存过的话（`savedRef`）直接关，不烦人
+- 遮罩点击也走同一条确认路 —— 不是直接关
 
 ### 编辑器怎么换草稿
 

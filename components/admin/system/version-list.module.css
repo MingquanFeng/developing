@@ -219,3 +219,42 @@
     justify-content: flex-start;
   }
 }
+
+/* ============================================================
+   编辑器弹层
+   ------------------------------------------------------------
+   编辑器从右栏内联改成弹框：右栏只留版本历史，表单单独占一层。
+
+   比 admin.module.css 的 .modal 宽 —— .modal 是 520px，给「登录 /
+   选封面」这种小表单用的；编辑器有十几行字段（5 组系列各 10 个），
+   520px 会挤成一条缝。
+   ============================================================ */
+.editorModal {
+  width: min(980px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px 24px 20px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .45);
+}
+
+.editorModalBody {
+  /* 内容区自己滚 —— 头部（标题 + 关闭）留在视口里，
+     字段再多也不会把关闭按钮顶出屏幕 */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  min-height: 0;
+}
+
+/* 右栏头部右侧：版本数徽章 + 「编辑内容」按钮 */
+.detailHeadActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
