@@ -154,7 +154,7 @@ export default function NavShell({ me, items, site }: NavShellProps) {
               <>
                 {me.role === "admin" ? (
                   <li>
-                    <a href="/admin" onClick={closeDrawer}>相册</a>
+                    <a href="/admin" onClick={closeDrawer}>工作室</a>
                   </li>
                 ) : (
                   <li>
@@ -189,8 +189,8 @@ export default function NavShell({ me, items, site }: NavShellProps) {
    UserMenu —— 桌面端已登录态下拉
    ------------------------------------------------------------
    单按钮 + 浮层菜单：
-     - admin  → 后台 / 账户 / 退出
-     - viewer → 个人空间 / 账户 / 退出
+     - admin  → 工作室 / 账户 / 退出
+     - viewer → 工作室 / 账户 / 退出
    移动端不渲染此组件（drawer 内已分项）。
    ============================================================ */
 function UserMenu({ me }: { me: PublicUser }) {
@@ -223,14 +223,14 @@ function UserMenu({ me }: { me: PublicUser }) {
     ? `linear-gradient(135deg, hsl(${hue}, 28%, 36%), hsl(${(hue + 30) % 360}, 32%, 28%))`
     : `linear-gradient(135deg, hsl(${hue}, 22%, 30%), hsl(${(hue + 30) % 360}, 24%, 24%))`;
 
-  /* 菜单项：admin 与 viewer 都含 "后台"（/admin）。
+  /* 菜单项：两边都含 "工作室"（/admin）。
      - admin   进 /admin 看全部
      - viewer  进 /admin 看自己（AdminShell scoped 已按 ownerId 滤过）
      "账户" /account 一律有 —— 改密 / 改显示名在那里。
      之前 viewer 下拉只有 "个人空间 / 账户" 两个 href 都指 /account
      的窘境也顺手清掉（React 重复 key 警告的根源之一）。 */
   const items: Array<{ label: string; href: string; danger?: boolean }> = [
-    { label: "相册", href: "/admin" },
+    { label: "工作室", href: "/admin" },
     { label: "账户", href: "/account" },
   ];
 
