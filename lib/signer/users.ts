@@ -11,7 +11,7 @@
  *    重启后文件系统会清空，用户会全部消失 —— 那种环境不能用 SQLite。
  */
 import { createHmac } from "node:crypto";
-import { db, DB_PATH, execWithRetry } from "./_db";
+import { db, DB_PATH, execWithRetry, addColumnIfMissing } from "./_db";
 import bcrypt from "bcryptjs";
 import { config } from "./config";
 import type {
@@ -90,12 +90,11 @@ execSchemaWithRetry();
  * 迁移后再注册的新账号才落到默认的 viewer。
  */
 function migrateAddRole(): void {
-  const cols = db.prepare("PRAGMA table_info(users)").all() as {
-    name: string;
-  }[];
-  if (cols.some((c) => c.name === "role")) return;
-
-  execWithRetry("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'");
+  addColumnIfMissing(
+    "users",
+    "role",
+    "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'admin'",
+  );
   execWithRetry("UPDATE users SET role = 'admin' WHERE role IS NULL OR role = ''");
 }
 migrateAddRole();
@@ -108,11 +107,9 @@ migrateAddRole();
  * 部署后浏览器会触发 401 → 自然回登录页（已有处理路径）。
  */
 function migrateAddSessionVersion(): void {
-  const cols = db.prepare("PRAGMA table_info(users)").all() as {
-    name: string;
-  }[];
-  if (cols.some((c) => c.name === "session_version")) return;
-  execWithRetry(
+  addColumnIfMissing(
+    "users",
+    "session_version",
     "ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 1",
   );
 }
@@ -123,11 +120,11 @@ migrateAddSessionVersion();
  * 不会暴露密码；admin 后台可看，便于发现"在哪儿登的"。
  */
 function migrateAddLastLoginIp(): void {
-  const cols = db.prepare("PRAGMA table_info(users)").all() as {
-    name: string;
-  }[];
-  if (cols.some((c) => c.name === "last_login_ip")) return;
-  execWithRetry("ALTER TABLE users ADD COLUMN last_login_ip TEXT");
+  addColumnIfMissing(
+    "users",
+    "last_login_ip",
+    "ALTER TABLE users ADD COLUMN last_login_ip TEXT",
+  );
 }
 migrateAddLastLoginIp();
 
@@ -135,12 +132,11 @@ migrateAddLastLoginIp();
    旧部署 CREATE TABLE IF NOT EXISTS 不会重跑，需要单独 ALTER。
    CREATE INDEX 也在此包内：先加列再建索引，避免老 DB 上找不到列。 */
 function migrateAddSecurityActorUserId(): void {
-  const cols = db.prepare("PRAGMA table_info(security_log)").all() as {
-    name: string;
-  }[];
-  if (!cols.some((c) => c.name === "actor_user_id")) {
-    execWithRetry("ALTER TABLE security_log ADD COLUMN actor_user_id TEXT");
-  }
+  addColumnIfMissing(
+    "security_log",
+    "actor_user_id",
+    "ALTER TABLE security_log ADD COLUMN actor_user_id TEXT",
+  );
   execWithRetry(
     "CREATE INDEX IF NOT EXISTS idx_security_actor ON security_log(actor_user_id, created_at)",
   );

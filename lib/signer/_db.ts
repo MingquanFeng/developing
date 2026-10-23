@@ -50,3 +50,36 @@ export function execWithRetry(sql: string): void {
     }
   }
 }
+
+/**
+ * 加列 —— 并发安全。
+ *
+ * build 时 N 个 worker 并发加载本模块，每个都跑一遍迁移。「先查列在不在，
+ * 再 ALTER」这招在并发下会漏：两个 worker 可能**同时**查到列不存在，
+ * 然后都去 ALTER，后到的那个撞 `duplicate column name: xxx` ——
+ * 那不是 SQLITE_BUSY，execWithRetry 不会重试，直接抛出去，
+ * build 挂在「Collecting page data」阶段。
+ *
+ * （真实事故：2026-10-23 的 CI 就是这么随机红的 —— 上一轮绿、这一轮红，
+ *  取决于 worker 的调度时序。）
+ *
+ * 所以：查一次（快路径），ALTER 时把「duplicate column name」当成功 ——
+ * 别的 worker 刚加上了，结果是一样的。
+ */
+export function addColumnIfMissing(
+  table: string,
+  column: string,
+  ddl: string,
+): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as {
+    name: string;
+  }[];
+  if (cols.some((c) => c.name === column)) return;
+  try {
+    execWithRetry(ddl);
+  } catch (e) {
+    const msg = String((e as { message?: string }).message ?? e);
+    if (!msg.includes("duplicate column name")) throw e;
+    /* 别的 worker 刚加过这一列 —— 等价于成功 */
+  }
+}
