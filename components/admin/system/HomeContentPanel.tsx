@@ -44,6 +44,7 @@ import {
 } from "@/lib/data/home";
 import type { SiteContentDraft } from "@/lib/admin-api/site-content";
 import { summarizeSection } from "@/lib/site-content-summary";
+import { SITE_SECTIONS } from "@/lib/site-sections";
 import type { Writable } from "./editors/_writable";
 import ContentEditorModal from "./ContentEditorModal";
 import HeroEditor from "./editors/HeroEditor";
@@ -90,58 +91,11 @@ export type HomeContentPanelProps = {
 
 /**
  * 12 个内容块 —— 左栏列表与右栏标题共用。
- * 导出给别处复用（比如未来的批量操作入口）。
+ *
+ * 数据与顺序都在 lib/site-sections.ts（那里是单一事实来源，顺序 =
+ * 首页自上而下）。这里只做 re-export，别处 import 本文件也能用。
  */
-export const SECTIONS: ReadonlyArray<{
-  key: SiteSectionKey;
-  label: string;
-  hint: string;
-}> = [
-  { key: "hero", label: "首屏 HERO", hint: "满屏肖像 + 大字标题 + 四栏元信息" },
-  {
-    key: "about",
-    label: "第七幕 · 关于",
-    hint: "摄影师介绍、双栏 + 展览 / 出版",
-  },
-  {
-    key: "subscribe",
-    label: "第八幕 · 订阅",
-    hint: "newsletter 表单",
-  },
-  { key: "footer", label: "第九幕 · 页脚", hint: "三栏 + 底栏" },
-  { key: "story", label: "第五幕 · 主推故事", hint: "满屏肖像 + 副标 + 阅读入口" },
-  { key: "nav", label: "顶导航", hint: "内容项文案与链接" },
-  {
-    key: "interlude01",
-    label: "第二幕 · 手记 01",
-    hint: "关于面孔 · 引文 + 强调行",
-  },
-  {
-    key: "interlude03",
-    label: "第六幕 · 手记 03",
-    hint: "工作方法 · 引文",
-  },
-  {
-    key: "coords",
-    label: "第四幕 · 手记 02",
-    hint: "对象与坐标表（可增删行）",
-  },
-  {
-    key: "worksIntro",
-    label: "第三幕 · 人像志介绍",
-    hint: "WORKS 顶部标题与文案",
-  },
-  {
-    key: "site",
-    label: "站点 meta",
-    hint: "标题 / 描述 / 品牌名 / 跑马灯（影响 SEO）",
-  },
-  {
-    key: "series",
-    label: "第三幕 · 作品系列",
-    hint: "5 组系列的文案（封面图另在「封面管理」设）",
-  },
-];
+export const SECTIONS = SITE_SECTIONS;
 
 /* ------------------------------------------------------------------
    摘要：把一个版本的 content 压成一句人话
