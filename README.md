@@ -64,7 +64,7 @@ npm run check:server-only   # 在 Nav 临时插探针跑 build 验 server-only �
     AdminShell.tsx        已登录后外壳 + tabs
     LoginForm.tsx         未登录表单
     Frame / DropZone / PhotoRow
-    tabs/UsersTab         用户管理 tab
+    tabs/UsersTab         用户与权限 tab
     hooks/                5 个状态机 hook
     modals/{CoverModal,
             ResetLinkModal}

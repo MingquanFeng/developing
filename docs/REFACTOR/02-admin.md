@@ -1,5 +1,26 @@
 # 后台架构说明（PR-4 + PR-5 后）
 
+## 名字与分组
+
+这个控制台叫「**工作室**」（logo 单字「室」，浏览器标题「工作室 — 塞上空许」）。
+以前叫「相册」—— 名不副实：壳里装着首页文案、站点 meta、用户账号，不只是照片。
+
+侧边栏因此分三组：
+
+| 组 | 项 |
+| --- | --- |
+| 内容 | 仪表盘 / 照片管理 / 相册分类 |
+| 站点 | 站点内容 |
+| 管理 | 用户与权限 |
+
+两组只给 admin 看（viewer 只有「内容」组）。分组在窄屏（≤700px）用
+`display: contents` 摊平成横排 —— 否则组会竖着堆。
+
+「系统设置」这个 tab 改名「**站点内容**」：它管的是公开站点的内容
+（首页九幕文案 + 封面 + 站点 meta），不是配置开关。tab 的 key 仍是
+`system`（内部标识，改它要动 `AdminTab` 联合类型 + AdminApp 的分支，
+没必要）。
+
 ## 目标
 
 `/admin` 是运行时 SPA：用户在浏览器操作，所有 IO 走 `/api/*` 与服务端交互。前后端类型契约由 `lib/contracts.ts` 单点定义；后台客户端 SDK 集中所有 fetch + 错误处理；AdminApp 拆为协调器 + 5 个 hooks + 7 个子组件。
@@ -62,7 +83,7 @@ AdminApp.tsx          (234 行协调器)
 ├─ LoginForm          username/password/busy 受控 + 错误展示
 ├─ AdminShell         顶栏 + notice + DropZone + queue + tabs + 当前 tab
 │   ├─ 内联 CoversPanel     封面 tab 内容（30 行不值得独立文件）
-│   ├─ tabs/UsersTab        用户管理（调 useUsersPanel hook）
+│   ├─ tabs/UsersTab        用户与权限（调 useUsersPanel hook）
 │   ├─ DropZone             拖拽上传
 │   └─ PhotoRow             行内编辑（标题/地点/相册/公开私有）
 ├─ modals/CoverModal        选 album 封面
@@ -117,7 +138,7 @@ hooks 的返回值是 plain object，传 props 给子组件。Context 收益是�
 | `PhotoRow.tsx` | 单行编辑 | 125 |
 | `DropZone.tsx` | 拖拽区 | 63 |
 | `Frame.tsx` | 极简外壳 + Block | 30 |
-| `tabs/UsersTab.tsx` | 用户管理（含内联 UserRow） | 207 |
+| `tabs/UsersTab.tsx` | 用户与权限（含内联 UserRow） | 207 |
 | `modals/CoverModal.tsx` | 选封面弹层 | 133 |
 | `modals/ResetLinkModal.tsx` | 重置链接弹层 | 71 |
 | `hooks/useAdminSession.ts` | 会话状态机 | 128 |
@@ -135,9 +156,9 @@ hooks 的返回值是 plain object，传 props 给子组件。Context 收益是�
 3. `AdminShell.tsx` 的 tab + render 分支加一项；
 4. `AdminTab` 类型联扩展（联合成员）。
 
-## 系统设置：从「表单」到「版本管理」（2026-10）
+## 站点内容：从「表单」到「版本管理」（2026-10）
 
-系统设置 tab 现在有两块：**封面管理**（CoversPanel，选 series 相册封面）
+站点内容 tab 现在有两块：**封面管理**（CoversPanel，选 series 相册封面）
 + **内容版本管理**（HomeContentPanel）。
 
 ### 内容版本管理的主从布局

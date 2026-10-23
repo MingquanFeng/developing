@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * CoversPanel —— "系统设置" tab 的封面管理节
+ * CoversPanel —— 「站点内容」tab 的封面管理节
  * ------------------------------------------------------------------
  * 从 AdminShell.tsx 内联拆出（30 行，搬成独立文件后 AdminShell 更瘦）。
  * 列每个 album 当前的 coverKey + 提供"设/改封面"按钮。

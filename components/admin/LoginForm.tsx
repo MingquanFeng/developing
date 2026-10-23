@@ -46,12 +46,12 @@ export default function LoginForm({
       </div>
 
       <section className="acct-card">
-        <span className="acct-kicker">— 相册 / 登录</span>
+        <span className="acct-kicker">— 工作室 / 登录</span>
         <h1 className="acct-title">
-          <em>相册</em>
+          <em>工作室</em>
         </h1>
         <p className="acct-lede">
-          登录以管理照片、清单与用户。改密与踢人均在「账户」页可自助完成。
+          登录以管理照片、站点内容与用户。改密与踢人均在「账户」页可自助完成。
         </p>
 
         <form className="acct-form" onSubmit={handleSubmit} noValidate>

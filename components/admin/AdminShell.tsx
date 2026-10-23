@@ -7,12 +7,14 @@
  *   1. 左侧 sidebar（240px 固定）: logo+title + nav + 底部状态
  *   2. 右侧 main 内: TopBar（搜索/铃铛/头像）+ hero + 当前 nav 的内容
  *
- * nav 项 → AdminTab 映射（admin 比 viewer 多 2 项）：
+ * nav 分三组（admin 比 viewer 多「站点」「管理」两组）：
+ *
+ * nav 项 → AdminTab 映射：
  *   home    — 仪表盘：Hero + 大上传区 + 装饰卡
  *   photos  — 照片管理（顶部子筛选全部/回收站切换）
  *   albums  — 相册分类（AlbumsTab，viewer + admin 可见）
- *   users   — 用户管理（admin-only：UsersTab）
- *   system  — 系统设置（admin-only：CoversPanel 封面选择）
+ *   users   — 用户与权限（admin-only：UsersTab）
+ *   system  — 站点内容（admin-only：封面管理 + 内容版本管理）
  *
  * DropZone 大块视觉只挂在 home tab；整页 window-level drag-drop 由
  * AdminApp 顶层 useGlobalFileDrop 接管，所有 nav 都能响应文件拖入。
@@ -280,21 +282,33 @@ export default function AdminShell(props: AdminShellProps) {
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [recentPhotos.map((p) => p.id).join("|")]);
 
-  /* sidebar nav 项（按角色裁剪）：
-     viewer：home / photos / albums 三项；
-     admin：在 albums 之后追加 users（用户管理），再追加 system（系统设置）。 */
-  const navItems: Array<{
-    key: AdminTab;
-    label: string;
-    count?: number;
-  }> = [
-    { key: "home", label: "首页" },
-    { key: "photos", label: "照片管理", count: photoCount },
-    { key: "albums", label: "相册分类", count: albumCount },
+  /* sidebar nav 分组（按角色裁剪）：
+     viewer：只有「内容」组（仪表盘 / 照片管理 / 相册分类）；
+     admin：再加「站点」（站点内容）与「管理」（用户与权限）两组。
+
+     分组不是为了好看 —— 是为了让「照片」和「站点内容 / 账号」在视觉上
+     分开：这个控制台以前叫「相册」，壳里却装着首页文案和用户管理，
+     名字骗人。改叫「工作室」之后，分组让归属一眼可辨。 */
+  type NavItem = { key: AdminTab; label: string; count?: number };
+  const navGroups: Array<{ label: string; items: NavItem[] }> = [
+    {
+      label: "内容",
+      items: [
+        { key: "home", label: "仪表盘" },
+        { key: "photos", label: "照片管理", count: photoCount },
+        { key: "albums", label: "相册分类", count: albumCount },
+      ],
+    },
   ];
   if (me.role === "admin") {
-    navItems.push({ key: "users", label: "用户管理" });
-    navItems.push({ key: "system", label: "系统设置" });
+    navGroups.push({
+      label: "站点",
+      items: [{ key: "system", label: "站点内容" }],
+    });
+    navGroups.push({
+      label: "管理",
+      items: [{ key: "users", label: "用户与权限" }],
+    });
   }
 
   const heroUser = me.displayName || me.username || "管理员";
@@ -308,24 +322,28 @@ export default function AdminShell(props: AdminShellProps) {
       {/* ---------- 左侧 sidebar ---------- */}
       <aside className={styles.sidebar} aria-label="侧边导航">
         <div className={styles.sidebarTop}>
-          <span className={styles.sidebarLogo}>相</span>
-          <span className={styles.sidebarTitle}>相册</span>
+          <span className={styles.sidebarLogo}>室</span>
+          <span className={styles.sidebarTitle}>工作室</span>
         </div>
 
         <nav className={styles.sidebarNav}>
-          <span className={styles.navLabel}>导航</span>
-          {navItems.map((it) => (
-            <button
-              key={it.key}
-              type="button"
-              className={`${styles.navItem} ${tab === it.key ? styles.navItemOn : ""}`}
-              onClick={() => onTab(it.key)}
-            >
-              <span>{it.label}</span>
-              {typeof it.count === "number" ? (
-                <span className={styles.navCount}>{it.count}</span>
-              ) : null}
-            </button>
+          {navGroups.map((g) => (
+            <div key={g.label} className={styles.navGroup}>
+              <span className={styles.navLabel}>{g.label}</span>
+              {g.items.map((it) => (
+                <button
+                  key={it.key}
+                  type="button"
+                  className={`${styles.navItem} ${tab === it.key ? styles.navItemOn : ""}`}
+                  onClick={() => onTab(it.key)}
+                >
+                  <span>{it.label}</span>
+                  {typeof it.count === "number" ? (
+                    <span className={styles.navCount}>{it.count}</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
 

@@ -1434,6 +1434,12 @@
   flex-direction: column;
   gap: 2px;
 }
+/* nav 分组（内容 / 站点 / 管理）—— 每组一个副标题 + 若干项 */
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .navLabel {
   font-family: var(--mono);
   font-size: 10.5px;
@@ -2047,6 +2053,9 @@
   }
   .sidebarNav::-webkit-scrollbar { display: none; }
   .navLabel { display: none; }   /* "管理" 副标题隐藏 */
+  /* 分组在横排布局里不参与排版（display: contents 让组内的按钮
+     直接成为 .sidebarNav 的 flex 子项）—— 否则分组会竖着堆 */
+  .navGroup { display: contents; }
   .navItem {
     flex: 1;
     justify-content: center;

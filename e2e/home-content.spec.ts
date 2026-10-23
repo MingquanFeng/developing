@@ -1,13 +1,13 @@
 /**
  * 首页内容后台动态化 —— E2E 主流程
  * ------------------------------------------------------------------
- * 走真实 Chromium：admin 登录 → 系统设置 → 改首页内容 → 保存 → 回首页
+ * 走真实 Chromium：admin 登录 → 站点内容 → 改首页内容 → 保存 → 回首页
  * 验证 → 重置为默认 → 验证回落。
  *
  * 这层补的是 vitest / smoke 覆盖不到的部分：**真实浏览器里的交互**
  * （左栏选块、版本列表、input 事件、React 受控组件、ConfirmModal 点击流）。
  *
- * 后台「系统设置」现在是主从布局：
+ * 后台「站点内容」现在是主从布局：
  *   左栏 = 12 个内容块（ul[aria-label="内容块列表"]）
  *   右栏 = 版本历史（ul[aria-label="版本历史"]）+「编辑内容」按钮
  *   编辑器 = 弹框（点按钮才打开，不内联在右栏里）
@@ -36,11 +36,11 @@ async function login(page: Page): Promise<void> {
   await expect(sidebar).toBeVisible();
 }
 
-/** 进「系统设置」tab */
+/** 进「站点内容」tab */
 async function openSystemTab(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "系统设置" }).click();
+  await page.getByRole("button", { name: "站点内容" }).click();
   await expect(
-    page.getByRole("heading", { name: "系统设置" }),
+    page.getByRole("heading", { name: "站点内容" }),
   ).toBeVisible();
 }
 
@@ -167,7 +167,7 @@ test.describe("首页内容后台动态化", () => {
     await expect(page.getByRole("heading", { name: /至静/ })).toBeVisible();
   });
 
-  test("admin 登录后能进系统设置，左栏列出 12 个内容块", async ({
+  test("admin 登录后能进站点内容，左栏列出 12 个内容块", async ({
     page,
   }) => {
     await login(page);
